@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 const ACCESS_KEY = "insw-pages-access";
 const metaEnv = import.meta as unknown as { env?: { PROD?: boolean; VITE_PAGES_ACCESS_CODE?: string; VITE_REQUIRE_PASSKEY?: string } };
 const ACCESS_CODE = metaEnv.env?.VITE_PAGES_ACCESS_CODE?.trim() || "insw2026";
-const REQUIRE_PASSPHRASE = Boolean(metaEnv.env?.PROD) && metaEnv.env?.VITE_REQUIRE_PASSKEY === "true";
+const REQUIRE_PASSPHRASE = metaEnv.env?.VITE_REQUIRE_PASSKEY === "true";
 
 function isLocalHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
+function isProtectedHost(hostname: string) {
+  return hostname.endsWith("github.io") || hostname.endsWith("githubusercontent.com");
 }
 
 function LockIcon() {
@@ -18,27 +22,15 @@ function LockIcon() {
 }
 
 export function AccessGate({ children }: { children: ReactNode }) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [unlocked, setUnlocked] = useState(true);
+  const shouldProtect =
+    typeof window !== "undefined" &&
+    REQUIRE_PASSPHRASE &&
+    !isLocalHost(window.location.hostname) &&
+    isProtectedHost(window.location.hostname);
+
+  const [unlocked, setUnlocked] = useState(() => !shouldProtect || window.localStorage.getItem(ACCESS_KEY) === "unlocked");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setIsMounted(true);
-    const protectedBuild = REQUIRE_PASSPHRASE && !isLocalHost(window.location.hostname);
-    if (!protectedBuild) {
-      setUnlocked(true);
-      return;
-    }
-
-    const stored = window.localStorage.getItem(ACCESS_KEY);
-    setUnlocked(stored === "unlocked");
-  }, []);
-
-  const protectedBuild = useMemo(() => {
-    if (!isMounted) return false;
-    return REQUIRE_PASSPHRASE && !isLocalHost(window.location.hostname);
-  }, [isMounted]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,7 +51,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     setError("");
   };
 
-  if (!protectedBuild || unlocked) {
+  if (!shouldProtect || unlocked) {
     return <>{children}</>;
   }
 
