@@ -1,4 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { AccessGate } from "./AccessGate";
 import { ShellFooter } from "./ShellFooter";
 import { ShellHeader } from "./ShellHeader";
 
@@ -20,12 +21,14 @@ export function AppLayout() {
     ) : undefined;
 
   return (
-    <div className="flex min-h-full flex-col bg-background-secondary">
-      <ShellHeader breadcrumb={breadcrumb} action={action} />
-      <main className="flex-1 overflow-visible px-3 py-2 text-[clamp(5px,1vw,12px)] sm:px-4 sm:py-3">
-        <Outlet />
-      </main>
-      <ShellFooter />
-    </div>
+    <AccessGate>
+      <div className="flex min-h-full flex-col bg-background-secondary">
+        <ShellHeader breadcrumb={breadcrumb} action={action} />
+        <main className="flex-1 overflow-visible px-3 py-2 text-[clamp(5px,1vw,12px)] sm:px-4 sm:py-3">
+          <Outlet />
+        </main>
+        <ShellFooter />
+      </div>
+    </AccessGate>
   );
 }

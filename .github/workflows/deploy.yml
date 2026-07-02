@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAGES: "true"
+      VITE_REQUIRE_PASSKEY: "true"
+      VITE_PAGES_ACCESS_CODE: "insw2026"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
