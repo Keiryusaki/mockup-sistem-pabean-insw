@@ -19,7 +19,7 @@ jobs:
     env:
       GITHUB_PAGES: "true"
       VITE_REQUIRE_PASSKEY: "true"
-      VITE_PAGES_ACCESS_CODE: "insw2026"
+      VITE_PAGES_ACCESS_CODE: "M0ckup#insw2026"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

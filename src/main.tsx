@@ -6,7 +6,7 @@ import { router } from "./router";
 import "./styles.css";
 
 const ACCESS_KEY = "insw-pages-access";
-const ACCESS_CODE = import.meta.env.VITE_PAGES_ACCESS_CODE?.trim() || "insw2026";
+const ACCESS_CODE = import.meta.env.VITE_PAGES_ACCESS_CODE?.trim() || "M0ckup#insw2026";
 const REQUIRES_PASSKEY = import.meta.env.VITE_REQUIRE_PASSKEY === "true";
 
 function isLocalHost(hostname: string) {
