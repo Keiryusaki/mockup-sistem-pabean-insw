@@ -5,12 +5,9 @@ import { ThemeProvider } from "@lnsw-ui/react";
 import { router } from "./router";
 import "./styles.css";
 
-const metaEnv = import.meta as unknown as {
-  env?: { VITE_REQUIRE_PASSKEY?: string; VITE_PAGES_ACCESS_CODE?: string };
-};
 const ACCESS_KEY = "insw-pages-access";
-const ACCESS_CODE = metaEnv.env?.VITE_PAGES_ACCESS_CODE?.trim() || "insw2026";
-const REQUIRES_PASSKEY = metaEnv.env?.VITE_REQUIRE_PASSKEY === "true";
+const ACCESS_CODE = import.meta.env.VITE_PAGES_ACCESS_CODE?.trim() || "insw2026";
+const REQUIRES_PASSKEY = import.meta.env.VITE_REQUIRE_PASSKEY === "true";
 
 function isLocalHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
