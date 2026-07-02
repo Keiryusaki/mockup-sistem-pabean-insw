@@ -18,9 +18,11 @@ function ChevronDownIcon() {
 }
 
 function LogoMark() {
+  const baseUrl = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
+
   return (
     <img
-      src="/lnswlogo-BtrvXW6X.png"
+      src={`${baseUrl}/lnswlogo-BtrvXW6X.png`}
       alt="Indonesia National Single Window"
       className="h-9 w-auto object-contain"
     />

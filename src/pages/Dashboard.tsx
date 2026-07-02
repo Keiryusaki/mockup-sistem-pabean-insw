@@ -161,7 +161,8 @@ const AI_WIZARD_STORAGE_KEY = "insw-smart-submission-assistant-draft";
 const FORM_SOURCE_STORAGE_KEY = "insw-form-source";
 const BC20_FORM_STORAGE_KEY = "insw-bc20-form-draft";
 const FORM_NOTICE_STORAGE_KEY = "insw-form-notice";
-const SAMPLE_DRAFT_PDF = "/sample-smart-draft.pdf";
+const BASE_URL = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
+const SAMPLE_DRAFT_PDF = `${BASE_URL}/sample-smart-draft.pdf`;
 const PDF_WORKER_URL = pdfWorkerUrl;
 
 const MANUAL_DOCUMENT_OPTIONS: ManualDocumentOption[] = [
