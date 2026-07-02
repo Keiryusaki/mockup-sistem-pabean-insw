@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/*
+  Design tokens diekstrak dari DS asli @lnsw-ui (Storybook 10.239.19.47).
+  Sumber: CSS hasil compile app demo LNSW Template (Tailwind v4).
+  Selama pakai shim, token ini bikin tampilan "mirip" DS aslinya.
+*/
+@theme {
+  /* Font */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand — biru INSW + kuning */
+  --color-brand-primary-50: #f1f5fb;
+  --color-brand-primary-100: #d3def0;
+  --color-brand-primary-300: #6d8fbc;
+  --color-brand-primary-400: #3d6ca2;
+  --color-brand-primary-500: #02275d;
+  --color-brand-primary-600: #01214e;
+  --color-brand-primary-700: #011b42;
+  --color-brand-secondary-500: #ffb300;
+  --color-brand-secondary-700: #996b00;
+
+  /* Neutral */
+  --color-neutral-50: #fafaf9;
+  --color-neutral-100: #ececec;
+  --color-neutral-200: #dbd8d8;
+  --color-neutral-300: #c5c5c5;
+  --color-neutral-400: #b1b1b1;
+  --color-neutral-600: #7f7e7e;
+  --color-neutral-700: #5f5f5f;
+  --color-neutral-800: #3f3f3f;
+
+  /* Semantic */
+  --color-background-primary: #fafaf9;
+  --color-background-secondary: #ececec;
+  --color-border-primary: #dbd8d8;
+  --color-border-secondary: #c5c5c5;
+  --color-success-300: #5fd0ab;
+  --color-success-600: #0d9a6b;
+  --color-error-500: #ef4444;
+  --color-error-600: #c73838;
+  --color-info-100: #b2e4f4;
+  --color-interactive-hover: #1aaee0;
+  --color-warning-500: #ffb300;
+
+  /* Radius */
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* Text */
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.h5,
+h5 {
+  font-size: 1.25rem;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-background-primary);
+  color: var(--color-neutral-800);
+}
+
+:root {
+  --shell-sticky-top: 84px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --shell-sticky-top: 92px;
+  }
+}
+
+.shell-header-top {
+  padding: 0.5rem !important;
+  box-sizing: border-box;
+}
