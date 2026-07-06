@@ -345,7 +345,7 @@ export function FeedbackWidget() {
               />
               <div
                 className={[
-                  "absolute bottom-4 right-4 z-[121] w-[min(92vw,392px)] overflow-hidden rounded-[20px] border border-border-primary bg-white shadow-[0_22px_60px_rgba(15,23,42,0.28)] transition-all duration-300 ease-out",
+                  "absolute bottom-4 right-4 z-[121] flex max-h-[calc(100vh-2rem)] w-[min(92vw,392px)] flex-col overflow-hidden rounded-[20px] border border-border-primary bg-white shadow-[0_22px_60px_rgba(15,23,42,0.28)] transition-all duration-300 ease-out",
                   activated ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0",
                 ].join(" ")}
               >
@@ -369,7 +369,7 @@ export function FeedbackWidget() {
                   </button>
                 </div>
 
-                <div className="max-h-[calc(100vh-7rem)] overflow-auto px-4 py-4">
+                <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
                   <div className="grid gap-3">
                     <Select
                       label="Jenis"
@@ -420,7 +420,7 @@ export function FeedbackWidget() {
                       </div>
 
                       {attachmentPreviews.length > 0 ? (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 max-h-[30vh] space-y-2 overflow-auto pr-1">
                           {attachmentPreviews.map((item) => (
                             <div key={item.key} className="overflow-hidden rounded-xl border border-border-primary bg-white shadow-sm">
                               <div className="flex items-center justify-between gap-3 px-3 py-2">
@@ -440,9 +440,9 @@ export function FeedbackWidget() {
                                 </button>
                               </div>
                               {item.isImage && item.url ? (
-                                <img src={item.url} alt={item.file.name} className="h-32 w-full object-cover" />
+                                <img src={item.url} alt={item.file.name} className="h-20 w-full object-cover" />
                               ) : (
-                                <div className="flex h-16 items-center justify-center bg-neutral-50 px-4 text-[12px] text-neutral-600">
+                                <div className="flex h-12 items-center justify-center bg-neutral-50 px-4 text-[12px] text-neutral-600">
                                   <div className="max-w-full truncate">{item.file.name}</div>
                                 </div>
                               )}
