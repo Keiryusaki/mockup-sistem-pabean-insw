@@ -18,6 +18,7 @@ type ProposalRow = {
   kirim: string;
   perusahaan: string;
   status: ProposalStatus;
+  canEditAfterReject?: boolean;
 };
 
 export const proposalRows: ProposalRow[] = [
@@ -48,6 +49,7 @@ export const proposalRows: ProposalRow[] = [
     kirim: "05-06-2026",
     perusahaan: "1234567890123456000000 - Test",
     status: "Ditolak",
+    canEditAfterReject: false,
   },
   {
     pengajuan: "2011642ED12320260605000004",
@@ -62,6 +64,7 @@ export const proposalRows: ProposalRow[] = [
     kirim: "04-06-2026",
     perusahaan: "1234567890123456000000 - SAMPLE TECH",
     status: "Ditolak",
+    canEditAfterReject: true,
   },
 ];
 
@@ -3780,7 +3783,7 @@ export function ProposalListTable({
                         <ProgressIcon className="h-4 w-4" />
                       </Button>
                     ) : null}
-                    {row.status === "Draft" || row.status === "Ditolak" ? (
+                    {row.status === "Draft" || (row.status === "Ditolak" && row.canEditAfterReject) ? (
                       <Button
                         aria-label={`Edit ${row.pengajuan}`}
                         size="sm"
