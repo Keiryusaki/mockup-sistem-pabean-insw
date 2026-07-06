@@ -87,6 +87,7 @@ export function FeedbackWidget() {
   const { location } = useRouterState();
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>("Masukan");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -98,6 +99,7 @@ export function FeedbackWidget() {
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const openRafRef = useRef<number | null>(null);
 
   const currentRouteLabel = location.pathname === "/" ? "Dashboard" : location.pathname;
   const currentUrl = typeof window !== "undefined" ? window.location.href : currentRouteLabel;
@@ -119,10 +121,20 @@ export function FeedbackWidget() {
         closeTimerRef.current = null;
       }
       setRendered(true);
+      setActivated(false);
+      if (openRafRef.current) {
+        window.cancelAnimationFrame(openRafRef.current);
+      }
+      openRafRef.current = window.requestAnimationFrame(() => {
+        setActivated(true);
+        openRafRef.current = null;
+      });
       return;
     }
 
     if (!rendered) return;
+
+    setActivated(false);
 
     closeTimerRef.current = window.setTimeout(() => {
       setRendered(false);
@@ -133,6 +145,10 @@ export function FeedbackWidget() {
       if (closeTimerRef.current) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
+      }
+      if (openRafRef.current) {
+        window.cancelAnimationFrame(openRafRef.current);
+        openRafRef.current = null;
       }
     };
   }, [open, rendered]);
@@ -318,7 +334,7 @@ export function FeedbackWidget() {
             <div
               className={[
                 "fixed inset-0 z-[120] bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-300 ease-out",
-                open ? "opacity-100" : "opacity-0",
+                activated ? "opacity-100" : "opacity-0",
               ].join(" ")}
             >
               <button
@@ -330,7 +346,7 @@ export function FeedbackWidget() {
               <div
                 className={[
                   "absolute bottom-4 right-4 z-[121] w-[min(92vw,392px)] overflow-hidden rounded-[20px] border border-border-primary bg-white shadow-[0_22px_60px_rgba(15,23,42,0.28)] transition-all duration-300 ease-out",
-                  open ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0",
+                  activated ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0",
                 ].join(" ")}
               >
                 <div className="flex items-start justify-between gap-3 border-b border-border-primary px-4 py-3">
