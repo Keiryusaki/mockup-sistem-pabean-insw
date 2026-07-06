@@ -47,6 +47,13 @@ const sections: TocSection[] = [
     badge: "blocker",
     icon: <MagniferIcon className="h-4 w-4" />,
   },
+  {
+    id: "loading",
+    title: "Loading State",
+    description: "Skeleton lokal untuk preview kondisi loading sebelum data tampil penuh.",
+    badge: "foundation",
+    icon: <DocumentsIcon className="h-4 w-4" />,
+  },
 ];
 
 type ColorSwatch = {
@@ -932,6 +939,40 @@ export function ComponentDocsPage() {
                 </div>
               </div>
             </Modal>
+          </Section>
+
+          <Section
+            id="loading"
+            title="Loading State"
+            badge="foundation"
+            description="Skeleton lokal untuk nunggu data tanpa bikin layout lompat."
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Company profile</div>
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="h-14 w-14 animate-pulse rounded-full bg-neutral-100" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-4 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-3 w-full animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-3 w-5/6 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">List skeleton</div>
+                <div className="mt-4 space-y-3">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="rounded-xl border border-border-primary bg-neutral-50 p-3">
+                      <div className="h-3 w-20 animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-100" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </Section>
 
           <Section

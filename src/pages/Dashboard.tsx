@@ -71,8 +71,6 @@ export const proposalRows: ProposalRow[] = [
 const menuItems = [
   { to: "/", label: "Dashboard" },
   { to: "/data", label: "Data Pengajuan" },
-  { to: "/form", label: "Form Pengajuan" },
-  { to: "/loading", label: "Loading State" },
 ];
 
 const stats = [
@@ -3789,6 +3787,7 @@ export function ProposalListTable({
                         size="sm"
                         variant="warning"
                         className="h-8 w-8 justify-center px-0"
+                        onClick={() => navigate({ to: "/form" })}
                       >
                         <PenNewSquareIcon className="h-4 w-4" />
                       </Button>
