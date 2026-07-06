@@ -5,16 +5,20 @@ import { ShellHeader } from "./ShellHeader";
 const BREADCRUMBS: Record<string, string> = {
   "/": "Dashboard / Ringkasan Pengajuan",
   "/data": "Data Pengajuan / Daftar Pengajuan",
+  "/progress": "Data Pengajuan / Progress Pengajuan",
   "/form": "Form Pengajuan",
   "/loading": "Loading State",
+  "/component": "Live Docs / Komponen Lokal",
+  "/icon": "Live Docs / Icon Set",
+  "/changelog": "Info / Change Log",
 };
 
 export function AppLayout() {
   const { location } = useRouterState();
   const breadcrumb = BREADCRUMBS[location.pathname] ?? "Mockup";
   const action =
-    location.pathname === "/form" ? (
-      <Link to="/data" className="text-white/90 transition-colors hover:text-white">
+    location.pathname === "/form" || location.pathname === "/progress" ? (
+      <Link to="/data" search={{ status: undefined } as never} className="text-white/90 transition-colors hover:text-white">
         &lt; Kembali
       </Link>
     ) : undefined;

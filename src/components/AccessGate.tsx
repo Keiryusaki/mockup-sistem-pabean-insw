@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Button } from "./Button";
 
-const ACCESS_KEY = "insw-pages-access";
+export const ACCESS_KEY = "insw-pages-access";
 const metaEnv = import.meta as unknown as { env?: { PROD?: boolean; VITE_PAGES_ACCESS_CODE?: string; VITE_REQUIRE_PASSKEY?: string } };
 const ACCESS_CODE = metaEnv.env?.VITE_PAGES_ACCESS_CODE?.trim() || "insw2026";
 const REQUIRE_PASSPHRASE = metaEnv.env?.VITE_REQUIRE_PASSKEY === "true";
@@ -92,19 +93,12 @@ export function AccessGate({ children }: { children: ReactNode }) {
           )}
 
           <div className="mt-6 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex h-11 items-center justify-center rounded-md border border-border-primary px-4 text-[12px] font-medium text-neutral-700 transition-colors hover:border-error-400 hover:bg-error-500/10 hover:text-error-600"
-            >
+            <Button type="button" variant="outline" size="lg" onClick={handleReset} className="border-border-primary text-neutral-700 hover:border-error-400 hover:bg-error-500/10 hover:text-error-600">
               Reset
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-            >
+            </Button>
+            <Button type="submit" size="lg">
               Buka Akses
-            </button>
+            </Button>
           </div>
         </form>
       </div>

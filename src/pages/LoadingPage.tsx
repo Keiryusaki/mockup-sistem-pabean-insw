@@ -1,5 +1,6 @@
-import { Card, CardHeader, Text, Skeleton, SkeletonGroup, Button } from "@lnsw-ui/react";
+import { Card, CardHeader, Text, Skeleton, SkeletonGroup } from "@lnsw-ui/react";
 import { useEffect, useState } from "react";
+import { Button } from "../components/Button";
 
 export function LoadingPage() {
   const [loading, setLoading] = useState(true);

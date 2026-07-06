@@ -40,22 +40,21 @@ export function Text({ size = "md", weight = "normal", muted, as = "p", classNam
 
 /* ---------------- Button ----------------------------------- */
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "accent" | "outline" | "ghost" | "error";
   size?: "sm" | "md" | "lg";
   fullWidth?: boolean;
 };
 export function Button({ variant = "primary", size = "md", fullWidth, className, ...p }: ButtonProps) {
-  const base =
-    "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-primary-300";
   const variants = {
-    primary: "bg-brand-primary-500 text-white hover:bg-brand-primary-600",
-    secondary: "bg-brand-secondary-500 text-neutral-800 hover:bg-brand-secondary-700 hover:text-white",
-    outline: "border border-brand-primary-500 text-brand-primary-500 hover:bg-brand-primary-50",
-    ghost: "text-brand-primary-500 hover:bg-brand-primary-50",
-    danger: "bg-error-500 text-white hover:bg-error-600",
+    primary: "insw-btn--primary-solid",
+    secondary: "insw-btn--secondary-neutral",
+    accent: "insw-btn--accent-solid",
+    outline: "insw-btn--outline",
+    ghost: "insw-btn--ghost",
+    error: "insw-btn--error",
   };
-  const sizes = { sm: "h-8 px-3 text-sm", md: "h-10 px-4 text-sm", lg: "h-12 px-6 text-base" };
-  return <button className={cx(base, variants[variant], sizes[size], fullWidth && "w-full", className)} {...p} />;
+  const sizes = { sm: "insw-btn--sm", md: "insw-btn--md", lg: "insw-btn--lg" };
+  return <button className={cx("insw-btn", variants[variant], sizes[size], fullWidth && "insw-btn--full", className)} {...p} />;
 }
 
 /* ---------------- Input / Textarea ------------------------- */
@@ -154,8 +153,8 @@ export function Badge({ variant = "neutral", className, ...p }: BadgeProps) {
   const variants = {
     primary: "bg-brand-primary-50 text-brand-primary-600",
     success: "bg-success-300/30 text-success-600",
-    warning: "bg-brand-secondary-500/20 text-brand-secondary-700",
-    error: "bg-error-500/15 text-error-600",
+    warning: "bg-warning-100 text-warning-600",
+    error: "bg-error-100 text-error-600",
     neutral: "bg-neutral-100 text-neutral-700",
   };
   return <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold", variants[variant], className)} {...p} />;
@@ -166,10 +165,10 @@ export const Tag = Badge;
 type AlertProps = { variant?: "info" | "success" | "warning" | "error" | "neutral"; title?: string; children?: React.ReactNode };
 export function Alert({ variant = "info", title, children }: AlertProps) {
   const styles = {
-    info: "bg-info-100/50 border-interactive-hover text-neutral-800",
-    success: "bg-success-300/20 border-success-600 text-neutral-800",
-    warning: "bg-brand-secondary-500/15 border-brand-secondary-500 text-neutral-800",
-    error: "bg-error-500/10 border-error-500 text-neutral-800",
+    info: "bg-info-100/50 border-info-600 text-neutral-800",
+    success: "bg-success-100 border-success-600 text-neutral-800",
+    warning: "bg-warning-100 border-warning-600 text-neutral-800",
+    error: "bg-error-100 border-error-500 text-neutral-800",
     neutral: "bg-neutral-100 border-border-secondary text-neutral-800",
   };
   return (

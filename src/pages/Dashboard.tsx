@@ -1,36 +1,67 @@
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Viewer, Worker } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import { Button } from "../components/Button";
+import { CopyIcon, EyeIcon, PenNewSquareIcon, ProgressIcon, TrashBinTrashIcon } from "../components/Icons";
+import { Input, Select } from "../components/FormControls";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 
-export const proposalRows = [
+type ProposalStatus = "Draft" | "Proses" | "Disetujui" | "Ditolak";
+
+type ProposalRow = {
+  pengajuan: string;
+  dokumen: string;
+  kirim: string;
+  perusahaan: string;
+  status: ProposalStatus;
+};
+
+export const proposalRows: ProposalRow[] = [
   {
     pengajuan: "2012342ED12320260606000001",
+    dokumen: "BC 2.0 - PIB Impor",
     kirim: "06-06-2026",
     perusahaan: "0027681030529000000000 - PERWIRA MULIA SEMESTA",
+    status: "Disetujui",
   },
   {
     pengajuan: "2010142ED12320260606000001",
+    dokumen: "BC 2.3 - PIB Ekspor",
     kirim: "06-06-2026",
     perusahaan: "1234567890123456000000 - test",
+    status: "Proses",
   },
   {
     pengajuan: "201202BE4BC020260606000001",
+    dokumen: "BC 2.7 - PEB",
     kirim: "06-06-2026",
     perusahaan: "0809692049081000000000 - TEST",
+    status: "Draft",
   },
   {
     pengajuan: "2011642ED12320260605000005",
+    dokumen: "BC 2.0 - PIB Impor",
     kirim: "05-06-2026",
     perusahaan: "1234567890123456000000 - Test",
+    status: "Ditolak",
   },
   {
     pengajuan: "2011642ED12320260605000004",
+    dokumen: "BC 2.16 - Lartas",
     kirim: "05-06-2026",
     perusahaan: "1234567890123456000000 - DASINDO",
+    status: "Disetujui",
+  },
+  {
+    pengajuan: "2011642ED12320260605000003",
+    dokumen: "BC 2.3 - PIB Ekspor",
+    kirim: "04-06-2026",
+    perusahaan: "1234567890123456000000 - SAMPLE TECH",
+    status: "Ditolak",
   },
 ];
 
@@ -42,11 +73,79 @@ const menuItems = [
 ];
 
 const stats = [
-  { label: "Draft", value: "18", accent: "bg-brand-primary-50 text-brand-primary-600" },
-  { label: "Proses", value: "11", accent: "bg-info-100/60 text-neutral-800" },
-  { label: "Disetujui", value: "84", accent: "bg-success-300/30 text-success-600" },
-  { label: "Ditolak", value: "4", accent: "bg-error-500/10 text-error-600" },
+  {
+    label: "Draft",
+    value: "18",
+    cardTone: "border-brand-primary-100 bg-brand-primary-50/80",
+    hoverTone: "hover:border-brand-primary-200 hover:bg-brand-primary-100",
+    textTone: "text-brand-primary-800",
+    badgeTone: "bg-brand-primary-500 text-white",
+    filter: "Draft",
+  },
+  {
+    label: "Proses",
+    value: "11",
+    cardTone: "border-info-100 bg-info-50/80",
+    hoverTone: "hover:border-info-200 hover:bg-info-100",
+    textTone: "text-info-800",
+    badgeTone: "bg-info-600 text-white",
+    filter: "Proses",
+  },
+  {
+    label: "Disetujui",
+    value: "84",
+    cardTone: "border-success-100 bg-success-50/80",
+    hoverTone: "hover:border-success-200 hover:bg-success-100",
+    textTone: "text-success-800",
+    badgeTone: "bg-success-600 text-white",
+    filter: "Disetujui",
+  },
+  {
+    label: "Ditolak",
+    value: "4",
+    cardTone: "border-error-100 bg-error-50/80",
+    hoverTone: "hover:border-error-200 hover:bg-error-100",
+    textTone: "text-error-800",
+    badgeTone: "bg-error-600 text-white",
+    filter: "Ditolak",
+  },
 ];
+
+const proposalStatusMeta: Record<
+  "Semua" | ProposalStatus,
+  { label: string; tone: string; activeTone: string; borderTone: string }
+> = {
+  Semua: {
+    label: "Semua",
+    tone: "bg-neutral-50 text-neutral-700",
+    activeTone: "bg-neutral-800 text-white",
+    borderTone: "border-neutral-200",
+  },
+  Draft: {
+    label: "Draft",
+    tone: "bg-brand-primary-50 text-brand-primary-700",
+    activeTone: "bg-brand-primary-500 text-white",
+    borderTone: "border-brand-primary-100",
+  },
+  Proses: {
+    label: "Proses",
+    tone: "bg-info-50 text-info-700",
+    activeTone: "bg-info-600 text-white",
+    borderTone: "border-info-100",
+  },
+  Disetujui: {
+    label: "Disetujui",
+    tone: "bg-success-50 text-success-700",
+    activeTone: "bg-success-600 text-white",
+    borderTone: "border-success-100",
+  },
+  Ditolak: {
+    label: "Ditolak",
+    tone: "bg-error-50 text-error-700",
+    activeTone: "bg-error-600 text-white",
+    borderTone: "border-error-100",
+  },
+};
 
 const suratExamples = [
   {
@@ -75,7 +174,7 @@ const suratExamples = [
   },
 ];
 
-type WizardStep = "kebutuhan" | "identifikasi" | "dokumen" | "draft" | "konfirmasi";
+type WizardStep = "identifikasi" | "dokumen" | "parsing";
 type NeedChoice = "pemasukan" | "pengeluaran" | "lainnya";
 type DetailChoice = "impor_barang" | "pemasukan_kek" | "lainnya_pemasukan" | "ekspor_barang" | "pengeluaran_kek" | "lainnya_pengeluaran" | "barang_masuk" | "barang_keluar" | "kawasan_ekonomi_khusus";
 
@@ -120,6 +219,21 @@ type UploadedPreviewRow = {
   field: string;
   value: string;
   note: string;
+};
+
+type ParseSourcePreview = {
+  id: string;
+  label: string;
+  fileName: string;
+  kind: "pdf" | "image" | "spreadsheet";
+};
+
+type ParseMappingRow = {
+  seri: string;
+  uraian: string;
+  hsCode: string;
+  quantity: string;
+  source: ParseSourcePreview;
 };
 
 type FormStateSnapshot = {
@@ -220,11 +334,9 @@ const UPLOAD_MOCK_PREVIEW: UploadedPreviewRow[] = [
 ];
 
 const STEP_LABELS: Array<{ key: WizardStep; label: string; icon: string }> = [
-  { key: "kebutuhan", label: "Kebutuhan", icon: "1" },
-  { key: "identifikasi", label: "Identifikasi", icon: "2" },
-  { key: "dokumen", label: "Dokumen", icon: "3" },
-  { key: "draft", label: "Smart Draft", icon: "4" },
-  { key: "konfirmasi", label: "Konfirmasi", icon: "5" },
+  { key: "identifikasi", label: "Identifikasi", icon: "1" },
+  { key: "dokumen", label: "Upload Data Barang", icon: "2" },
+  { key: "parsing", label: "Data Parsing", icon: "3" },
 ];
 
 const INITIAL_PROMPT = "Halo! Saya Smart Submission Assistant INSW. Untuk memulai, apa yang ingin Anda lakukan?";
@@ -355,21 +467,6 @@ const FLOW_QUESTIONS: Record<Exclude<ActivityChoice, "tidak_yakin">, FlowQuestio
         { key: "tidak_tahu", label: "Tidak Tahu" },
       ],
     },
-    {
-      id: "dokumen",
-      prompt: "Apakah Anda sudah memiliki dokumen berikut?",
-      multi: true,
-      options: [
-        { key: "invoice", label: "Invoice" },
-        { key: "packing_list", label: "Packing List" },
-        { key: "nib", label: "NIB" },
-        { key: "npwp", label: "NPWP" },
-        { key: "bl", label: "Bill of Lading" },
-        { key: "coo", label: "COO" },
-        { key: "peb", label: "PIB / PEB" },
-        { key: "lainnya", label: "Lainnya" },
-      ],
-    },
   ],
   barang_masuk: [
     {
@@ -410,21 +507,6 @@ const FLOW_QUESTIONS: Record<Exclude<ActivityChoice, "tidak_yakin">, FlowQuestio
         { key: "tidak_tahu", label: "Tidak Tahu" },
       ],
     },
-    {
-      id: "dokumen",
-      prompt: "Apakah Anda sudah memiliki dokumen berikut?",
-      multi: true,
-      options: [
-        { key: "invoice", label: "Invoice" },
-        { key: "packing_list", label: "Packing List" },
-        { key: "nib", label: "NIB" },
-        { key: "npwp", label: "NPWP" },
-        { key: "bl", label: "Bill of Lading" },
-        { key: "coo", label: "COO" },
-        { key: "peb", label: "PIB / PEB" },
-        { key: "lainnya", label: "Lainnya" },
-      ],
-    },
   ],
   kek: [
     {
@@ -463,26 +545,37 @@ const FLOW_QUESTIONS: Record<Exclude<ActivityChoice, "tidak_yakin">, FlowQuestio
         { key: "tidak_tahu", label: "Tidak Tahu" },
       ],
     },
-    {
-      id: "dokumen",
-      prompt: "Apakah Anda sudah memiliki dokumen berikut?",
-      multi: true,
-      options: [
-        { key: "nib", label: "NIB" },
-        { key: "npwp", label: "NPWP" },
-        { key: "invoice", label: "Invoice" },
-        { key: "packing_list", label: "Packing List" },
-        { key: "surat_kek", label: "Surat Keterangan KEK" },
-        { key: "lainnya", label: "Lainnya" },
-      ],
-    },
   ],
 };
 
 const REQUIRED_DOCUMENTS: Record<Exclude<ActivityChoice, "tidak_yakin">, string[]> = {
-  barang_masuk: ["Invoice", "Packing List", "NIB", "NPWP", "Bill of Lading", "COO", "PIB / PEB"],
-  barang_keluar: ["Invoice", "Packing List", "NIB", "NPWP", "Bill of Lading", "COO", "PIB / PEB"],
-  kek: ["NIB", "NPWP", "Invoice", "Packing List", "Surat Keterangan KEK"],
+  barang_masuk: [
+    "Invoice",
+    "Packing List",
+    "Catalogue / Brosur Produk",
+    "Specification Sheet",
+    "Certificate / Test Report",
+    "Foto Barang",
+    "Dokumen Pendukung Lain",
+  ],
+  barang_keluar: [
+    "Invoice",
+    "Packing List",
+    "Catalogue / Brosur Produk",
+    "Specification Sheet",
+    "Certificate / Test Report",
+    "Foto Barang",
+    "Dokumen Pendukung Lain",
+  ],
+  kek: [
+    "Invoice",
+    "Packing List",
+    "Catalogue / Brosur Produk",
+    "Specification Sheet",
+    "Certificate / Test Report",
+    "Foto Barang",
+    "Dokumen Pendukung Lain",
+  ],
 };
 
 function getActivityLabel(choice: ActivityChoice | null) {
@@ -522,15 +615,13 @@ function getAnalysisResult(activity: Exclude<ActivityChoice, "tidak_yakin">, ans
   const pelaku = answers.pelaku ? getAnswerLabel(q[1], answers.pelaku) : "-";
   const lokasi = answers.lokasi_kek ? getAnswerLabel(q[2], answers.lokasi_kek) : "-";
   const izin = answers.izin_khusus ? getAnswerLabel(q[3], answers.izin_khusus) : "-";
-  const docs = Array.isArray(answers.dokumen) ? answers.dokumen.map((item) => getAnswerLabel(q[4], item)) : [];
   const requiredDocuments = REQUIRED_DOCUMENTS[activity];
-  const fulfilled = docs.length ? `Dokumen yang sudah dimiliki: ${docs.join(", ")}.` : "Belum ada dokumen yang ditandai.";
 
   return {
     jenisPengajuan: getBranchTitle(activity),
     rekomendasi: `Berdasarkan informasi yang Anda berikan, sistem merekomendasikan pengajuan ${getBranchTitle(activity)}.`,
     dokumenWajib: requiredDocuments,
-    ringkasan: `Tujuan: ${tujuan}; Pelaku: ${pelaku}; Lokasi KEK: ${lokasi}; Izin khusus: ${izin}. ${fulfilled}`,
+    ringkasan: `Tujuan: ${tujuan}; Pelaku: ${pelaku}; Lokasi KEK: ${lokasi}; Izin khusus: ${izin}.`,
   };
 }
 
@@ -616,6 +707,14 @@ function PlusSmallIcon() {
   );
 }
 
+function RefreshIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+      <path d="M17.6 6.4A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L14 10h7V3l-3.4 3.4Z" />
+    </svg>
+  );
+}
+
 function getNeedLabel(choice?: NeedChoice | null) {
   if (choice === "pemasukan") return "Pemasukan";
   if (choice === "pengeluaran") return "Pengeluaran";
@@ -676,7 +775,7 @@ function getDetailOptions(primary?: NeedChoice | null) {
 function getAssistantMessage(stage: WizardStep, primary?: NeedChoice | null) {
   if (stage === "identifikasi") return getDetailPrompt(primary);
   if (stage === "dokumen") return "Terima kasih. Silakan unggah dokumen pendukung jika tersedia untuk membantu saya menyusun draft.";
-  if (stage === "draft") return "Ini draft awal yang saya susun berdasarkan jawaban Anda. Silakan tinjau sebelum lanjut ke form.";
+  if (stage === "parsing") return "Ini hasil parsing awal yang saya susun berdasarkan jawaban Anda. Silakan tinjau sebelum lanjut ke form.";
   return INITIAL_PROMPT;
 }
 
@@ -840,8 +939,83 @@ function buildUploadNotice(excelFiles: string[], ocrFiles: string[]) {
     return "Data Excel digunakan sebagai sumber utama untuk pengisian barang.";
   }
 
-  return "";
+  return "Upload dilewati. Data akan dilanjutkan ke validasi manual.";
 }
+
+type UploadStage = "upload" | "validasi";
+type UploadStatus = "empty" | "picked" | "uploaded" | "failed";
+
+type UploadSlot = {
+  id: string;
+  label: string;
+  description: string;
+  required: boolean;
+  selectedFile: string | null;
+  uploadedFile: string | null;
+  status: UploadStatus;
+  removable?: boolean;
+  error?: string | null;
+};
+
+const OCR_UPLOAD_DEFAULTS = [
+  {
+    id: "inv",
+    label: "Invoice (INV)",
+    description: "Dokumen dasar berisi referensi transaksi, nilai barang, dan detail komersial.",
+    required: true,
+  },
+  {
+    id: "pl",
+    label: "Packing List (PL)",
+    description: "Rincian kemasan, jumlah barang, dan susunan isi per paket/kontainer.",
+    required: true,
+  },
+  {
+    id: "catalogue",
+    label: "Catalogue / Brosur Produk",
+    description: "Menunjukkan bentuk, tipe, atau katalog produk yang diimpor atau diekspor.",
+    required: false,
+  },
+  {
+    id: "spec",
+    label: "Specification Sheet",
+    description: "Detail spesifikasi teknis, ukuran, material, atau karakteristik barang.",
+    required: false,
+  },
+  {
+    id: "cert",
+    label: "Certificate / Test Report",
+    description: "Sertifikat mutu, hasil uji, atau dokumen pembuktian teknis barang.",
+    required: false,
+  },
+  {
+    id: "photo",
+    label: "Foto Barang",
+    description: "Foto visual barang untuk membantu identifikasi dan validasi.",
+    required: false,
+  },
+  {
+    id: "support",
+    label: "Dokumen Pendukung Lain",
+    description: "Lampiran tambahan lain yang masih berhubungan dengan barang.",
+    required: false,
+  },
+] as const;
+
+const createUploadSlot = (id: string, label: string, description: string, required: boolean, removable = false): UploadSlot => ({
+  id,
+  label,
+  description,
+  required,
+  removable,
+  selectedFile: null,
+  uploadedFile: null,
+  status: "empty",
+  error: null,
+});
+
+const createDefaultOcrSlots = () =>
+  OCR_UPLOAD_DEFAULTS.map((item) => createUploadSlot(item.id, item.label, item.description, item.required));
 
 function IconButton({
   children,
@@ -856,7 +1030,7 @@ function IconButton({
     <button
       type="button"
       aria-label={label}
-      className={`inline-flex h-11 w-11 items-center justify-center rounded-md bg-brand-primary-500 text-white shadow-sm transition-colors hover:bg-brand-primary-600 ${className}`}
+      className={`insw-icon-btn insw-icon-btn--primary-solid insw-icon-btn--md ${className}`}
     >
       {children}
     </button>
@@ -880,22 +1054,6 @@ function PlusIcon() {
   );
 }
 
-function ListIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-      <path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-      <path d="M9 3h10v14H9V3Zm2 2v10h6V5h-6ZM5 7h2v12h10v2H5V7Z" />
-    </svg>
-  );
-}
-
 function ModalCancelButton({
   onClick,
   className = "",
@@ -904,14 +1062,9 @@ function ModalCancelButton({
   className?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group inline-flex h-10 items-center gap-2 rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-all hover:border-error-400 hover:bg-error-500/10 hover:text-error-600 ${className}`}
-    >
-      <CloseIcon />
+    <Button variant="outline" size="sm" onClick={onClick} startIcon={<CloseIcon />} className={className}>
       Batal
-    </button>
+    </Button>
   );
 }
 
@@ -929,15 +1082,6 @@ function StartSubmissionModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="relative flex w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Tutup modal"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-
         <div className="border-b border-border-primary px-5 py-5 sm:px-8">
           <h3 className="text-[24px] font-semibold text-neutral-800">Mulai Pengajuan</h3>
           <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
@@ -1008,15 +1152,6 @@ function ManualMethodModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="relative flex w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Tutup modal"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-
         <div className="border-b border-border-primary px-5 py-5 sm:px-8">
           <h3 className="text-[24px] font-semibold text-neutral-800">Buat Pengajuan Tanpa Assistant</h3>
           <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
@@ -1070,13 +1205,9 @@ function ManualMethodModal({
 
         <div className="border-t border-border-primary px-5 py-4 sm:px-8">
           <div className="flex items-center justify-between gap-3 text-[12px] text-neutral-600">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
+            <Button variant="outline" size="sm" onClick={onBack}>
               Kembali
-            </button>
+            </Button>
             <ModalCancelButton onClick={onClose} />
           </div>
         </div>
@@ -1106,15 +1237,6 @@ function ManualDocumentModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="relative flex w-full max-w-[920px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Tutup modal"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-
         <div className="border-b border-border-primary px-5 py-5 sm:px-8">
           <h3 className="text-[24px] font-semibold text-neutral-800">Buat Pengajuan Baru</h3>
           <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
@@ -1124,15 +1246,12 @@ function ManualDocumentModal({
 
         <div className="px-5 py-5 sm:px-8">
           <div className="relative mb-4">
-            <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-neutral-500">
-              <SearchIcon />
-            </span>
-            <input
+            <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               type="search"
               placeholder="Cari jenis dokumen..."
-              className="h-11 w-full rounded-md border border-border-primary bg-white pl-10 pr-3 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
+              prefixIcon={<SearchIcon />}
             />
           </div>
 
@@ -1158,13 +1277,9 @@ function ManualDocumentModal({
 
         <div className="border-t border-border-primary px-5 py-4 sm:px-8">
           <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
+            <Button variant="outline" size="sm" onClick={onBack}>
               Kembali
-            </button>
+            </Button>
             <ModalCancelButton onClick={onClose} />
           </div>
         </div>
@@ -1197,15 +1312,6 @@ function CopyDataModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="relative flex w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Tutup modal"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-
         <div className="border-b border-border-primary px-5 py-5 sm:px-8">
           <h3 className="text-[24px] font-semibold text-neutral-800">Copy Data Pengajuan</h3>
           <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
@@ -1215,28 +1321,25 @@ function CopyDataModal({
 
         <div className="grid gap-3 px-5 py-5 sm:px-8 lg:grid-cols-[1.4fr_220px]">
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-neutral-500">
-              <SearchIcon />
-            </span>
-            <input
+            <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               type="search"
               placeholder="Cari nomor pengajuan, dokumen, atau nama..."
-              className="h-11 w-full rounded-md border border-border-primary bg-white pl-10 pr-3 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
+              prefixIcon={<SearchIcon />}
             />
           </div>
 
-          <select
+          <Select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-11 rounded-md border border-border-primary bg-white px-3 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
-          >
-            <option>Semua</option>
-            <option>Disetujui</option>
-            <option>Proses</option>
-            <option>Draft</option>
-          </select>
+            onValueChange={setStatus}
+            options={[
+              { label: "Semua", value: "Semua" },
+              { label: "Disetujui", value: "Disetujui" },
+              { label: "Proses", value: "Proses" },
+              { label: "Draft", value: "Draft" },
+            ]}
+          />
         </div>
 
         <div className="px-5 pb-5 sm:px-8">
@@ -1261,13 +1364,12 @@ function CopyDataModal({
                     <td className="px-3 py-2">{row.status}</td>
                     <td className="px-3 py-2">{row.perusahaan}</td>
                     <td className="px-3 py-2">
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => onUse(row)}
-                        className="inline-flex h-9 items-center rounded-md bg-brand-primary-500 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
+                        size="sm"
                       >
                         Gunakan
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -1278,13 +1380,9 @@ function CopyDataModal({
 
         <div className="border-t border-border-primary px-5 py-4 sm:px-8">
           <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
+            <Button variant="outline" size="sm" onClick={onBack}>
               Kembali
-            </button>
+            </Button>
             <ModalCancelButton onClick={onClose} />
           </div>
         </div>
@@ -1306,66 +1404,488 @@ function UploadBarangModal({
   context: UploadFlowContext | null;
   onComplete: (payload: { excelFiles: string[]; ocrFiles: string[] }) => void;
 }) {
-  const [excelFiles, setExcelFiles] = useState<string[]>([]);
-  const [ocrFiles, setOcrFiles] = useState<string[]>([]);
+  const [stage, setStage] = useState<UploadStage>("upload");
+  const [excelSlot, setExcelSlot] = useState<UploadSlot>(() =>
+    createUploadSlot("excel", "Upload Template Excel", "File Excel digunakan sebagai sumber data utama untuk pengisian barang.", true),
+  );
+  const [ocrSlots, setOcrSlots] = useState<UploadSlot[]>(() => createDefaultOcrSlots());
+  const [customCounter, setCustomCounter] = useState(1);
+  const [parseRevision, setParseRevision] = useState(0);
+  const [selectedParseRow, setSelectedParseRow] = useState<ParseMappingRow | null>(null);
+  const [dismissConfirmOpen, setDismissConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setStage("upload");
+    setExcelSlot(createUploadSlot("excel", "Upload Template Excel", "File Excel digunakan sebagai sumber data utama untuk pengisian barang.", true));
+    setOcrSlots(createDefaultOcrSlots());
+    setCustomCounter(1);
+    setParseRevision(0);
+    setSelectedParseRow(null);
+    setDismissConfirmOpen(false);
+  }, [open]);
+
+  const uploadedExcelFiles = excelSlot.uploadedFile ? [excelSlot.uploadedFile] : [];
+  const uploadedOcrSlots = ocrSlots.filter((slot) => slot.uploadedFile);
+  const uploadedOcrFiles = uploadedOcrSlots.map((slot) => `${slot.label} - ${slot.uploadedFile}`);
+  const hasExcel = uploadedExcelFiles.length > 0;
+  const hasOcr = uploadedOcrFiles.length > 0;
+  const isTemplateFlow = context?.source === "upload";
+  const hasPendingUploads = excelSlot.status === "picked" || excelSlot.status === "failed" || ocrSlots.some((slot) => slot.status === "picked" || slot.status === "failed");
+  const barangCount = hasExcel ? Math.max(1, uploadedExcelFiles.length * 2) : hasOcr ? Math.max(1, uploadedOcrFiles.length) : context?.source === "copy" ? 1 : 0;
+  const supportCount = uploadedOcrFiles.length;
+  const mappedFields = hasExcel ? 18 : hasOcr ? 12 : 0;
+  const notice = buildUploadNotice(uploadedExcelFiles, uploadedOcrFiles);
+  const parseSources = useMemo<ParseSourcePreview[]>(() => {
+    const ocrSources = uploadedOcrSlots
+      .filter((slot) => slot.uploadedFile)
+      .map((slot, index) => {
+        const fileName = slot.uploadedFile ?? slot.selectedFile ?? `ocr-${index + 1}`;
+        return {
+          id: slot.id,
+          label: slot.label,
+          fileName,
+          kind: fileName.toLowerCase().endsWith(".pdf") ? ("pdf" as const) : ("image" as const),
+        };
+      });
+
+    if (ocrSources.length) return ocrSources;
+
+    if (hasExcel) {
+      const fileName = excelSlot.uploadedFile ?? excelSlot.selectedFile ?? "template-upload-barang.xlsx";
+      return [
+        {
+          id: "excel-source",
+          label: "Template Excel",
+          fileName,
+          kind: "spreadsheet",
+        },
+      ];
+    }
+
+    return [
+      { id: "ocr-a", label: "OCR A", fileName: "ocr-sumber-a.pdf", kind: "pdf" },
+      { id: "ocr-b", label: "OCR B", fileName: "ocr-sumber-b.png", kind: "image" },
+    ];
+  }, [excelSlot.selectedFile, excelSlot.uploadedFile, hasExcel, uploadedOcrSlots]);
+
+  const parseRows = useMemo<ParseMappingRow[]>(() => {
+    const sourceA = parseSources[0];
+    const sourceB = parseSources[1] ?? sourceA;
+    const rows: Array<Omit<ParseMappingRow, "source"> & { sourceIndex: number }> = [
+      { seri: "1", uraian: "Barang contoh A", hsCode: "8471.30.10", quantity: "10", sourceIndex: 0 },
+      { seri: "2", uraian: "Barang contoh B", hsCode: "8471.30.90", quantity: "4", sourceIndex: 0 },
+      { seri: "3", uraian: "Barang contoh C", hsCode: "8504.40.90", quantity: "8", sourceIndex: 0 },
+      { seri: "4", uraian: "Barang contoh D", hsCode: "3923.10.90", quantity: "12", sourceIndex: 1 },
+      { seri: "5", uraian: "Barang contoh E", hsCode: "7326.90.99", quantity: "2", sourceIndex: 1 },
+    ];
+
+    return rows.map((row) => ({
+      seri: row.seri,
+      uraian: row.uraian,
+      hsCode: row.hsCode,
+      quantity: row.quantity,
+      source: row.sourceIndex === 0 ? sourceA : sourceB,
+    }));
+  }, [parseSources]);
+
+  const parseConfidence = useMemo(() => {
+    const fileCount = uploadedExcelFiles.length + uploadedOcrFiles.length;
+
+    if (!fileCount) return 0;
+
+    return Math.min(99, 84 + fileCount * 3 + parseRevision * 2);
+  }, [parseRevision, uploadedExcelFiles.length, uploadedOcrFiles.length]);
+
+  const parseConfidenceLabel =
+    parseConfidence >= 95 ? "Aman" : parseConfidence >= 60 ? "Perlu dicek" : parseConfidence > 0 ? "Wajib review" : "Menunggu upload";
+  const parseConfidenceTone =
+    parseConfidence >= 95
+      ? "border-success-200 bg-success-50 text-success-700"
+      : parseConfidence >= 60
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-error-200 bg-error-50 text-error-700";
+  const parseSummaryTone =
+    parseConfidence >= 95
+      ? "border-success-200 bg-success-50/70 text-success-800"
+      : parseConfidence >= 60
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-error-200 bg-error-50/70 text-error-800";
+  const parseConfidenceHint =
+    parseConfidence >= 95
+      ? "Confidence sudah aman untuk lanjut ke form."
+      : parseConfidence >= 60
+        ? "Hasil parsing cukup baik, tapi tetap disarankan cek beberapa bagian."
+        : "Hasil parsing belum stabil. Sebaiknya parse ulang sebelum lanjut.";
+
+  const handleDismissRequest = () => {
+    if (stage === "validasi") {
+      setDismissConfirmOpen(true);
+      return;
+    }
+
+    onClose();
+  };
+
+  const handleConfirmExit = () => {
+    setDismissConfirmOpen(false);
+    onClose();
+  };
 
   if (!open) return null;
 
-  const hasExcel = excelFiles.length > 0;
-  const hasOcr = ocrFiles.length > 0;
-  const mainSource = hasExcel ? "Excel" : hasOcr ? "OCR" : context?.source === "copy" ? "Data Lama" : "Belum dipilih";
-  const barangCount = hasExcel ? Math.max(1, excelFiles.length * 2) : hasOcr ? Math.max(1, ocrFiles.length) : context?.source === "copy" ? 1 : 0;
-  const supportCount = ocrFiles.length;
-  const mappedFields = hasExcel ? 18 : hasOcr ? 12 : 0;
-  const missingFields = hasExcel ? 4 : hasOcr ? 10 : 0;
-  const notice = buildUploadNotice(excelFiles, ocrFiles);
-
-  const uploadList = [
-    ...(hasExcel ? UPLOAD_MOCK_PREVIEW : []),
-    ...(hasOcr ? [{ field: "OCR", value: "Dokumen OCR terunggah", note: "Siap untuk validasi" }] : []),
-  ];
-
-  const handleFiles = (list: FileList | null, kind: "excel" | "ocr") => {
-    if (!list?.length) return;
-    const names = Array.from(list).map((file) => file.name);
-    if (kind === "excel") {
-      setExcelFiles((current) => Array.from(new Set([...current, ...names])));
-    } else {
-      setOcrFiles((current) => Array.from(new Set([...current, ...names])));
-    }
+  const handleExcelPick = (file: File | null) => {
+    setExcelSlot((current) =>
+      file
+        ? { ...current, selectedFile: file.name, status: "picked", error: null }
+        : { ...current, selectedFile: null, uploadedFile: null, status: "empty", error: null },
+    );
   };
 
-  const handleDrop = (event: DragEvent<HTMLLabelElement>, kind: "excel" | "ocr") => {
+  const handleExcelUpload = () => {
+    setExcelSlot((current) => {
+      if (!current.selectedFile) return { ...current, status: "failed", error: "Pilih file Excel dulu." };
+      return { ...current, uploadedFile: current.selectedFile, status: "uploaded", error: null };
+    });
+  };
+
+  const handleOcrPick = (slotId: string, file: File | null) => {
+    setOcrSlots((current) =>
+      current.map((slot) =>
+        slot.id !== slotId
+          ? slot
+          : file
+            ? { ...slot, selectedFile: file.name, status: "picked", error: null }
+            : { ...slot, selectedFile: null, uploadedFile: null, status: "empty", error: null },
+      ),
+    );
+  };
+
+  const handleOcrUpload = (slotId: string) => {
+    setOcrSlots((current) =>
+      current.map((slot) => {
+        if (slot.id !== slotId) return slot;
+        if (!slot.selectedFile) return { ...slot, status: "failed", error: "Pilih file OCR dulu." };
+        return { ...slot, uploadedFile: slot.selectedFile, status: "uploaded", error: null };
+      }),
+    );
+  };
+
+  const handleOcrRemove = (slotId: string) => {
+    setOcrSlots((current) => current.filter((slot) => slot.id !== slotId || !slot.removable));
+  };
+
+  const addOcrSlot = () => {
+    setCustomCounter((current) => current + 1);
+    setOcrSlots((current) => [
+      ...current,
+      createUploadSlot(`custom-${Date.now()}`, `Dokumen tambahan ${customCounter + 1}`, "Tambahkan dokumen OCR lain yang perlu diunggah.", false, true),
+    ]);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>, kind: "excel" | "ocr", slotId?: string) => {
     event.preventDefault();
-    handleFiles(event.dataTransfer.files, kind);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    if (!file) return;
+    if (kind === "excel") {
+      handleExcelPick(file);
+      return;
+    }
+    if (slotId) handleOcrPick(slotId, file);
   };
 
-  const handleContinue = () => {
-    onComplete({ excelFiles, ocrFiles });
+  const goToParsing = () => setStage("validasi");
+  const handleReparse = () => {
+    setParseRevision((current) => current + 1);
+    setSelectedParseRow(null);
   };
+  const finishUploadFlow = () => {
+    onComplete({ excelFiles: uploadedExcelFiles, ocrFiles: uploadedOcrFiles });
+  };
+  const handleBackAction = () => {
+    if (stage === "validasi") {
+      setStage("upload");
+      return;
+    }
+    onBack();
+  };
+
+  const statusTone = (state: UploadStatus) =>
+    ({
+      empty: "bg-neutral-100 text-neutral-600",
+      picked: "bg-warning-50 text-warning-600",
+      uploaded: "bg-success-50 text-success-600",
+      failed: "bg-error-50 text-error-600",
+    })[state];
+
+  const statusLabel = (state: UploadStatus) =>
+    ({
+      empty: "Belum dipilih",
+      picked: "Siap upload",
+      uploaded: "Terverifikasi",
+      failed: "Gagal",
+    })[state];
+
+  const uploadSection = (
+    <div className="grid gap-4">
+      {isTemplateFlow ? (
+        <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+          <div className="border-b border-border-primary pb-3">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Download Template Excel</div>
+            <div className="mt-1 text-[13px] font-semibold text-neutral-800">Template awal untuk pengisian barang</div>
+          </div>
+          <div className="mt-4 flex justify-start">
+            <Button asChild variant="outline" size="sm">
+              <a href="/template-upload-barang.xlsx" download>
+                Download Template Excel
+              </a>
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4 border-b border-border-primary pb-3">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">
+              {isTemplateFlow ? "Upload Template Excel" : "Upload Data Barang"}
+            </div>
+            <div className="mt-1 text-[13px] font-semibold text-neutral-800">
+              {isTemplateFlow ? "Pilih file lalu upload eksplisit" : "Pilih file Excel untuk data barang"}
+            </div>
+          </div>
+          <span className={["rounded-full px-3 py-1 text-[12px] font-semibold", statusTone(excelSlot.status)].join(" ")}>
+            {statusLabel(excelSlot.status)}
+          </span>
+        </div>
+
+        <div
+          className="mt-4 rounded-2xl border-2 border-dashed border-border-primary bg-background-primary/30 p-4"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => handleDrop(event, "excel")}
+        >
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
+              <UploadIcon />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-neutral-800">{isTemplateFlow ? "Template Excel" : "Upload Data Barang"}</div>
+              <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                {isTemplateFlow
+                  ? "File Excel digunakan sebagai sumber data utama untuk pengisian barang."
+                  : "File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Selected file</div>
+              <div className="mt-1 text-[12px] font-medium text-neutral-800">{excelSlot.selectedFile ?? "Belum ada file"}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <label htmlFor="excel-upload-input">Pilih File</label>
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleExcelUpload} disabled={!excelSlot.selectedFile}>
+                Upload
+              </Button>
+            </div>
+          </div>
+
+          <input id="excel-upload-input" type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => handleExcelPick(event.target.files?.[0] ?? null)} />
+          {excelSlot.error && <div className="mt-3 text-[12px] font-medium text-error-600">{excelSlot.error}</div>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+        <div className="border-b border-border-primary pb-3">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Upload OCR</div>
+          <div className="mt-1 text-[13px] font-semibold text-neutral-800">Upload dokumen dasar satu per satu</div>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {ocrSlots.map((slot) => {
+            const inputId = `ocr-upload-${slot.id}`;
+            return (
+              <div key={slot.id} className="rounded-2xl border border-border-primary bg-background-primary/20 p-4" onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, "ocr", slot.id)}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
+                      <FileIcon />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-[14px] font-semibold text-neutral-800">{slot.label}</div>
+                        {slot.required ? <span className="rounded-full bg-error-50 px-2 py-0.5 text-[11px] font-semibold text-error-600">Wajib</span> : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Opsional</span>}
+                      </div>
+                      <p className="mt-1 text-[12px] leading-5 text-neutral-600">{slot.description}</p>
+                    </div>
+                  </div>
+
+                  <span className={["rounded-full px-3 py-1 text-[12px] font-semibold", statusTone(slot.status)].join(" ")}>
+                    {statusLabel(slot.status)}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Selected file</div>
+                    <div className="mt-1 text-[12px] font-medium text-neutral-800">{slot.selectedFile ?? "Belum ada file"}</div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <label htmlFor={inputId}>Pilih File</label>
+                    </Button>
+                    <Button variant="primary" size="sm" onClick={() => handleOcrUpload(slot.id)} disabled={!slot.selectedFile}>
+                      Upload
+                    </Button>
+                    {slot.removable ? (
+                      <Button variant="ghost" size="sm" onClick={() => handleOcrRemove(slot.id)}>
+                        Hapus
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <input id={inputId} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={(event) => handleOcrPick(slot.id, event.target.files?.[0] ?? null)} />
+                {slot.error && <div className="mt-3 text-[12px] font-medium text-error-600">{slot.error}</div>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Button variant="outline" size="sm" onClick={addOcrSlot} startIcon={<PlusIcon />}>
+            Tambah Dokumen
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+
+  const parsingSection = (
+    <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+      <div className="border-b border-border-primary pb-3">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Data Parsing</div>
+        <div className="mt-1 text-[13px] font-semibold text-neutral-800">Ringkasan hasil AI dan sumber data</div>
+        <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+          AI akan membaca file yang diunggah, lalu menyiapkan data untuk auto fill sebelum masuk ke form.
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.15fr_1fr]">
+        <div className={["rounded-2xl border p-4 shadow-sm", parseConfidenceTone].join(" ")}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.16em]">Confidence global</div>
+              <div className="mt-1 text-[28px] font-semibold leading-none">{parseConfidence}%</div>
+            </div>
+            <span className="rounded-full bg-white/80 px-3 py-1 text-[12px] font-semibold text-neutral-800 shadow-sm">{parseConfidenceLabel}</span>
+          </div>
+          <p className="mt-3 max-w-2xl text-[12px] leading-5">{parseConfidenceHint}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleReparse} startIcon={<RefreshIcon />}>
+              Parse Ulang
+            </Button>
+            <span className="rounded-full border border-white/80 bg-white/60 px-3 py-1 text-[11px] font-semibold text-neutral-700">
+              Global, bukan per field
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          {[
+            { label: "Jumlah barang terbaca", value: `${barangCount}` },
+            { label: "Jumlah dokumen pendukung", value: `${supportCount}` },
+            { label: "Field yang berhasil dipetakan", value: `${mappedFields}` },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-border-primary bg-background-primary/35 p-4 shadow-sm">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{item.label}</div>
+              <div className="mt-2 text-[24px] font-semibold leading-none text-neutral-800">{item.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={["mt-4 rounded-2xl border px-4 py-3 text-[12px] leading-5", parseSummaryTone].join(" ")}>
+        {notice}
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-brand-primary-100 bg-brand-primary-50/35">
+        <div className="flex items-center justify-between gap-3 border-b border-brand-primary-100 px-4 py-3">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-700">Preview Mapping</div>
+            <div className="mt-1 text-[13px] font-semibold text-neutral-800">Tabel data barang hasil parse</div>
+          </div>
+          <div className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-brand-primary-700 shadow-sm">
+            {parseRows.length} barang
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border-primary text-left text-[12px]">
+            <thead className="bg-white/70 text-neutral-600">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Seri</th>
+                <th className="px-4 py-3 font-semibold">Uraian Barang</th>
+                <th className="px-4 py-3 font-semibold">HS Code</th>
+                <th className="px-4 py-3 font-semibold">Sumber OCR</th>
+                <th className="px-4 py-3 font-semibold text-right">Detail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-primary bg-white">
+              {parseRows.map((row) => (
+                <tr key={row.seri} className="transition-colors hover:bg-brand-primary-50/60">
+                  <td className="px-4 py-3 font-semibold text-neutral-800">{row.seri}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-neutral-800">{row.uraian}</div>
+                    <div className="mt-1 text-[11px] text-neutral-500">Qty {row.quantity}</div>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">{row.hsCode}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-neutral-800">{row.source.label}</div>
+                    <div className="mt-1 text-[11px] text-neutral-500">{row.source.fileName}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button variant="outline" size="sm" onClick={() => setSelectedParseRow(row)}>
+                      Detail
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+
+  const title =
+    stage === "upload"
+      ? context?.source === "copy"
+        ? "Lengkapi Data Pengajuan Lama"
+        : isTemplateFlow
+          ? "Upload Template Excel"
+          : "Upload Data Barang"
+      : "Data Parsing";
+  const subtitle =
+    stage === "upload"
+      ? context?.source === "copy"
+        ? "Pilih file Excel dan/atau dokumen OCR untuk membantu melengkapi data dari pengajuan sebelumnya."
+        : "Pilih file Excel sebagai sumber data utama dan dokumen OCR sebagai pendukung validasi data barang."
+      : "Tinjau hasil parsing sebelum lanjut ke form.";
+  const primaryDisabled = stage === "upload" && hasPendingUploads;
+  const eyebrowLabel = stage === "upload" ? (isTemplateFlow ? "UPLOAD TEMPLATE EXCEL" : "UPLOAD DATA BARANG") : "DATA PARSING";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)]">
-        <button
-          type="button"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Tutup modal"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-
         <div className="border-b border-border-primary px-5 py-5 sm:px-8">
-          <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Upload Dokumen Barang</div>
-          <h3 className="mt-1 text-[24px] font-semibold text-neutral-800">
-            {context?.source === "copy" ? "Lengkapi Data Pengajuan Lama" : "Upload Dokumen Barang"}
-          </h3>
-          <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">
-            {context?.source === "copy"
-              ? "Pilih file Excel dan/atau dokumen OCR untuk membantu melengkapi data dari pengajuan sebelumnya."
-              : "Pilih file Excel sebagai sumber data utama dan dokumen OCR sebagai pendukung validasi data barang."}
-          </p>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{eyebrowLabel}</div>
+          <h3 className="mt-1 text-[24px] font-semibold text-neutral-800">{title}</h3>
+          <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">{subtitle}</p>
           {context?.documentType && (
             <div className="mt-3 inline-flex items-center rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
               Jenis dokumen: {context.documentType}
@@ -1379,164 +1899,163 @@ function UploadBarangModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <div className="grid gap-4">
-              <label
-                className="flex min-h-[180px] cursor-pointer flex-col justify-between rounded-2xl border-2 border-dashed border-border-primary bg-background-primary/30 p-5 transition-colors hover:border-brand-primary-300"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, "excel")}
-              >
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
-                    <UploadIcon />
-                  </span>
-                  <div>
-                    <div className="text-[16px] font-semibold text-neutral-800">Upload Template Excel</div>
-                    <p className="mt-1 text-[12px] leading-5 text-neutral-600">
-                      File Excel digunakan sebagai sumber data utama untuk pengisian barang.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 text-[12px] text-neutral-500">Support: .xlsx / .xls</div>
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="inline-flex h-10 items-center rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-700">
-                  Pilih File
-                </span>
-                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-neutral-700">
-                  {excelFiles.length ? `${excelFiles.length} file` : "Belum ada file"}
-                </span>
-              </div>
-              <input
-                type="file"
-                multiple
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={(event) => handleFiles(event.target.files, "excel")}
-              />
-              </label>
-
-              <label
-                className="flex min-h-[180px] cursor-pointer flex-col justify-between rounded-2xl border-2 border-dashed border-border-primary bg-background-primary/30 p-5 transition-colors hover:border-brand-primary-300"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, "ocr")}
-              >
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
-                    <FileIcon />
-                  </span>
-                  <div>
-                    <div className="text-[16px] font-semibold text-neutral-800">Upload Dokumen OCR</div>
-                    <p className="mt-1 text-[12px] leading-5 text-neutral-600">
-                      Dokumen seperti invoice, packing list, atau dokumen pendukung lain digunakan untuk membantu validasi dan pelengkap data.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 text-[12px] text-neutral-500">Support: .pdf, .jpg, .jpeg, .png</div>
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="inline-flex h-10 items-center rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-700">
-                  Pilih File
-                </span>
-                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-neutral-700">
-                  {ocrFiles.length ? `${ocrFiles.length} file` : "Belum ada file"}
-                </span>
-              </div>
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(event) => handleFiles(event.target.files, "ocr")}
-              />
-              </label>
-            </div>
-
-            <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-            <div className="border-b border-border-primary pb-3">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Validasi Data</div>
-              <div className="mt-1 text-[13px] font-semibold text-neutral-800">Ringkasan sumber data</div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {[
-                { label: "Sumber utama", value: mainSource },
-                { label: "Jumlah barang terbaca", value: `${barangCount}` },
-                { label: "Jumlah dokumen pendukung", value: `${supportCount}` },
-                { label: "Field yang berhasil dipetakan", value: `${mappedFields}` },
-                { label: "Field yang perlu dilengkapi", value: `${missingFields}` },
-              ].map((row) => (
-                <div key={row.label} className="flex items-center justify-between rounded-xl border border-border-primary px-3 py-2 text-[12px] text-neutral-700">
-                  <span>{row.label}</span>
-                  <span className="font-semibold text-neutral-800">{row.value}</span>
-                </div>
-              ))}
-            </div>
-
-            {notice && (
-              <div
-                className={[
-                  "mt-4 rounded-xl border px-3 py-3 text-[12px] leading-5",
-                  hasExcel && hasOcr
-                    ? "border-brand-primary-100 bg-brand-primary-50/70 text-brand-primary-800"
-                    : hasOcr && !hasExcel
-                      ? "border-amber-300 bg-amber-50 text-amber-900"
-                      : "border-border-primary bg-background-primary/40 text-neutral-700",
-                ].join(" ")}
-              >
-                {notice}
-              </div>
-            )}
-
-            <div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50/50 p-3">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-700">Preview Mapping</div>
-              <div className="mt-3 max-h-[320px] space-y-2 overflow-y-auto pr-1">
-                {(uploadList.length ? uploadList : [{ field: "Status", value: "Menunggu file diunggah", note: "-" }]).map((row) => (
-                  <div key={`${row.field}-${row.value}`} className="rounded-lg border border-border-primary bg-white px-3 py-2 text-[12px]">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-neutral-800">{row.field}</span>
-                      <span className="text-neutral-500">{row.note}</span>
-                    </div>
-                    <div className="mt-1 text-neutral-700">{row.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                className="inline-flex h-10 items-center rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-700 transition-colors hover:bg-brand-primary-50"
-              >
-                Download Template
-              </button>
-              <button
-                type="button"
-                onClick={handleContinue}
-                className="inline-flex h-10 items-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-              >
-                Lanjut ke Form
-              </button>
-            </div>
-            </div>
-          </div>
+          {stage === "upload" ? uploadSection : parsingSection}
         </div>
 
         <div className="border-t border-border-primary px-5 py-4 sm:px-8">
           <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
-              Kembali
-            </button>
-            <ModalCancelButton onClick={onClose} />
+            <Button variant="outline" size="sm" onClick={handleBackAction}>
+              {stage === "upload" ? "Kembali" : "Kembali ke Upload"}
+            </Button>
+
+            <div className="flex items-center gap-3">
+              {stage === "upload" ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={finishUploadFlow}>
+                    Lewati Upload
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={goToParsing} disabled={primaryDisabled}>
+                    Lanjut ke Data Parsing
+                  </Button>
+                </>
+              ) : (
+                <Button variant="primary" size="sm" onClick={finishUploadFlow}>
+                  Lanjut ke Form
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={handleDismissRequest}
+                className="insw-btn insw-btn--outline insw-btn--sm"
+              >
+                <span className="inline-flex shrink-0 items-center justify-center">
+                  <CloseIcon />
+                </span>
+                <span className="min-w-0">Batal</span>
+              </button>
+            </div>
           </div>
         </div>
+
       </div>
+
+      {dismissConfirmOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+              <div className="w-full max-w-[520px] rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_32px_90px_rgba(15,23,42,0.35)]">
+                <div className="flex items-start gap-3">
+                  <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-500/10 text-error-600">
+                    <CloseIcon />
+                  </div>
+                  <div>
+                    <h3 className="text-[20px] font-semibold text-neutral-800">Konfirmasi keluar?</h3>
+                    <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                      Data parsing sudah tersedia. Apakah Anda yakin ingin keluar dari proses ini?
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Button variant="outline" size="sm" onClick={() => setDismissConfirmOpen(false)}>
+                    Tidak
+                  </Button>
+                  <Button variant="error" size="sm" onClick={handleConfirmExit}>
+                    Ya
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+    {selectedParseRow && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6" onClick={(event) => event.target === event.currentTarget && setSelectedParseRow(null)}>
+          <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)]">
+            <button
+              type="button"
+              className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              aria-label="Tutup preview detail"
+              onClick={() => setSelectedParseRow(null)}
+            >
+              <CloseIcon />
+            </button>
+
+            <div className="border-b border-border-primary px-5 py-5 pr-16 sm:px-8">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Detail Mapping</div>
+              <h3 className="mt-1 text-[24px] font-semibold text-neutral-800">Seri {selectedParseRow.seri}</h3>
+              <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">
+                Lihat data barang yang dipetakan AI beserta sumber OCR yang dipakai untuk baris ini.
+              </p>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
+              <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
+                <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                  <div className="border-b border-border-primary pb-3">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Data Barang</div>
+                    <div className="mt-1 text-[13px] font-semibold text-neutral-800">Hasil parse untuk seri {selectedParseRow.seri}</div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 text-[12px]">
+                    {[
+                      { label: "Seri", value: selectedParseRow.seri },
+                      { label: "Uraian Barang", value: selectedParseRow.uraian },
+                      { label: "HS Code", value: selectedParseRow.hsCode },
+                      { label: "Qty", value: selectedParseRow.quantity },
+                      { label: "Sumber", value: selectedParseRow.source.label },
+                      { label: "File", value: selectedParseRow.source.fileName },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-start justify-between gap-3 rounded-xl border border-border-primary px-3 py-2">
+                        <span className="text-neutral-600">{item.label}</span>
+                        <span className="text-right font-semibold text-neutral-800">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50/70 p-3 text-[12px] leading-5 text-brand-primary-800">
+                    Confidence parsing global: <span className="font-semibold">{parseConfidence}%</span> {parseConfidenceLabel}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                  <div className="border-b border-border-primary pb-3">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Preview Sumber OCR</div>
+                    <div className="mt-1 text-[13px] font-semibold text-neutral-800">{selectedParseRow.source.label}</div>
+                  </div>
+
+                  <div className="mt-4 h-[520px] overflow-hidden rounded-2xl border border-border-primary bg-background-primary/30">
+                    {selectedParseRow.source.kind === "pdf" ? (
+                      <Worker workerUrl={PDF_WORKER_URL}>
+                        <Viewer fileUrl={`${SAMPLE_DRAFT_PDF}?v=${parseRevision}`} />
+                      </Worker>
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600 shadow-sm">
+                          <FileIcon />
+                        </div>
+                        <div className="mt-4 text-[14px] font-semibold text-neutral-800">{selectedParseRow.source.fileName}</div>
+                        <p className="mt-2 max-w-sm text-[12px] leading-5 text-neutral-600">
+                          Preview visual sumber ada pada dokumen OCR yang dipakai AI untuk memetakan baris ini.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div className="border-t border-border-primary px-5 py-4 sm:px-8">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[12px] text-neutral-600">Tutup detail untuk kembali ke tabel mapping.</div>
+                <Button variant="outline" size="sm" onClick={() => setSelectedParseRow(null)}>
+                  Tutup
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1569,7 +2088,7 @@ const ANALYSIS_CHECKLIST = [
   "Mengidentifikasi jenis pelaku usaha",
   "Mencocokkan regulasi",
   "Menentukan dokumen yang diperlukan",
-  "Menyusun Smart Draft",
+  "Menyiapkan proses parsing",
 ];
 
 function AiStepModal({
@@ -1581,15 +2100,21 @@ function AiStepModal({
   onClose: () => void;
   onSubmit: (draft: AiSubmissionDraft) => void;
 }) {
-  const [stage, setStage] = useState<WizardStep>("kebutuhan");
+  const [stage, setStage] = useState<WizardStep>("identifikasi");
   const [selectedActivity, setSelectedActivity] = useState<ActivityChoice | null>(null);
   const [branchActivity, setBranchActivity] = useState<Exclude<ActivityChoice, "tidak_yakin"> | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [messages, setMessages] = useState<ConversationMessage[]>([{ role: "assistant", text: INITIAL_PROMPT }]);
   const [analysisReady, setAnalysisReady] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [docSelection, setDocSelection] = useState<string[]>([]);
+  const [excelSlot, setExcelSlot] = useState<UploadSlot>(() =>
+    createUploadSlot("excel", "Upload Data Barang", "File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.", true),
+  );
+  const [ocrSlots, setOcrSlots] = useState<UploadSlot[]>(() => createDefaultOcrSlots());
+  const [customCounter, setCustomCounter] = useState(1);
+  const [selectedParseRow, setSelectedParseRow] = useState<ParseMappingRow | null>(null);
+  const [parseRevision, setParseRevision] = useState(0);
   const [pdfStatus, setPdfStatus] = useState<"loading" | "ready" | "missing">("loading");
   const [pdfRevision, setPdfRevision] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1606,6 +2131,9 @@ function AiStepModal({
     EnterFullScreenMenuItem: () => <></>,
   }));
   const draftPdfUrl = `${SAMPLE_DRAFT_PDF}?v=${pdfRevision}`;
+  const uploadedExcelFiles = excelSlot.uploadedFile ? [excelSlot.uploadedFile] : [];
+  const uploadedOcrFiles = ocrSlots.filter((slot) => slot.uploadedFile).map((slot) => slot.uploadedFile as string);
+  const uploadedFiles = [...uploadedExcelFiles, ...uploadedOcrFiles];
   const pdfPreviewPane = (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border-primary bg-white">
       {pdfStatus === "ready" ? (
@@ -1650,6 +2178,8 @@ function AiStepModal({
   }, [branchActivity, questionIndex, selectedActivity]);
 
   const analysis = branchActivity ? getAnalysisResult(branchActivity, answers) : null;
+  const requiredDocuments = analysis?.dokumenWajib ?? OCR_UPLOAD_DEFAULTS.map((item) => item.label);
+  const requiredDocumentsKey = requiredDocuments.join("|");
   const smartDraft = useMemo(
     () => (branchActivity ? buildAiDraftFromAnalysis(branchActivity, answers, uploadedFiles) : null),
     [answers, branchActivity, uploadedFiles],
@@ -1674,21 +2204,47 @@ function AiStepModal({
 
   useEffect(() => {
     if (!open) {
-      setStage("kebutuhan");
+      setStage("identifikasi");
       setSelectedActivity(null);
       setBranchActivity(null);
       setQuestionIndex(0);
       setAnswers({});
       setMessages([{ role: "assistant", text: INITIAL_PROMPT }]);
       setAnalysisReady(false);
-      setUploadedFiles([]);
       setDocSelection([]);
+      setExcelSlot(createUploadSlot("excel", "Upload Data Barang", "File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.", true));
+      setOcrSlots(createDefaultOcrSlots());
+      setCustomCounter(1);
       setPdfStatus("loading");
       setPdfRevision(0);
       setPreviewOpen(false);
       setDismissConfirmOpen(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || stage !== "dokumen") return;
+
+    setOcrSlots((current) => {
+      const requiredSlots = requiredDocuments.map((document, index) => {
+        const existing = current[index];
+        if (existing) {
+          return {
+            ...existing,
+            label: document,
+            description: "Dokumen dasar untuk membantu identifikasi dan validasi data barang.",
+            required: true,
+            removable: false,
+          };
+        }
+
+        return createUploadSlot(`ocr-${index}-${Date.now()}`, document, "Dokumen dasar untuk membantu identifikasi dan validasi data barang.", true);
+      });
+
+      const customSlots = current.filter((slot, index) => index >= requiredDocuments.length && slot.removable);
+      return [...requiredSlots, ...customSlots];
+    });
+  }, [open, requiredDocumentsKey, stage]);
 
   useEffect(() => {
     if (!open) return;
@@ -1698,14 +2254,13 @@ function AiStepModal({
 
     try {
       const snapshot = JSON.parse(stored) as AiWizardSnapshot;
-      setStage(snapshot.stage ?? "kebutuhan");
+      setStage(snapshot.stage ?? "identifikasi");
       setSelectedActivity(snapshot.selectedActivity ?? null);
       setBranchActivity(snapshot.branchActivity ?? null);
       setQuestionIndex(snapshot.questionIndex ?? 0);
       setAnswers(snapshot.answers ?? {});
       setMessages(snapshot.messages?.length ? snapshot.messages : [{ role: "assistant", text: INITIAL_PROMPT }]);
       setAnalysisReady(Boolean(snapshot.analysisReady));
-      setUploadedFiles(snapshot.uploadedFiles ?? []);
       setDocSelection(snapshot.docSelection ?? []);
       setPdfStatus(snapshot.pdfStatus ?? "loading");
       setPdfRevision(snapshot.pdfRevision ?? 0);
@@ -1715,7 +2270,7 @@ function AiStepModal({
   }, [open]);
 
   useEffect(() => {
-    if (!open || stage !== "draft") return;
+    if (!open || stage !== "parsing") return;
 
     let active = true;
     setPdfStatus("loading");
@@ -1755,21 +2310,96 @@ function AiStepModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [previewOpen]);
 
+  const parseSources = useMemo<ParseSourcePreview[]>(() => {
+    if (uploadedFiles.length > 0) {
+      return uploadedFiles.map((fileName, index) => ({
+        id: `source-${index + 1}`,
+        label: index === 0 ? "Data Barang" : `OCR ${index}`,
+        fileName,
+        kind: fileName.toLowerCase().endsWith(".pdf") ? ("pdf" as const) : ("image" as const),
+      }));
+    }
+
+    return [
+      { id: "ocr-a", label: "OCR A", fileName: "ocr-sumber-a.pdf", kind: "pdf" },
+      { id: "ocr-b", label: "OCR B", fileName: "ocr-sumber-b.png", kind: "image" },
+    ];
+  }, [uploadedFiles]);
+
+  const parseRows = useMemo<ParseMappingRow[]>(() => {
+    const sourceA = parseSources[0];
+    const sourceB = parseSources[1] ?? sourceA;
+    const rows: Array<Omit<ParseMappingRow, "source"> & { sourceIndex: number }> = [
+      { seri: "1", uraian: "Barang contoh A", hsCode: "8471.30.10", quantity: "10", sourceIndex: 0 },
+      { seri: "2", uraian: "Barang contoh B", hsCode: "8471.30.90", quantity: "4", sourceIndex: 0 },
+      { seri: "3", uraian: "Barang contoh C", hsCode: "8504.40.90", quantity: "8", sourceIndex: 0 },
+      { seri: "4", uraian: "Barang contoh D", hsCode: "3923.10.90", quantity: "12", sourceIndex: 1 },
+      { seri: "5", uraian: "Barang contoh E", hsCode: "7326.90.99", quantity: "2", sourceIndex: 1 },
+    ];
+
+    return rows.map((row) => ({
+      seri: row.seri,
+      uraian: row.uraian,
+      hsCode: row.hsCode,
+      quantity: row.quantity,
+      source: row.sourceIndex === 0 ? sourceA : sourceB,
+    }));
+  }, [parseSources]);
+
+  const parseConfidence = useMemo(() => {
+    if (!uploadedFiles.length) return 0;
+    return Math.min(99, 84 + uploadedFiles.length * 3 + parseRevision * 2);
+  }, [parseRevision, uploadedFiles.length]);
+
+  const parseConfidenceLabel =
+    parseConfidence >= 95 ? "Aman" : parseConfidence >= 60 ? "Perlu dicek" : parseConfidence > 0 ? "Wajib review" : "Menunggu upload";
+  const parseConfidenceTone =
+    parseConfidence >= 95
+      ? "border-success-200 bg-success-50 text-success-700"
+      : parseConfidence >= 60
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-error-200 bg-error-50 text-error-700";
+  const parseSummaryTone =
+    parseConfidence >= 95
+      ? "border-success-200 bg-success-50/70 text-success-800"
+      : parseConfidence >= 60
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-error-200 bg-error-50/70 text-error-800";
+  const parseConfidenceHint =
+    parseConfidence >= 95
+      ? "Confidence sudah aman untuk lanjut ke form."
+      : parseConfidence >= 60
+        ? "Hasil parsing cukup baik, tapi tetap disarankan cek beberapa bagian."
+        : "Hasil parsing belum stabil. Sebaiknya parse ulang sebelum lanjut.";
+  const barangCount = uploadedFiles.length ? Math.max(1, uploadedFiles.length * 2) : 0;
+  const supportCount = uploadedFiles.length > 1 ? uploadedFiles.length - 1 : 0;
+  const mappedFields = uploadedFiles.length ? 12 : 0;
+  const notice = buildUploadNotice(uploadedFiles.slice(0, 1), uploadedFiles.slice(1));
+  const hasPendingUploads =
+    excelSlot.status === "picked" ||
+    excelSlot.status === "failed" ||
+    ocrSlots.some((slot) => slot.status === "picked" || slot.status === "failed");
+  const handleReparse = () => {
+    setParseRevision((current) => current + 1);
+    setSelectedParseRow(null);
+  };
+
   if (!open) return null;
 
   const stepIndex = STEP_LABELS.findIndex((step) => step.key === stage);
-  const requiredDocuments = analysis?.dokumenWajib ?? [];
 
   const resetConversation = () => {
-    setStage("kebutuhan");
+    setStage("identifikasi");
     setSelectedActivity(null);
     setBranchActivity(null);
     setQuestionIndex(0);
     setAnswers({});
     setMessages([{ role: "assistant", text: INITIAL_PROMPT }]);
     setAnalysisReady(false);
-    setUploadedFiles([]);
     setDocSelection([]);
+    setExcelSlot(createUploadSlot("excel", "Upload Data Barang", "File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.", true));
+    setOcrSlots(createDefaultOcrSlots());
+    setCustomCounter(1);
     setPdfStatus("loading");
     setPdfRevision(0);
     setPreviewOpen(false);
@@ -1794,18 +2424,15 @@ function AiStepModal({
   };
 
   const handleDismissRequest = () => {
-    setDismissConfirmOpen(true);
-  };
+    if (stage === "parsing") {
+      setDismissConfirmOpen(true);
+      return;
+    }
 
-  const handleSaveDraft = () => {
-    persistWizardSnapshot();
-    setDismissConfirmOpen(false);
     onClose();
   };
 
-  const handleDeleteDraft = () => {
-    sessionStorage.removeItem(AI_WIZARD_STORAGE_KEY);
-    sessionStorage.removeItem(AI_DRAFT_STORAGE_KEY);
+  const handleConfirmExit = () => {
     setDismissConfirmOpen(false);
     onClose();
   };
@@ -1824,10 +2451,12 @@ function AiStepModal({
     setQuestionIndex(0);
     setAnswers({});
     setAnalysisReady(false);
-    setUploadedFiles([]);
     setDocSelection([]);
+    setExcelSlot(createUploadSlot("excel", "Upload Data Barang", "File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.", true));
+    setOcrSlots(createDefaultOcrSlots());
+    setCustomCounter(1);
     setMessages((current) => [
-      ...current,
+      { role: "assistant", text: INITIAL_PROMPT },
       { role: "user", text: getActivityLabel(choice) },
       { role: "assistant", text: initialQuestion.prompt },
     ]);
@@ -1844,17 +2473,13 @@ function AiStepModal({
     }
 
     setAnalysisReady(true);
-    setStage("identifikasi");
     setMessages((current) => [
       ...current,
       {
         role: "assistant",
-        text: "Baik, saya sudah mengolah jawaban Anda. Berikut Analisis Identifikasi untuk ditinjau sebelum upload dokumen.",
+        text: "Baik, saya sudah mengolah jawaban Anda. Berikut hasil identifikasi untuk ditinjau sebelum upload dokumen.",
       },
     ]);
-
-    const selectedDocs = Array.isArray(nextAnswers.dokumen) ? nextAnswers.dokumen : [];
-    setDocSelection(selectedDocs);
   };
 
   const handleSingleSelect = (value: string) => {
@@ -1887,7 +2512,7 @@ function AiStepModal({
   const confirmMultiSelection = () => {
     if (!activeQuestion?.multi || !branchActivity) return;
 
-    const nextAnswers = { ...answers, [activeQuestion.id]: docSelection };
+    const nextAnswers = { ...answers, [activeQuestion.id]: docSelection};
     setAnswers(nextAnswers);
     pushMessage({
       role: "user",
@@ -1896,21 +2521,71 @@ function AiStepModal({
     advanceBranchFlow(branchActivity, nextAnswers);
   };
 
-  const handleFileChange = (files: FileList | File[]) => {
-    const names = Array.from(files).map((file) => file.name);
-    if (!names.length) return;
-
-    setUploadedFiles((current) => Array.from(new Set([...current, ...names])));
-    setStage("draft");
+  const handleExcelPick = (file: File | null) => {
+    setExcelSlot((current) =>
+      file
+        ? { ...current, selectedFile: file.name, status: "picked", error: null }
+        : { ...current, selectedFile: null, uploadedFile: null, status: "empty", error: null },
+    );
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleExcelUpload = () => {
+    setExcelSlot((current) => {
+      if (!current.selectedFile) return { ...current, status: "failed", error: "Pilih file Excel dulu." };
+      return { ...current, uploadedFile: current.selectedFile, status: "uploaded", error: null };
+    });
+  };
+
+  const handleOcrPick = (slotId: string, file: File | null) => {
+    setOcrSlots((current) =>
+      current.map((slot) =>
+        slot.id !== slotId
+          ? slot
+          : file
+            ? { ...slot, selectedFile: file.name, status: "picked", error: null }
+            : { ...slot, selectedFile: null, uploadedFile: null, status: "empty", error: null },
+      ),
+    );
+  };
+
+  const handleOcrUpload = (slotId: string) => {
+    setOcrSlots((current) =>
+      current.map((slot) => {
+        if (slot.id !== slotId) return slot;
+        if (!slot.selectedFile) return { ...slot, status: "failed", error: "Pilih file OCR dulu." };
+        return { ...slot, uploadedFile: slot.selectedFile, status: "uploaded", error: null };
+      }),
+    );
+  };
+
+  const addOcrSlot = () => {
+    setCustomCounter((current) => current + 1);
+    setOcrSlots((current) => [
+      ...current,
+      createUploadSlot(
+        `custom-${Date.now()}`,
+        `Dokumen tambahan ${customCounter + 1}`,
+        "Tambahkan dokumen OCR lain yang perlu diunggah.",
+        false,
+        true,
+      ),
+    ]);
+  };
+
+  const handleExcelDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    handleFileChange(event.dataTransfer.files);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    if (file) handleExcelPick(file);
   };
 
-  const handleContinueToDraft = () => {
-    setStage("draft");
+  const handleOcrDrop = (event: DragEvent<HTMLDivElement>, slotId: string) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0] ?? null;
+    if (file) handleOcrPick(slotId, file);
+  };
+
+  const handleContinueToParsing = () => {
+    setStage("parsing");
   };
 
   const handleContinue = () => {
@@ -1920,10 +2595,6 @@ function AiStepModal({
     sessionStorage.removeItem(AI_WIZARD_STORAGE_KEY);
     onSubmit(submissionDraft);
     onClose();
-  };
-
-  const handleBackToUpload = () => {
-    setStage("dokumen");
   };
 
   const renderMessage = (message: ConversationMessage, index: number) =>
@@ -1963,7 +2634,7 @@ function AiStepModal({
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-5 gap-2 sm:gap-3">
+          <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
             {STEP_LABELS.map((step, index) => {
               const active = index === stepIndex;
               const done = index < stepIndex;
@@ -2004,7 +2675,7 @@ function AiStepModal({
           <div className="flex flex-col gap-4">
             {messages.map(renderMessage)}
 
-            {stage === "kebutuhan" && (
+            {stage === "identifikasi" && !branchActivity && !analysisReady && !selectedActivity && (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {ACTIVITY_OPTIONS.map((option) => (
                   <button
@@ -2086,20 +2757,12 @@ function AiStepModal({
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setDocSelection([])}
-                        className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setDocSelection([])}>
                         Reset Pilihan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={confirmMultiSelection}
-                        className="inline-flex h-10 items-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-                      >
+                      </Button>
+                      <Button variant="primary" size="sm" onClick={confirmMultiSelection}>
                         Lanjut
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -2163,128 +2826,175 @@ function AiStepModal({
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={resetConversation}
-                    className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-                  >
+                  <Button variant="outline" size="sm" onClick={resetConversation}>
                     Ubah Jawaban
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStage("dokumen")}
-                    className="inline-flex h-10 items-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleContinue}
                   >
+                    Lewati Upload Dokumen
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => setStage("dokumen")}>
                     Lanjut ke Upload Dokumen
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
 
             {stage === "dokumen" && analysis && (
-              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center justify-between gap-3 border-b border-border-primary pb-3">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Upload Dokumen</div>
-                    <div className="mt-1 text-[16px] font-semibold text-neutral-800">
-                      Unggah dokumen pendukung jika tersedia
+              <div className="rounded-2xl border border-border-primary bg-background-primary/30 p-3 shadow-sm sm:p-4">
+                <div className="grid gap-4">
+                <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                  <div className="border-b border-border-primary pb-3">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">
+                      Upload Data Barang
                     </div>
-                  </div>
-                  <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-600">
-                    Setelah identifikasi
-                  </div>
-                </div>
-
-                <div
-                  className="mt-4 rounded-2xl border border-dashed border-border-primary bg-background-primary/70 p-6 text-center transition-colors hover:border-brand-primary-300"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={handleDrop}
-                >
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600">
-                    <UploadIcon />
-                  </div>
-                  <div className="mt-3 text-[13px] font-medium text-neutral-800">
-                    Drag and drop file di sini atau klik untuk upload
-                  </div>
-                  <p className="mt-1 text-[12px] text-neutral-600">
-                    Format yang didukung: PDF, DOCX, XLSX, JPG, PNG.
-                  </p>
-
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                    className="hidden"
-                    onChange={(event) => {
-                      if (event.target.files) handleFileChange(event.target.files);
-                    }}
-                  />
-
-                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => inputRef.current?.click()}
-                      className="inline-flex h-10 items-center gap-2 rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-                    >
-                      <UploadIcon />
-                      Upload
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleContinueToDraft}
-                      className="inline-flex h-10 items-center rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-500 transition-colors hover:bg-brand-primary-50"
-                    >
-                      Lewati
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-                  <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Dokumen Wajib</div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {requiredDocuments.map((document) => (
-                        <span
-                          key={document}
-                          className="rounded-full border border-border-primary bg-white px-3 py-1 text-[12px] text-neutral-700"
-                        >
-                          {document}
-                        </span>
-                      ))}
-                    </div>
+                    <div className="mt-1 text-[13px] font-semibold text-neutral-800">Pilih file Excel untuk data barang</div>
                   </div>
 
-                  <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">File Terpilih</div>
-                    {uploadedFiles.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {uploadedFiles.map((file) => (
-                          <div
-                            key={file}
-                            className="flex items-center justify-between rounded-xl border border-border-primary bg-white px-3 py-2 text-[12px]"
-                          >
-                            <span className="inline-flex items-center gap-2 text-neutral-800">
-                              <FileIcon />
-                              {file}
-                            </span>
-                            <span className="text-neutral-500">siap</span>
-                          </div>
-                        ))}
+                  <div
+                    className="mt-4 rounded-2xl border-2 border-dashed border-border-primary bg-background-primary/30 p-4"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleExcelDrop}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
+                        <UploadIcon />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-[14px] font-semibold text-neutral-800">Upload Data Barang</div>
+                        <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                          File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.
+                        </p>
                       </div>
-                    ) : (
-                      <div className="mt-2 text-[12px] text-neutral-600">Belum ada file yang diunggah.</div>
-                    )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Selected file</div>
+                        <div className="mt-1 text-[12px] font-medium text-neutral-800">
+                          {excelSlot.selectedFile ?? "Belum ada file"}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <label htmlFor="ai-excel-upload-input">Pilih File</label>
+                        </Button>
+                        <Button variant="primary" size="sm" onClick={handleExcelUpload} disabled={!excelSlot.selectedFile}>
+                          Upload
+                        </Button>
+                      </div>
+                    </div>
+
+                    <input
+                      id="ai-excel-upload-input"
+                      ref={inputRef}
+                      type="file"
+                      accept=".xls,.xlsx"
+                      className="hidden"
+                      onChange={(event) => {
+                        handleExcelPick(event.target.files?.[0] ?? null);
+                      }}
+                    />
                   </div>
+                </section>
+
+                <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                  <div className="border-b border-border-primary pb-3">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">
+                      Upload OCR
+                    </div>
+                    <div className="mt-1 text-[13px] font-semibold text-neutral-800">Upload dokumen dasar satu per satu</div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {ocrSlots.map((slot, index) => (
+                      <div
+                        key={slot.id}
+                        className="rounded-2xl border border-border-primary bg-background-primary/20 p-4"
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => handleOcrDrop(event, slot.id)}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
+                              <FileIcon />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-[14px] font-semibold text-neutral-800">{slot.label || requiredDocuments[index] || `Dokumen ${index + 1}`}</div>
+                                <span
+                                  className={[
+                                    "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                    slot.required ? "bg-error-50 text-error-600" : "bg-neutral-100 text-neutral-600",
+                                  ].join(" ")}
+                                >
+                                  {slot.required ? "Wajib" : "Opsional"}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                                {slot.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className={["rounded-full px-3 py-1 text-[12px] font-semibold", slot.status === "uploaded" ? "bg-success-50 text-success-600" : "bg-neutral-100 text-neutral-600"].join(" ")}>
+                            {slot.status === "uploaded" ? "Terverifikasi" : slot.status === "picked" ? "Siap upload" : slot.status === "failed" ? "Gagal" : "Belum dipilih"}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Selected file</div>
+                            <div className="mt-1 text-[12px] font-medium text-neutral-800">{slot.selectedFile ?? "Belum ada file"}</div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button asChild variant="outline" size="sm">
+                              <label htmlFor={`ai-ocr-upload-${slot.id}`}>Pilih File</label>
+                            </Button>
+                            <Button variant="primary" size="sm" onClick={() => handleOcrUpload(slot.id)} disabled={!slot.selectedFile}>
+                              Upload
+                            </Button>
+                            <input
+                              id={`ai-ocr-upload-${slot.id}`}
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              className="hidden"
+                              onChange={(event) => handleOcrPick(slot.id, event.target.files?.[0] ?? null)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="outline" size="sm" startIcon={<PlusIcon />} onClick={addOcrSlot}>
+                      Tambah Dokumen
+                    </Button>
+                  </div>
+                </section>
+
+                <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-border-primary bg-white px-4 py-3 shadow-sm">
+                  <Button variant="outline" size="sm" onClick={handleContinue}>
+                    Lewati
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={handleContinueToParsing} disabled={hasPendingUploads}>
+                    Lanjut ke Data Parsing
+                  </Button>
                 </div>
+              </div>
               </div>
             )}
 
-            {stage === "draft" && smartDraft && (
+            {stage === "parsing" && smartDraft && (
               <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between gap-3 border-b border-border-primary pb-3">
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Smart Draft</div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Data Parsing</div>
                     <div className="mt-1 text-[16px] font-semibold text-neutral-800">Rancangan Pengajuan Otomatis</div>
                   </div>
                   <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-600">
@@ -2292,108 +3002,109 @@ function AiStepModal({
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4">
-                  <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">
-                      Ringkasan Hasil Identifikasi
-                    </div>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <DraftField label="Jenis Pengajuan" value={smartDraft.jenisPengajuan} />
-                      <DraftField label="Nama Perusahaan" value={smartDraft.namaPerusahaan} />
-                      <DraftField label="NPWP" value={smartDraft.npwp} />
-                      <DraftField label="Nomor NIB" value={smartDraft.nib} />
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-border-primary bg-white p-3">
-                      <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Ringkasan Kebutuhan</div>
-                      <div className="mt-1 text-[12px] leading-5 text-neutral-800">{smartDraft.ringkasanKebutuhan}</div>
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-border-primary bg-white p-3">
-                      <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-600">
-                        Dokumen Pendukung
-                      </div>
-                      {smartDraft.dokumenPendukung.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {smartDraft.dokumenPendukung.map((file) => (
-                            <span
-                              key={file}
-                              className="inline-flex items-center gap-2 rounded-full border border-border-primary bg-background-primary/70 px-3 py-1 text-[12px] text-neutral-800"
-                            >
-                              <FileIcon />
-                              {file}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-1 text-[12px] text-neutral-600">Belum ada file yang diunggah.</div>
-                      )}
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-brand-primary-100 bg-brand-primary-50/70 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.12em] text-brand-primary-600">
-                        Rekomendasi Sistem
-                      </div>
-                      <div className="mt-1 text-[12px] leading-5 text-neutral-800">{smartDraft.rekomendasiSistem}</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                    <div className="flex items-center justify-between gap-3 border-b border-border-primary pb-3">
+                <div className="mt-4 grid gap-3 lg:grid-cols-[1.15fr_1fr]">
+                  <div className={["rounded-2xl border p-4 shadow-sm", parseConfidenceTone].join(" ")}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">
-                          Preview Draft PDF
-                        </div>
-                        <div className="mt-1 text-[16px] font-semibold text-neutral-800">
-                          Draft Surat Pengajuan
-                        </div>
+                        <div className="text-[11px] uppercase tracking-[0.16em]">Confidence global</div>
+                        <div className="mt-1 text-[28px] font-semibold leading-none">{parseConfidence}%</div>
                       </div>
-                      <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-600">
-                        PDF.js
-                      </div>
+                      <span className="rounded-full bg-white/80 px-3 py-1 text-[12px] font-semibold text-neutral-800 shadow-sm">
+                        {parseConfidenceLabel}
+                      </span>
                     </div>
-
-                    <div className="mt-4">
-                      <div className="h-[600px]">{pdfPreviewPane}</div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewOpen(true)}
-                        className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-                      >
-                        Buka Preview Besar
-                      </button>
-                      <div className="flex flex-wrap items-center justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={resetConversation}
-                        className="inline-flex h-10 items-center rounded-md border border-border-primary px-4 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
-                      >
-                        Ubah Jawaban
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPdfStatus("loading");
-                          setPdfRevision((current) => current + 1);
-                        }}
-                        className="inline-flex h-10 items-center rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-500 transition-colors hover:bg-brand-primary-50"
-                      >
-                        Generate Ulang Draft
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleContinue}
-                        className="inline-flex h-10 items-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-                        >
-                          Benar, Lanjut ke Form
-                        </button>
-                      </div>
+                    <p className="mt-3 max-w-2xl text-[12px] leading-5">{parseConfidenceHint}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleReparse} startIcon={<RefreshIcon />}>
+                        Parse Ulang
+                      </Button>
+                      <span className="rounded-full border border-white/80 bg-white/60 px-3 py-1 text-[11px] font-semibold text-neutral-700">
+                        Global, bukan per field
+                      </span>
                     </div>
                   </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                    {[
+                      { label: "Jumlah barang terbaca", value: `${barangCount}` },
+                      { label: "Jumlah dokumen pendukung", value: `${supportCount}` },
+                      { label: "Field yang berhasil dipetakan", value: `${mappedFields}` },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-border-primary bg-background-primary/35 p-4 shadow-sm">
+                        <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{item.label}</div>
+                        <div className="mt-2 text-[24px] font-semibold leading-none text-neutral-800">{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={["mt-4 rounded-2xl border px-4 py-3 text-[12px] leading-5", parseSummaryTone].join(" ")}>
+                  {notice}
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-brand-primary-100 bg-brand-primary-50/35">
+                  <div className="flex items-center justify-between gap-3 border-b border-brand-primary-100 px-4 py-3">
+                    <div>
+                      <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-700">
+                        Preview Mapping
+                      </div>
+                      <div className="mt-1 text-[13px] font-semibold text-neutral-800">Tabel data barang hasil parse</div>
+                    </div>
+                    <div className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-brand-primary-700 shadow-sm">
+                      {parseRows.length} barang
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-border-primary text-left text-[12px]">
+                      <thead className="bg-white/70 text-neutral-600">
+                        <tr>
+                          <th className="px-4 py-3 font-semibold">Seri</th>
+                          <th className="px-4 py-3 font-semibold">Uraian Barang</th>
+                          <th className="px-4 py-3 font-semibold">HS Code</th>
+                          <th className="px-4 py-3 font-semibold">Sumber OCR</th>
+                          <th className="px-4 py-3 font-semibold text-right">Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-primary bg-white">
+                        {parseRows.map((row) => (
+                          <tr key={row.seri} className="transition-colors hover:bg-brand-primary-50/60">
+                            <td className="px-4 py-3 font-semibold text-neutral-800">{row.seri}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-neutral-800">{row.uraian}</div>
+                              <div className="mt-1 text-[11px] text-neutral-500">Qty {row.quantity}</div>
+                            </td>
+                            <td className="px-4 py-3 text-neutral-700">{row.hsCode}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-neutral-800">{row.source.label}</div>
+                              <div className="mt-1 text-[11px] text-neutral-500">{row.source.fileName}</div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button variant="outline" size="sm" onClick={() => setSelectedParseRow(row)}>
+                                Detail
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+                  <Button variant="outline" size="sm" onClick={resetConversation}>
+                    Ubah Jawaban
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReparse}
+                  >
+                    Generate Ulang Parsing
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={handleContinue}>
+                    Ok, Lanjut ke Form
+                  </Button>
                 </div>
               </div>
             )}
@@ -2410,113 +3121,135 @@ function AiStepModal({
               </span>
               <span>Data Anda aman dan hanya digunakan untuk keperluan pengajuan.</span>
             </div>
-            <button
-              type="button"
-              onClick={handleDismissRequest}
-              className="inline-flex h-11 items-center gap-2 rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-700 transition-colors hover:bg-brand-primary-50"
-            >
-              <CloseIcon />
-              Batal
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <ModalCancelButton onClick={handleDismissRequest} />
+            </div>
+          </div>
           </div>
         </div>
       </div>
-    </div>
 
-    {previewOpen && (
+      {dismissConfirmOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+              <div className="w-full max-w-[520px] rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_32px_90px_rgba(15,23,42,0.35)]">
+                <div className="flex items-start gap-3">
+                  <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-500/10 text-error-600">
+                    <CloseIcon />
+                  </div>
+                  <div>
+                    <h3 className="text-[20px] font-semibold text-neutral-800">Konfirmasi keluar?</h3>
+                    <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                      Data parsing sudah tersedia. Apakah Anda yakin ingin keluar dari proses ini?
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Button variant="outline" size="sm" onClick={() => setDismissConfirmOpen(false)}>
+                    Tidak
+                  </Button>
+                  <Button variant="error" size="sm" onClick={handleConfirmExit}>
+                    Ya
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+    {selectedParseRow && (
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/75 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-6"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setPreviewOpen(false);
-        }}
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6"
+        onClick={(event) => event.target === event.currentTarget && setSelectedParseRow(null)}
       >
-        <div className="relative flex h-[92vh] w-[96vw] max-w-[1280px] flex-col overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.35)]">
+        <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)]">
           <button
             type="button"
             className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-            aria-label="Tutup preview PDF"
-            onClick={() => setPreviewOpen(false)}
+            aria-label="Tutup preview detail"
+            onClick={() => setSelectedParseRow(null)}
           >
             <CloseIcon />
           </button>
 
-          <div className="border-b border-border-primary px-5 py-4 pr-16 sm:px-8">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-500">
-                <FileIcon />
-              </div>
-              <div>
-                <h3 className="text-[24px] font-semibold text-neutral-800">Preview Draft PDF</h3>
-                <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
-                  Tinjau draft surat pada modal khusus dengan ruang baca yang lebih lega.
-                </p>
-              </div>
+          <div className="border-b border-border-primary px-5 py-5 pr-16 sm:px-8">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Detail Mapping</div>
+            <h3 className="mt-1 text-[24px] font-semibold text-neutral-800">Seri {selectedParseRow.seri}</h3>
+            <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">
+              Lihat data barang yang dipetakan AI beserta sumber OCR yang dipakai untuk baris ini.
+            </p>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
+            <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
+              <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="border-b border-border-primary pb-3">
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Data Barang</div>
+                  <div className="mt-1 text-[13px] font-semibold text-neutral-800">Hasil parse untuk seri {selectedParseRow.seri}</div>
+                </div>
+
+                <div className="mt-4 grid gap-2 text-[12px]">
+                  {[
+                    { label: "Seri", value: selectedParseRow.seri },
+                    { label: "Uraian Barang", value: selectedParseRow.uraian },
+                    { label: "HS Code", value: selectedParseRow.hsCode },
+                    { label: "Qty", value: selectedParseRow.quantity },
+                    { label: "Sumber", value: selectedParseRow.source.label },
+                    { label: "File", value: selectedParseRow.source.fileName },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-start justify-between gap-3 rounded-xl border border-border-primary px-3 py-2">
+                      <span className="text-neutral-600">{item.label}</span>
+                      <span className="text-right font-semibold text-neutral-800">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50/70 p-3 text-[12px] leading-5 text-brand-primary-800">
+                  Confidence parsing global: <span className="font-semibold">{parseConfidence}%</span> {parseConfidenceLabel}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="border-b border-border-primary pb-3">
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Preview Sumber OCR</div>
+                  <div className="mt-1 text-[13px] font-semibold text-neutral-800">{selectedParseRow.source.label}</div>
+                </div>
+
+                <div className="mt-4 h-[520px] overflow-hidden rounded-2xl border border-border-primary bg-background-primary/30">
+                  {selectedParseRow.source.kind === "pdf" ? (
+                    <Worker workerUrl={PDF_WORKER_URL}>
+                      <Viewer fileUrl={`${SAMPLE_DRAFT_PDF}?v=${parseRevision}`} />
+                    </Worker>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                      <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600 shadow-sm">
+                        <FileIcon />
+                      </div>
+                      <div className="mt-4 text-[14px] font-semibold text-neutral-800">{selectedParseRow.source.fileName}</div>
+                      <p className="mt-2 max-w-sm text-[12px] leading-5 text-neutral-600">
+                        Preview visual sumber ada pada dokumen OCR yang dipakai AI untuk memetakan baris ini.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
-            <div className="h-full">{pdfPreviewPane}</div>
-          </div>
-
-          <div className="border-t border-border-primary bg-[#f8fbff] px-5 py-4 sm:px-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex items-center gap-2 text-[12px] text-neutral-600">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600">
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v6h5v2h-7V7h2Z" />
-                  </svg>
-                </span>
-                <span>Gunakan toolbar untuk zoom, navigasi halaman, dan pencarian isi dokumen.</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(false)}
-                className="inline-flex h-11 items-center gap-2 rounded-md border border-brand-primary-500 px-4 text-[12px] font-semibold text-brand-primary-700 transition-colors hover:bg-brand-primary-50"
-              >
-                <CloseIcon />
-                Tutup Preview
-              </button>
+          <div className="border-t border-border-primary px-5 py-4 sm:px-8">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[12px] text-neutral-600">Tutup detail untuk kembali ke tabel mapping.</div>
+              <Button variant="outline" size="sm" onClick={() => setSelectedParseRow(null)}>
+                Tutup
+              </Button>
             </div>
           </div>
         </div>
       </div>
     )}
 
-    {dismissConfirmOpen && (
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
-        <div className="w-full max-w-[520px] rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_32px_90px_rgba(15,23,42,0.35)]">
-          <div className="flex items-start gap-3">
-            <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-500/10 text-error-600">
-              <CloseIcon />
-            </div>
-            <div>
-              <h3 className="text-[20px] font-semibold text-neutral-800">Simpan perubahan?</h3>
-              <p className="mt-1 text-[12px] leading-5 text-neutral-600">
-                Kamu sedang menutup Smart Submission Assistant. Pilih salah satu tindakan di bawah ini.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <ModalCancelButton onClick={() => setDismissConfirmOpen(false)} className="justify-center h-11" />
-            <button
-              type="button"
-              onClick={handleDeleteDraft}
-              className="inline-flex h-11 items-center justify-center rounded-md border border-error-500 px-4 text-[12px] font-semibold text-error-600 transition-colors hover:bg-error-500/10"
-            >
-              Hapus Draft
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="inline-flex h-11 items-center justify-center rounded-md bg-brand-primary-500 px-4 text-[12px] font-semibold text-white transition-colors hover:bg-brand-primary-600"
-            >
-              Simpan ke Draft
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     </>
   );
 }
@@ -2529,9 +3262,14 @@ function DraftField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SidebarIcon({ label }: { label: string }) {
+function SidebarIcon({ label, active }: { label: string; active?: boolean }) {
   return (
-    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand-primary-50 text-[11px] font-semibold text-brand-primary-600">
+    <span
+      className={[
+        "inline-flex h-7 w-7 items-center justify-center rounded-md text-[11px] font-semibold",
+        active ? "bg-white text-[#02275D]" : "bg-brand-primary-50 text-brand-primary-600",
+      ].join(" ")}
+    >
       {label.slice(0, 1)}
     </span>
   );
@@ -2556,13 +3294,13 @@ export function DashboardSidebar() {
                 className={[
                   "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[12px] font-medium transition-colors",
                   active
-                    ? "bg-brand-primary-500 text-white"
-                    : "text-neutral-700 hover:bg-brand-primary-50 hover:text-brand-primary-600",
+                    ? "bg-[#02275D] text-white"
+                    : "text-neutral-700 hover:bg-brand-primary-50 hover:text-brand-primary-700",
                 ]
                   .filter(Boolean)
                   .join(" ")}
               >
-                <SidebarIcon label={item.label} />
+                <SidebarIcon label={item.label} active={active} />
                 <span className="whitespace-nowrap">{item.label}</span>
               </Link>
             );
@@ -2575,6 +3313,7 @@ export function DashboardSidebar() {
 
 function DashboardContent() {
   const navigate = useNavigate();
+  const { location } = useRouterState();
   const [query, setQuery] = useState("");
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [manualMethodOpen, setManualMethodOpen] = useState(false);
@@ -2587,6 +3326,14 @@ function DashboardContent() {
     const haystack = `${item.title} ${item.file} ${item.type} ${item.note}`.toLowerCase();
     return haystack.includes(query.toLowerCase());
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("launcher") === "1") {
+      setLauncherOpen(true);
+      navigate({ to: "/", search: {} as never, replace: true });
+    }
+  }, [location.search, navigate]);
 
   const handleAiSubmit = (draft: AiSubmissionDraft) => {
     storeFormSnapshot("assistant", draft);
@@ -2681,7 +3428,7 @@ function DashboardContent() {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-border-primary bg-white px-3 py-4 shadow-sm sm:px-4 sm:py-5 lg:px-5">
-      <section className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-primary-500 via-[#03306f] to-[#0756a7] p-5 text-white shadow-sm sm:p-6 lg:p-8">
+      <section className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-primary-700 via-[#03306f] to-brand-primary-900 p-5 text-white shadow-sm sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-full bg-[#ffe07a] px-3 py-1 text-[12px] font-semibold text-[#7a5300]">
             Featured
@@ -2700,14 +3447,15 @@ function DashboardContent() {
           Ringkasan pengajuan yang sedang berjalan, lengkap dengan akses cepat untuk memulai pengajuan baru.
         </p>
 
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="lg"
           onClick={() => setLauncherOpen(true)}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md border border-white/20 bg-[#f3f6fb] px-4 text-[12px] font-semibold text-brand-primary-700 shadow-sm transition-colors hover:bg-white"
+          startIcon={<PlusIcon />}
+          className="mt-6 w-fit border-white/20 bg-white text-brand-primary-800 shadow-[0_12px_28px_rgba(0,0,0,0.12)] transition-all duration-500 ease-out hover:!translate-y-0 hover:border-white/40 hover:bg-white hover:shadow-[0_16px_34px_rgba(0,0,0,0.14)] focus-visible:ring-brand-primary-100"
         >
-          <PlusIcon />
           Pengajuan
-        </button>
+        </Button>
       </section>
 
       <div className="flex flex-col gap-4 border-b border-border-primary pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -2721,17 +3469,22 @@ function DashboardContent() {
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+          <Link
+            key={stat.label}
+            to="/data"
+            search={{ status: stat.filter } as never}
+            className={`group rounded-lg border p-4 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.10)] ${stat.cardTone} ${stat.hoverTone}`}
+          >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">{stat.label}</div>
-                <div className="mt-2 text-[28px] font-semibold leading-none text-neutral-800">{stat.value}</div>
+                <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-700">{stat.label}</div>
+                <div className={`mt-2 text-[28px] font-semibold leading-none ${stat.textTone}`}>{stat.value}</div>
               </div>
-              <div className={`rounded-full px-3 py-1 text-[12px] font-semibold ${stat.accent}`}>
+              <div className={`rounded-full px-3 py-1 text-[12px] font-semibold transition-colors duration-300 ${stat.badgeTone}`}>
                 {stat.label}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -2780,18 +3533,12 @@ function DashboardContent() {
               </div>
 
               <div className="mt-4 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center rounded-md border border-brand-primary-500 px-3 text-[12px] font-medium text-brand-primary-500 transition-colors hover:bg-brand-primary-50"
-                >
+                <Button variant="outline" size="sm">
                   Lihat
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center rounded-md bg-brand-primary-500 px-3 text-[12px] font-medium text-white transition-colors hover:bg-brand-primary-600"
-                >
+                </Button>
+                <Button variant="primary" size="sm">
                   Unduh
-                </button>
+                </Button>
               </div>
             </article>
           ))}
@@ -2813,7 +3560,11 @@ function DashboardContent() {
         }}
         onSelect={handleManualMethodChoice}
       />
-      <AiStepModal open={assistantOpen} onClose={() => setAssistantOpen(false)} onSubmit={handleAiSubmit} />
+      <AiStepModal
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onSubmit={handleAiSubmit}
+      />
       <ManualDocumentModal
         open={manualOpen}
         onClose={() => setManualOpen(false)}
@@ -2883,6 +3634,29 @@ export function ProposalListTable({
   title?: string;
   subtitle?: string;
 }) {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const { location } = useRouterState();
+  const searchParams = new URLSearchParams(location.search);
+  const statusFilter = (searchParams.get("status") as "Semua" | ProposalStatus | null) ?? "Semua";
+  const visibleRows = useMemo(() => {
+    const byStatus = statusFilter === "Semua" ? proposalRows : proposalRows.filter((row) => row.status === statusFilter);
+    const normalized = searchQuery.trim().toLowerCase();
+    if (!normalized) return byStatus;
+
+    return byStatus.filter((row) =>
+      `${row.pengajuan} ${row.dokumen} ${row.kirim} ${row.perusahaan} ${row.status}`.toLowerCase().includes(normalized),
+    );
+  }, [searchQuery, statusFilter]);
+  const summaryItems: Array<"Semua" | ProposalStatus> = ["Semua", "Draft", "Proses", "Disetujui", "Ditolak"];
+  const summaryCounts: Record<"Semua" | ProposalStatus, number> = {
+    Semua: proposalRows.length,
+    Draft: proposalRows.filter((row) => row.status === "Draft").length,
+    Proses: proposalRows.filter((row) => row.status === "Proses").length,
+    Disetujui: proposalRows.filter((row) => row.status === "Disetujui").length,
+    Ditolak: proposalRows.filter((row) => row.status === "Ditolak").length,
+  };
+
   return (
     <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-border-primary bg-white px-3 py-4 shadow-sm sm:px-4 sm:py-5 lg:px-5">
       <div className="flex flex-col gap-4 border-b border-border-primary pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -2892,63 +3666,162 @@ export function ProposalListTable({
           <p className="mt-1 text-[12px] text-neutral-600">{subtitle}</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <IconButton label="Cari">
-            <SearchIcon />
-          </IconButton>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-md bg-brand-primary-500 px-4 text-[12px] font-medium leading-none text-white shadow-sm transition-colors hover:bg-brand-primary-600"
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          <div className="w-full sm:w-[320px]">
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              type="search"
+              placeholder="Cari pengajuan..."
+              prefixIcon={<SearchIcon />}
+            />
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            startIcon={<PlusIcon />}
+            className="!border-brand-primary-800 !bg-brand-primary-800 hover:!border-brand-primary-700 hover:!bg-brand-primary-700"
+            onClick={() => navigate({ to: "/", search: { launcher: "1" } as never })}
           >
-            <PlusIcon />
-            <span>Pengajuan</span>
-          </button>
-          <IconButton label="Riwayat">
-            <ListIcon />
-          </IconButton>
+            Pengajuan
+          </Button>
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto overscroll-x-contain border border-border-primary">
-        <table className="min-w-[1180px] border-collapse text-left text-[12px]">
-          <thead className="bg-brand-primary-500 text-white">
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {summaryItems.map((status) => {
+          const meta = proposalStatusMeta[status];
+          const active = statusFilter === status;
+          return (
+            <Link
+              key={status}
+              to="/data"
+              search={{ status: status === "Semua" ? undefined : status } as never}
+              className={`group rounded-xl border p-3 text-left shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${
+                active ? `${meta.activeTone} border-transparent` : `${meta.tone} ${meta.borderTone}`
+              }`}
+            >
+              <div className="text-[11px] uppercase tracking-[0.14em] opacity-80">Filter</div>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold leading-tight">{meta.label}</div>
+                  <div className="mt-1 text-[28px] font-semibold leading-none">{summaryCounts[status]}</div>
+                </div>
+                <div className={`rounded-full px-3 py-1 text-[11px] font-semibold ${active ? "bg-white/20" : "bg-white/60"}`}>
+                  {active ? "Aktif" : "Lihat"}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border-primary">
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="min-w-full border-collapse text-left text-[12px]">
+          <thead className="bg-brand-primary-800 text-white">
             <tr>
-              <th className="w-16 px-3 py-2" />
-              <th className="px-3 py-2 font-semibold">Nomer Pengajuan</th>
-              <th className="px-3 py-2 font-semibold">Tanggal Kirim Dokumen</th>
-              <th className="px-3 py-2 font-semibold">Nomor Pendaftaran</th>
-              <th className="px-3 py-2 font-semibold">Tanggal Pendaftaran</th>
-              <th className="px-3 py-2 font-semibold">Nama Perusahaan</th>
-              <th className="px-3 py-2 font-semibold">Barang</th>
-              <th className="px-3 py-2 font-semibold">Kontainer</th>
-              <th className="px-3 py-2 font-semibold">Status</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold">Nomor Pengajuan</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold">Jenis Dokumen</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold">Tanggal Kirim Dokumen</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold">Nama Perusahaan</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold">Status</th>
+              <th className="whitespace-nowrap px-3 py-2 font-semibold text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="bg-white">
-            {proposalRows.map((row) => (
+            {visibleRows.map((row) => (
               <tr key={row.pengajuan} className="border-t border-border-primary hover:bg-brand-primary-50/30">
-                <td className="px-3 py-2 align-middle">
-                  <span className="inline-flex h-4 w-4 rounded-full border border-neutral-500" />
-                </td>
                 <td className="px-3 py-2 align-middle text-brand-primary-600">{row.pengajuan}</td>
+                <td className="px-3 py-2 align-middle">
+                  <span className="inline-flex rounded-full bg-brand-primary-50 px-2.5 py-1 text-[11px] font-semibold text-brand-primary-700">
+                    {row.dokumen}
+                  </span>
+                </td>
                 <td className="px-3 py-2 align-middle">{row.kirim}</td>
-                <td className="px-3 py-2 align-middle" />
-                <td className="px-3 py-2 align-middle" />
                 <td className="px-3 py-2 align-middle">
                   <span className="block max-w-[260px] whitespace-normal leading-5 text-neutral-800">
                     {row.perusahaan}
                   </span>
                 </td>
-                <td className="px-3 py-2 align-middle" />
-                <td className="px-3 py-2 align-middle" />
-                <td className="px-3 py-2 align-middle text-brand-primary-500">
-                  Silahkan Cek di Tombol Riwayat
+                <td className="px-3 py-2 align-middle">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${
+                      row.status === "Draft"
+                        ? "bg-brand-primary-50 text-brand-primary-700"
+                        : row.status === "Proses"
+                          ? "bg-info-50 text-info-700"
+                          : row.status === "Disetujui"
+                            ? "bg-success-50 text-success-700"
+                            : "bg-error-50 text-error-700"
+                    }`}
+                  >
+                    {row.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2 align-middle">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      aria-label={`Detail ${row.pengajuan}`}
+                      size="sm"
+                      variant="info"
+                      className="h-8 w-8 justify-center px-0"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Button>
+                    {row.status !== "Draft" ? (
+                      <Button
+                        aria-label={`Progress ${row.pengajuan}`}
+                        size="sm"
+                        variant="info"
+                        className="h-8 w-8 justify-center px-0"
+                        onClick={() => navigate({ to: "/progress", search: { pengajuan: row.pengajuan } as never })}
+                      >
+                        <ProgressIcon className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                    {row.status === "Draft" || row.status === "Ditolak" ? (
+                      <Button
+                        aria-label={`Edit ${row.pengajuan}`}
+                        size="sm"
+                        variant="warning"
+                        className="h-8 w-8 justify-center px-0"
+                      >
+                        <PenNewSquareIcon className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      aria-label={`Copy ${row.pengajuan}`}
+                      size="sm"
+                      variant="brand"
+                      className="h-8 w-8 justify-center px-0"
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                    </Button>
+                    {row.status !== "Proses" ? (
+                      <Button
+                        aria-label={`Hapus ${row.pengajuan}`}
+                        size="sm"
+                        variant="error"
+                        className="h-8 w-8 justify-center px-0"
+                      >
+                        <TrashBinTrashIcon className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
+
+      {visibleRows.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-border-secondary bg-white p-6 text-center text-[12px] text-neutral-600">
+          Tidak ada pengajuan dengan filter ini.
+        </div>
+      ) : null}
     </div>
   );
 }
