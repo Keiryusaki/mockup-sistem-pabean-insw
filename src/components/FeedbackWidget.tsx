@@ -86,6 +86,7 @@ function MessageIcon() {
 export function FeedbackWidget() {
   const { location } = useRouterState();
   const [open, setOpen] = useState(false);
+  const [rendered, setRendered] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>("Masukan");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -96,6 +97,7 @@ export function FeedbackWidget() {
   const [statusMessage, setStatusMessage] = useState("");
   const [attachmentPreviews, setAttachmentPreviews] = useState<AttachmentPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
 
   const currentRouteLabel = location.pathname === "/" ? "Dashboard" : location.pathname;
   const currentUrl = typeof window !== "undefined" ? window.location.href : currentRouteLabel;
@@ -109,6 +111,31 @@ export function FeedbackWidget() {
     setStatus("idle");
     setStatusMessage("");
   }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setRendered(true);
+      return;
+    }
+
+    if (!rendered) return;
+
+    closeTimerRef.current = window.setTimeout(() => {
+      setRendered(false);
+      closeTimerRef.current = null;
+    }, 220);
+
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [open, rendered]);
 
   useEffect(() => {
     if (!attachments.length) {
@@ -136,6 +163,10 @@ export function FeedbackWidget() {
     setStatus("idle");
     setStatusMessage("");
     resetChallenge();
+  };
+
+  const handleClose = () => {
+    setOpen(false);
   };
 
   const addFiles = (files: FileList | File[]) => {
@@ -292,16 +323,26 @@ export function FeedbackWidget() {
         <MessageIcon />
       </button>
 
-      {open && typeof document !== "undefined"
+      {rendered && typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-[120] bg-slate-950/45 backdrop-blur-[1px]">
+            <div
+              className={[
+                "fixed inset-0 z-[120] bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-300 ease-out",
+                open ? "opacity-100" : "opacity-0",
+              ].join(" ")}
+            >
               <button
                 type="button"
                 aria-label="Close feedback overlay"
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
                 className="absolute inset-0"
               />
-              <div className="absolute bottom-4 right-4 z-[121] w-[min(92vw,392px)] overflow-hidden rounded-[20px] border border-border-primary bg-white shadow-[0_22px_60px_rgba(15,23,42,0.28)]">
+              <div
+                className={[
+                  "absolute bottom-4 right-4 z-[121] w-[min(92vw,392px)] overflow-hidden rounded-[20px] border border-border-primary bg-white shadow-[0_22px_60px_rgba(15,23,42,0.28)] transition-all duration-300 ease-out",
+                  open ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0",
+                ].join(" ")}
+              >
                 <div className="flex items-start justify-between gap-3 border-b border-border-primary px-4 py-3">
                   <div className="flex items-start gap-3">
                     <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-error-600 text-white shadow-sm">
@@ -314,7 +355,7 @@ export function FeedbackWidget() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setOpen(false)}
+                    onClick={handleClose}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-primary text-neutral-700 transition-colors hover:bg-neutral-50"
                     aria-label="Tutup"
                   >
@@ -441,7 +482,7 @@ export function FeedbackWidget() {
                 </div>
 
                 <div className="flex items-center justify-end gap-2 border-t border-border-primary px-4 py-3">
-                  <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+                  <Button variant="outline" size="sm" onClick={handleClose}>
                     Batal
                   </Button>
                   <Button
