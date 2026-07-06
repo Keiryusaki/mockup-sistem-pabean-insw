@@ -3719,7 +3719,7 @@ export function ProposalListTable({
       <div className="mt-4 overflow-hidden rounded-2xl border border-border-primary">
         <div className="overflow-x-auto overscroll-x-contain">
           <table className="min-w-full border-collapse text-left text-[12px]">
-          <thead className="bg-brand-primary-800 text-white">
+          <thead className="bg-brand-primary-500 text-white">
             <tr>
               <th className="whitespace-nowrap px-3 py-2 font-semibold">Nomor Pengajuan</th>
               <th className="whitespace-nowrap px-3 py-2 font-semibold">Jenis Dokumen</th>
@@ -3765,8 +3765,8 @@ export function ProposalListTable({
                       aria-label={`Detail ${row.pengajuan}`}
                       size="sm"
                       variant="info"
-                      className="h-8 w-8 justify-center px-0"
-                    >
+                    className="h-8 w-8 justify-center px-0"
+                  >
                       <EyeIcon className="h-4 w-4" />
                     </Button>
                     {row.status !== "Draft" ? (
