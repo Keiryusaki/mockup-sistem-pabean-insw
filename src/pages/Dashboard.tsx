@@ -75,7 +75,7 @@ const menuItems = [
 const stats = [
   {
     label: "Draft",
-    value: "18",
+    value: "1",
     cardTone: "border-brand-primary-100 bg-brand-primary-50/80",
     hoverTone: "hover:border-brand-primary-200 hover:bg-brand-primary-100",
     textTone: "text-brand-primary-800",
@@ -84,7 +84,7 @@ const stats = [
   },
   {
     label: "Proses",
-    value: "11",
+    value: "1",
     cardTone: "border-info-100 bg-info-50/80",
     hoverTone: "hover:border-info-200 hover:bg-info-100",
     textTone: "text-info-800",
@@ -93,7 +93,7 @@ const stats = [
   },
   {
     label: "Disetujui",
-    value: "84",
+    value: "2",
     cardTone: "border-success-100 bg-success-50/80",
     hoverTone: "hover:border-success-200 hover:bg-success-100",
     textTone: "text-success-800",
@@ -102,7 +102,7 @@ const stats = [
   },
   {
     label: "Ditolak",
-    value: "4",
+    value: "2",
     cardTone: "border-error-100 bg-error-50/80",
     hoverTone: "hover:border-error-200 hover:bg-error-100",
     textTone: "text-error-800",
