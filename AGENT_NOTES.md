@@ -60,6 +60,11 @@ It is focused on:
 - Data Pengajuan and Form Pengajuan should keep using local controls for common actions.
 - Live docs should remain the source of truth for visual checks.
 - Icon browsing is handled in `/icon`, which loads from `public/iconhtml.txt`.
+- A floating `Masukan` widget is now planned for internal feedback.
+  - It should stay as a right-bottom floating action.
+  - It submits directly to a Discord webhook.
+  - It supports pasted clipboard images and file uploads.
+  - It requires a simple math answer before submit.
 
 ## Work Phases
 

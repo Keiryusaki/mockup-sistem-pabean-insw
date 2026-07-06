@@ -1,6 +1,7 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ShellFooter } from "./ShellFooter";
 import { ShellHeader } from "./ShellHeader";
+import { FeedbackWidget } from "./FeedbackWidget";
 
 const BREADCRUMBS: Record<string, string> = {
   "/": "Dashboard / Ringkasan Pengajuan",
@@ -30,6 +31,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <ShellFooter />
+      <FeedbackWidget />
     </div>
   );
 }
