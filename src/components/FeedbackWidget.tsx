@@ -200,16 +200,6 @@ export function FeedbackWidget() {
     setAttachments((current) => current.filter((file) => fileKey(file) !== key));
   };
 
-  useEffect(() => {
-    if (!open || typeof document === "undefined") return undefined;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [open]);
-
   const sendWebhook = async () => {
     if (!FEEDBACK_WEBHOOK_URL) {
       setStatus("error");
