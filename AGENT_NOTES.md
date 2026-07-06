@@ -61,6 +61,12 @@ It is focused on:
 - Live docs should remain the source of truth for visual checks.
 - Icon browsing is handled in `/icon`, which loads from `public/iconhtml.txt`.
 
+## Work Phases
+
+- Perubahan Pertama is closed as of 2026-07-06 12:00 local time.
+- Any request after that cutoff belongs to Perubahan Kedua.
+- Keep changelog and future implementation notes grouped by phase so the next agent can pick up context quickly.
+
 ## Current Upload Flow Notes
 
 - The old step pills for upload/validation were removed from the modal UI.
