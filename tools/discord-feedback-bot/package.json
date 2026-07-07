@@ -1,0 +1,13 @@
+{
+  "name": "insw-discord-feedback-bot",
+  "private": true,
+  "type": "module",
+  "description": "Discord bot template that mirrors feedback messages into the INSW mockup feed format.",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "dependencies": {
+    "discord.js": "^14.22.1"
+  }
+}

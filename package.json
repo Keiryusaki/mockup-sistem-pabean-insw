@@ -6,6 +6,8 @@
   "description": "Starter mockup app with @lnsw-ui shim (Plan B). Swap alias to real @lnsw-ui/react when registry access is ready.",
   "scripts": {
     "dev": "vite",
+    "dev:mirror": "node tools/feedback-feed-mirror/server.mjs",
+    "dev:bot": "node tools/discord-feedback-bot/src/index.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

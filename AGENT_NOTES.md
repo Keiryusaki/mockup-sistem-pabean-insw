@@ -25,6 +25,7 @@ It is focused on:
 - `/component` Local component docs
 - `/icon` Icon library preview
 - `/loading` Loading state
+- `/feedback` Feedback inbox / mirror preview
 
 ## Important Local Components
 
@@ -62,9 +63,17 @@ It is focused on:
 - Icon browsing is handled in `/icon`, which loads from `public/iconhtml.txt`.
 - A floating `Masukan` widget is now planned for internal feedback.
   - It should stay as a right-bottom floating action.
-  - It submits directly to a Discord webhook.
+  - It submits directly to a Discord bot service endpoint.
   - It supports pasted clipboard images and file uploads.
   - It requires a simple math answer before submit.
+  - The UI mirror now has a dedicated `/feedback` inbox page so TW can read submissions without opening Discord.
+  - The inbox is prepared to read from a mirror feed; a bot/service can expose Discord messages as JSON for the mockup later if needed.
+  - A sample mirror payload is available at `public/feedback-feed.sample.json` so a Discord bot can mirror root messages and replies with `parentId` / `discordReplyToMessageId`.
+  - Recommended env for local preview: `VITE_FEEDBACK_FEED_URL=/feedback-feed.sample.json`.
+  - Local service scaffolds are now available under:
+    - `tools/discord-feedback-bot/`
+    - `tools/feedback-feed-mirror/`
+  - Use the mirror server if you want the app to fetch live JSON while the Discord bot writes to it.
 
 ## Work Phases
 

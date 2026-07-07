@@ -8,6 +8,7 @@ import { FormPage } from "./pages/FormPage";
 import { IconPage } from "./pages/IconPage";
 import { ProgressPage } from "./pages/ProgressPage";
 import { LoadingPage } from "./pages/LoadingPage";
+import { FeedbackInboxPage } from "./pages/FeedbackInboxPage";
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -34,11 +35,12 @@ const progressRoute = createRoute({
   component: ProgressPage,
 });
 const loadingRoute = createRoute({ getParentRoute: () => rootRoute, path: "/loading", component: LoadingPage });
+const feedbackRoute = createRoute({ getParentRoute: () => rootRoute, path: "/feedback", component: FeedbackInboxPage });
 const componentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/component", component: ComponentDocsPage });
 const iconRoute = createRoute({ getParentRoute: () => rootRoute, path: "/icon", component: IconPage });
 const changelogRoute = createRoute({ getParentRoute: () => rootRoute, path: "/changelog", component: ChangeLogPage });
 
-const routeTree = rootRoute.addChildren([indexRoute, dataRoute, formRoute, progressRoute, loadingRoute, componentRoute, iconRoute, changelogRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, dataRoute, formRoute, progressRoute, loadingRoute, feedbackRoute, componentRoute, iconRoute, changelogRoute]);
 
 const basepath = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
 

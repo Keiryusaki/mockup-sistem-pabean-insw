@@ -11,6 +11,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/loading": "Loading State",
   "/component": "Live Docs / Komponen Lokal",
   "/icon": "Live Docs / Icon Set",
+  "/feedback": "Info / Feedback Inbox",
   "/changelog": "Info / Change Log",
 };
 
