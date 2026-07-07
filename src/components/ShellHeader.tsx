@@ -3,9 +3,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ACCESS_KEY } from "./AccessGate";
 import { IconButton } from "./Button";
 import { DocumentsIcon, LogoutIcon } from "./Icons";
-import { loadFeedbackRecords, type FeedbackRecord } from "../lib/feedbackFeed";
 
-type HeaderMenu = "notifications" | "updates" | "feedback" | "profile" | null;
+type HeaderMenu = "notifications" | "updates" | "profile" | null;
 
 type HeaderNotice = {
   id: string;
@@ -53,9 +52,6 @@ const CHANGELOG_PREVIEW = [
   },
 ];
 
-const FEEDBACK_PREVIEW_LIMIT = 3;
-const FEEDBACK_FEED_URL = (((import.meta as unknown as { env?: { VITE_FEEDBACK_FEED_URL?: string } }).env?.VITE_FEEDBACK_FEED_URL ?? "").trim());
-
 function BellIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
@@ -82,9 +78,9 @@ function ChangelogIcon() {
   );
 }
 
-function FeedbackIcon() {
+function LaporIcon({ className = "h-4 w-4" }: { className?: string } = {}) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current">
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`fill-none stroke-current ${className}`}>
       <path
         d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v8A1.5 1.5 0 0 1 20 16.5H9l-4.5 4v-4.5H4A1.5 1.5 0 0 1 2.5 14V7A1.5 1.5 0 0 1 4 5.5Z"
         strokeWidth="1.5"
@@ -170,7 +166,6 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
   const [now, setNow] = useState(() => new Date());
   const [menu, setMenu] = useState<HeaderMenu>(null);
   const [notifications, setNotifications] = useState<HeaderNotice[]>(DEFAULT_NOTICES);
-  const [feedbackItems, setFeedbackItems] = useState<FeedbackRecord[]>([]);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -211,44 +206,6 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
   }, []);
 
   useEffect(() => {
-    let alive = true;
-
-    const loadFeedback = async () => {
-      const { records } = await loadFeedbackRecords(FEEDBACK_FEED_URL);
-      if (alive) setFeedbackItems(records);
-    };
-
-    void loadFeedback();
-
-    const interval = window.setInterval(() => {
-      void loadFeedback();
-    }, 10000);
-
-    const handleStorage = () => {
-      void loadFeedback();
-    };
-
-    const handleFocus = () => {
-      void loadFeedback();
-    };
-
-    const handleVisibility = () => {
-      if (!document.hidden) void loadFeedback();
-    };
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      alive = false;
-      window.clearInterval(interval);
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (shellRef.current && !shellRef.current.contains(event.target as Node)) {
         setMenu(null);
@@ -282,8 +239,6 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
 
   const unreadCount = useMemo(() => notifications.filter((item) => item.unread).length, [notifications]);
   const unreadPreview = notifications.slice(0, 3);
-  const feedbackPreview = feedbackItems.slice(0, FEEDBACK_PREVIEW_LIMIT);
-  const feedbackCount = useMemo(() => feedbackItems.filter((item) => item.status === "Baru").length, [feedbackItems]);
 
   const markAllAsRead = () => {
     const next = notifications.map((item) => ({ ...item, unread: false }));
@@ -359,80 +314,6 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
               </MenuPanel>
             ) : null}
           </div>
-
-          <div className="relative">
-            <IconButton
-              type="button"
-              aria-label="Feedback inbox"
-              size="sm"
-              className="relative bg-white/10 text-white hover:bg-white/20"
-              onClick={() => setMenu((current) => (current === "feedback" ? null : "feedback"))}
-            >
-              <FeedbackIcon />
-              <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold leading-none text-white shadow-sm">
-                {feedbackCount}
-              </span>
-            </IconButton>
-
-            {menu === "feedback" ? (
-              <MenuPanel
-                title="Feedback"
-                description="Ringkasan masukan dan perbaikan yang masuk dari widget internal."
-                footer={<span className="font-semibold text-neutral-500">Mirror dari Discord / local feed.</span>}
-                onViewAll="/feedback"
-              >
-                <div className="space-y-2">
-                  {feedbackPreview.map((item) => (
-                    <MenuItem key={item.id} href="/feedback">
-                      <span className="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-brand-primary-500" />
-                      <span className="min-w-0">
-                        <span className="block text-[12px] font-semibold text-neutral-800">
-                          {item.type} · {item.reporter}
-                        </span>
-                        <span className="mt-1 block text-[11px] leading-5 text-neutral-600">
-                          {item.message.slice(0, 88)}
-                          {item.message.length > 88 ? "..." : ""}
-                        </span>
-                        <span className="mt-1 block text-[10px] text-neutral-500">{item.page}</span>
-                      </span>
-                    </MenuItem>
-                  ))}
-                  {feedbackPreview.length === 0 ? (
-                    <div className="px-3 py-4 text-[12px] text-neutral-600">Belum ada feedback yang tersimpan.</div>
-                  ) : null}
-                </div>
-              </MenuPanel>
-            ) : null}
-          </div>
-
-          <div className="relative">
-            <IconButton
-              type="button"
-              aria-label="Changelog"
-              size="sm"
-              className="bg-white/10 text-white hover:bg-white/20"
-              onClick={() => setMenu((current) => (current === "updates" ? null : "updates"))}
-            >
-              <ChangelogIcon />
-            </IconButton>
-
-            {menu === "updates" ? (
-              <MenuPanel title="Change log" description="Ringkasan perubahan UI/UX, flow, dan komponen untuk client dan tim TW." onViewAll="/changelog">
-                <div className="space-y-2">
-                  {CHANGELOG_PREVIEW.map((item) => (
-                    <MenuItem key={item.id} href="/changelog">
-                      <span className="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-brand-primary-500" />
-                      <span className="min-w-0">
-                        <span className="block text-[12px] font-semibold text-neutral-800">{item.title}</span>
-                        <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{item.description}</span>
-                      </span>
-                    </MenuItem>
-                  ))}
-                </div>
-              </MenuPanel>
-            ) : null}
-          </div>
-
           <div className="relative">
             <IconButton
               type="button"
@@ -451,6 +332,15 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
                   <div className="mt-1 text-[12px] leading-5 text-neutral-600">Akses cepat ke komponen lokal dan keluar dari sesi aktif.</div>
                 </div>
                 <div className="p-2">
+                  <MenuItem href="/feedback">
+                    <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-error-50 text-error-600">
+                      <LaporIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[12px] font-semibold text-neutral-800">Lapor Pak !!</span>
+                      <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Masukan atau perbaikan untuk tim TW.</span>
+                    </span>
+                  </MenuItem>
                   <MenuItem href="/component">
                     <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-600">
                       <DocumentsIcon className="h-4 w-4" />

@@ -363,8 +363,8 @@ export function FeedbackWidget() {
                       <MessageIcon />
                     </div>
                     <div>
-                      <div className="text-[14px] font-semibold leading-5 text-neutral-800">Pusat Bantuan</div>
-                      <div className="text-[11px] leading-5 text-neutral-600">Tim kami siap membantu</div>
+                      <div className="text-[14px] font-semibold leading-5 text-neutral-800">Lapor Pak !!</div>
+                      <div className="text-[11px] leading-5 text-neutral-600">Sampaikan masukan atau perbaikan</div>
                     </div>
                   </div>
                   <button
