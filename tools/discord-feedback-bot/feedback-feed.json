@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-07-07T02:49:06.211Z",
+  "items": [
+    {
+      "id": "discord-1523882924607410210",
+      "kind": "root",
+      "type": "Perbaikan",
+      "reporter": "test",
+      "authorRole": "user",
+      "message": "test",
+      "page": "/progress",
+      "url": "http://localhost:5173/progress?pengajuan=2012342ED12320260606000001",
+      "createdAt": "2026-07-07T02:46:41.602Z",
+      "phase": "Perubahan Kedua",
+      "source": "discord",
+      "status": "Baru",
+      "channel": "#Masukan dari test",
+      "discordChannelId": "1523882924607410210",
+      "discordMessageId": "1523882924607410210",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523882924607410210/1523882924607410210",
+      "attachments": [],
+      "tags": [
+        "root",
+        "discord",
+        "user",
+        "masukanbaru"
+      ]
+    }
+  ]
+}

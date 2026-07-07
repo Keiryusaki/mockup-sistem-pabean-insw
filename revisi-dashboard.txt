@@ -1,0 +1,47 @@
+Revisi halaman Dashboard agar kontennya lebih lengkap.
+
+Tambahkan beberapa section baru di bawah Ringkasan Pengajuan.
+
+1. Notifikasi Sistem
+Card berisi daftar notifikasi terbaru.
+Contoh item:
+- Pengajuan BC 2.0 membutuhkan perbaikan data barang.
+- Dokumen persetujuan telah diterbitkan.
+- Validasi sistem berhasil dilakukan.
+Setiap item punya badge status:
+Info / Penting / Perlu Tindakan
+Tambahkan tombol "Lihat Semua".
+
+2. Pengumuman
+Card berisi pengumuman resmi sistem.
+Contoh:
+- Pemeliharaan sistem terjadwal
+- Perubahan format template dokumen
+- Informasi integrasi layanan INSW
+Tampilkan tanggal pengumuman dan badge kategori.
+Tambahkan tombol "Baca Selengkapnya".
+
+3. Panduan Penggunaan
+Card/grid berisi user manual.
+Contoh:
+- Panduan Membuat Pengajuan Baru
+- Panduan Menggunakan Smart Submission Assistant
+- Panduan Import Excel Barang
+- Panduan Melihat Progress Pengajuan
+Setiap panduan punya tombol:
+"Lihat PDF" dan "Unduh"
+
+4. Contoh Dokumen PDF
+Tambahkan section contoh dokumen dalam bentuk PDF.
+Contoh:
+- Contoh Surat Pengajuan BC 2.0
+- Contoh Lampiran Barang
+- Contoh Dokumen Pendukung
+Setiap item tampil sebagai card kecil dengan icon PDF, nama file, deskripsi singkat, tombol "Preview" dan "Unduh".
+
+Layout:
+- Notifikasi Sistem dan Pengumuman dibuat 2 kolom.
+- Panduan Penggunaan dan Contoh Dokumen dibuat grid card.
+- Tetap gunakan tema existing: navy blue, white card, rounded, soft border.
+- Jangan menghapus section Ringkasan Pengajuan.
+- Section "Contoh Surat Pengajuan" yang sudah ada boleh dipertahankan, tapi rapikan agar menjadi bagian dari "Contoh Dokumen & Template".

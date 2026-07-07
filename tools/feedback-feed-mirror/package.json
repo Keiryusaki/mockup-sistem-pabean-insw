@@ -1,0 +1,10 @@
+{
+  "name": "insw-feedback-feed-mirror",
+  "private": true,
+  "type": "module",
+  "description": "Local JSON mirror endpoint for the INSW feedback inbox.",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

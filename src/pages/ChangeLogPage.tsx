@@ -135,6 +135,16 @@ const entries: ChangeLogEntry[] = [
           "Hubungan antara pilihan file, status upload, dan lanjut ke parsing dibuat lebih eksplisit supaya tidak ada aksi yang diam-diam lompat step.",
         ],
       },
+      {
+        title: "10. Feedback mirror untuk TW",
+        summary: "Feedback widget tetap mengirim ke Discord, tapi sekarang ada inbox halaman mockup supaya tim TW bisa baca isi masukan tanpa buka Discord.",
+        bullets: [
+          "Ditambahkan halaman `/feedback` sebagai mirror inbox dari feedback widget agar TW bisa membaca masukan, perbaikan, dan lampiran dari mockup.",
+          "Header mendapat tombol icon baru yang membuka dropdown preview feedback serta shortcut ke halaman inbox lengkap.",
+          "Struktur data feedback disiapkan agar nanti bisa diisi dari mirror endpoint atau feed Discord yang diekspor oleh service internal.",
+          "TW bisa melihat reporter, jenis feedback, pesan, lampiran, raw payload JSON, dan sumber halaman dari satu tempat yang sama.",
+        ],
+      },
     ],
   },
 ];

@@ -4,8 +4,11 @@ import { useRouterState } from "@tanstack/react-router";
 import { Button } from "./Button";
 import { Input, Select, Textarea } from "./FormControls";
 import { SparklesIcon } from "./Icons";
-
-type FeedbackType = "Masukan" | "Perbaikan";
+import {
+  saveStoredFeedbackRecord,
+  type FeedbackAttachment,
+  type FeedbackType,
+} from "../lib/feedbackFeed";
 
 type MathChallenge = {
   left: number;
@@ -21,7 +24,7 @@ type AttachmentPreview = {
   isImage: boolean;
 };
 
-const FEEDBACK_WEBHOOK_URL = (((import.meta as unknown as { env?: { VITE_DISCORD_FEEDBACK_WEBHOOK_URL?: string } }).env?.VITE_DISCORD_FEEDBACK_WEBHOOK_URL ?? "").trim());
+const FEEDBACK_SUBMIT_URL = (((import.meta as unknown as { env?: { VITE_DISCORD_FEEDBACK_SUBMIT_URL?: string } }).env?.VITE_DISCORD_FEEDBACK_SUBMIT_URL ?? "").trim());
 
 function makeChallenge(): MathChallenge {
   const mode = Math.floor(Math.random() * 3);
@@ -48,6 +51,15 @@ function fileKey(file: File) {
 
 function isImageFile(file: File) {
   return file.type.startsWith("image/");
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error ?? new Error("Gagal membaca file."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function UploadIcon() {
@@ -103,7 +115,7 @@ export function FeedbackWidget() {
 
   const currentRouteLabel = location.pathname === "/" ? "Dashboard" : location.pathname;
   const currentUrl = typeof window !== "undefined" ? window.location.href : currentRouteLabel;
-  const canSubmit = Boolean(name.trim() && message.trim() && mathAnswer.trim() && status !== "sending" && FEEDBACK_WEBHOOK_URL);
+  const canSubmit = Boolean(name.trim() && message.trim() && mathAnswer.trim() && status !== "sending" && FEEDBACK_SUBMIT_URL);
 
   const resetChallenge = () => setChallenge(makeChallenge());
 
@@ -216,10 +228,10 @@ export function FeedbackWidget() {
     setAttachments((current) => current.filter((file) => fileKey(file) !== key));
   };
 
-  const sendWebhook = async () => {
-    if (!FEEDBACK_WEBHOOK_URL) {
+  const sendFeedback = async () => {
+    if (!FEEDBACK_SUBMIT_URL) {
       setStatus("error");
-      setStatusMessage("Webhook belum dikonfigurasi.");
+      setStatusMessage("Endpoint submit belum dikonfigurasi.");
       return;
     }
 
@@ -230,78 +242,74 @@ export function FeedbackWidget() {
       return;
     }
 
-    const embed: {
-      title: string;
-      description: string;
-      color: number;
-      fields: Array<{ name: string; value: string; inline: boolean }>;
-      footer: { text: string };
-      timestamp: string;
-      image?: { url: string };
-    } = {
-      title: `${feedbackType} Baru`,
-      description: message.trim(),
-      color: feedbackType === "Perbaikan" ? 0xffb300 : 0x023262,
-      fields: [
-        { name: "Nama", value: name.trim() || "-", inline: true },
-        { name: "Jenis", value: feedbackType, inline: true },
-        { name: "Halaman", value: currentRouteLabel, inline: false },
-        { name: "URL", value: currentUrl.slice(0, 1024), inline: false },
-        { name: "Waktu", value: new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(new Date()), inline: true },
-        { name: "Phase", value: "Perubahan Kedua", inline: true },
-      ],
-      footer: { text: "INSW mockup feedback" },
-      timestamp: new Date().toISOString(),
-    };
-    const payload = {
-      username: "Kotak Saran",
-      content: `Masukan / Perbaikan baru dari ${name.trim()}`,
-      allowed_mentions: { parse: [] as string[] },
-      embeds: [embed],
-    };
-
-    const imageAttachment = attachments.find((file) => isImageFile(file));
-    if (imageAttachment) {
-      embed.image = { url: `attachment://${imageAttachment.name}` };
-    }
-    const otherAttachments = attachments.filter((file) => !isImageFile(file));
-    if (otherAttachments.length > 0) {
-      embed.fields.push({
-        name: "Lampiran",
-        value: otherAttachments.map((file) => file.name).join("\n").slice(0, 1024),
-        inline: false,
-      });
-    }
-
     setStatus("sending");
-    setStatusMessage("Mengirim ke Discord...");
+    setStatusMessage("Mengirim ke forum Discord...");
 
     try {
-      if (attachments.length === 0) {
-        const response = await fetch(FEEDBACK_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const submitAttachments = await Promise.all(
+        attachments.map(async (file) => ({
+          name: file.name,
+          kind: isImageFile(file) ? "image" : "file",
+          mimeType: file.type || undefined,
+          size: file.size,
+          dataUrl: await fileToDataUrl(file),
+        })),
+      );
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      } else {
-        const formData = new FormData();
-        formData.append("payload_json", JSON.stringify(payload));
-        attachments.forEach((file, index) => {
-          formData.append(`files[${index}]`, file, file.name);
-        });
+      const response = await fetch(FEEDBACK_SUBMIT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: feedbackType,
+          name: name.trim(),
+          message: message.trim(),
+          page: currentRouteLabel,
+          url: currentUrl,
+          phase: "Perubahan Kedua",
+          attachments: submitAttachments,
+        }),
+      });
 
-        const response = await fetch(FEEDBACK_WEBHOOK_URL, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const failure = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(failure?.error || `HTTP ${response.status}`);
       }
+
+      const result = (await response.json().catch(() => null)) as
+        | {
+            discordChannelId?: string;
+            discordMessageId?: string;
+            discordMessageUrl?: string;
+          }
+        | null;
 
       setStatus("success");
       setStatusMessage("Masukan berhasil dikirim.");
+      saveStoredFeedbackRecord({
+        id: result?.discordMessageId ? `discord-${result.discordMessageId}` : `feedback-${Date.now()}`,
+        kind: "root",
+        type: feedbackType,
+        reporter: name.trim() || "-",
+        authorRole: "user",
+        message: message.trim(),
+        page: currentRouteLabel,
+        url: currentUrl,
+        createdAt: new Date().toISOString(),
+        phase: "Perubahan Kedua",
+        source: "discord",
+        status: "Baru",
+        channel: "#kotak-saran",
+        discordChannelId: result?.discordChannelId,
+        discordMessageId: result?.discordMessageId,
+        discordMessageUrl: result?.discordMessageUrl,
+        attachments: attachments.map((file) => ({
+          name: file.name,
+          kind: isImageFile(file) ? "image" : "file",
+          mimeType: file.type || undefined,
+          size: file.size,
+        })) satisfies FeedbackAttachment[],
+        tags: [feedbackType.toLowerCase(), currentRouteLabel.toLowerCase()],
+      });
       setName("");
       setMessage("");
       setAttachments([]);
@@ -491,13 +499,13 @@ export function FeedbackWidget() {
                   <Button variant="outline" size="sm" onClick={handleClose}>
                     Batal
                   </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={sendWebhook}
-                    disabled={!canSubmit || status === "sending"}
-                    startIcon={status === "sending" ? undefined : <UploadIcon />}
-                  >
+                <Button
+                  variant="primary"
+                  size="sm"
+                    onClick={sendFeedback}
+                  disabled={!canSubmit || status === "sending"}
+                  startIcon={status === "sending" ? undefined : <UploadIcon />}
+                >
                     {status === "sending" ? "Mengirim..." : "Kirim"}
                   </Button>
                 </div>
