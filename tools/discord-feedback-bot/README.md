@@ -31,6 +31,8 @@ Copy `.env.example` to `.env` and fill in:
 If you point `DISCORD_FEEDBACK_CHANNEL_ID` at a forum parent channel, each forum post becomes one root feedback item and thread comments become its replies.
 The mockup FE widget should POST JSON to `POST /submit-feedback` on this service.
 
+This bot service also serves the mirrored feed at `GET /feedback-feed.json`, so GitHub Pages can read the live payload directly from the bot service if you want a single Northflank service.
+
 ## Run
 
 ```bash
@@ -62,4 +64,10 @@ The mockup app can load that file by setting:
 VITE_FEEDBACK_FEED_URL=/feedback-feed.sample.json
 ```
 
-For a real mirror endpoint, point `MIRROR_PUSH_URL` to a small service that serves the same JSON response.
+For local testing, you can point `VITE_FEEDBACK_FEED_URL` to the local mirror server:
+
+```bash
+VITE_FEEDBACK_FEED_URL=http://localhost:8787/feedback-feed.json
+```
+
+For a real mirror endpoint, point `VITE_FEEDBACK_FEED_URL` to the bot service URL ending in `/feedback-feed.json`, or point `MIRROR_PUSH_URL` to a separate service that serves the same JSON response.

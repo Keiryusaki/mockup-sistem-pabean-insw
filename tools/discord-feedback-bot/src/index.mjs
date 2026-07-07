@@ -50,7 +50,7 @@ await loadLocalEnv();
 const env = process.env;
 const token = env.DISCORD_TOKEN?.trim();
 const mapper = createDiscordFeedbackMapper(env);
-const mirrorOutputPath = env.MIRROR_OUTPUT_PATH?.trim();
+const mirrorOutputPath = env.MIRROR_OUTPUT_PATH?.trim() || "./feedback-feed.json";
 const mirrorPushUrl = env.MIRROR_PUSH_URL?.trim();
 const apiPort = Number.parseInt(env.FEEDBACK_API_PORT?.trim() || "8788", 10);
 
@@ -235,6 +235,11 @@ async function buildFeedPayload(records) {
     generatedAt: new Date().toISOString(),
     items: records,
   };
+}
+
+async function readMirrorPayload() {
+  const records = mirrorOutputPath ? await readMirrorFile(mirrorOutputPath) : [];
+  return buildFeedPayload(records);
 }
 
 async function writeMirrorRecords(records) {
@@ -427,6 +432,17 @@ const apiServer = createServer(async (request, response) => {
       channelId: mapper.channelId,
       apiPort,
     });
+    return;
+  }
+
+  if (url.pathname === "/feedback-feed.json" && request.method === "GET") {
+    try {
+      const payload = await readMirrorPayload();
+      writeJson(response, 200, payload);
+    } catch (error) {
+      console.error("Failed to read mirror payload:", error);
+      writeJson(response, 500, { ok: false, error: "Failed to read mirror payload." });
+    }
     return;
   }
 

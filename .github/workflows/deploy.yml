@@ -20,6 +20,7 @@ jobs:
       GITHUB_PAGES: "true"
       VITE_REQUIRE_PASSKEY: "true"
       VITE_PAGES_ACCESS_CODE: "M0ckup#insw2026"
+      VITE_FEEDBACK_FEED_URL: ${{ secrets.VITE_FEEDBACK_FEED_URL }}
       VITE_DISCORD_FEEDBACK_SUBMIT_URL: ${{ secrets.VITE_DISCORD_FEEDBACK_SUBMIT_URL }}
     steps:
       - name: Checkout
