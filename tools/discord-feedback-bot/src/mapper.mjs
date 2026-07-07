@@ -101,6 +101,8 @@ export function createDiscordFeedbackMapper(env = process.env) {
       const embedTitle = typeof embed?.title === "string" ? embed.title.trim() : "";
       const embedDescription = typeof embed?.description === "string" && embed.description.trim() ? embed.description.trim() : "";
       const typeSource = [embedTitle, embedDescription, message.content].filter(Boolean).join(" ");
+      const embedType = getEmbedField(embed, ["Jenis", "Type"]);
+      const resolvedType = embedType === "Masukan" || embedType === "Perbaikan" ? embedType : detectType(typeSource);
       const resolvedMember =
         message.member ??
         (message.guild
@@ -130,7 +132,7 @@ export function createDiscordFeedbackMapper(env = process.env) {
         id: `discord-${message.id}`,
         parentId,
         kind: options.kindOverride ?? (parentId ? "reply" : "root"),
-        type: detectType(typeSource),
+        type: options.typeOverride ?? resolvedType,
         reporter,
         authorRole: isReviewer(message, resolvedMember, reviewerUserIds, reviewerRoleIds) ? "reviewer" : "user",
         message: messageText,

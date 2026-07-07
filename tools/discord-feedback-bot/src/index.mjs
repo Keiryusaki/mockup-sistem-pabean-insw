@@ -237,6 +237,13 @@ async function createForumSubmission(payload) {
   };
 }
 
+function getEmbedField(embed, names) {
+  const fields = Array.isArray(embed?.fields) ? embed.fields : [];
+  const normalizedNames = new Set(names.map((name) => String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")));
+  const field = fields.find((item) => normalizedNames.has(String(item?.name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")));
+  return typeof field?.value === "string" && field.value.trim() ? field.value.trim() : undefined;
+}
+
 async function buildFeedPayload(records) {
   return {
     generatedAt: new Date().toISOString(),
@@ -336,6 +343,7 @@ async function mapForumThread(thread) {
         mapper.mapMessage(message, {
           kindOverride: "reply",
           parentIdOverride: rootRecord.id,
+          typeOverride: rootRecord.type,
           discordChannelIdOverride: thread.id,
           discordReplyToMessageIdOverride: starterMessage.id,
         }),
