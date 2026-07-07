@@ -85,6 +85,13 @@ function normalizeWhitespace(value) {
     .trim();
 }
 
+function normalizeMessage(value) {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+}
+
 function sanitizeThreadName(value) {
   const fallback = "Masukan Baru";
   const normalized = normalizeWhitespace(value);
@@ -117,7 +124,7 @@ function parseAttachmentPayload(item, index) {
 function buildSubmissionEmbed(payload, attachments) {
   const type = payload.type === "Perbaikan" ? "Perbaikan" : "Masukan";
   const reporter = normalizeWhitespace(payload.name) || "-";
-  const message = normalizeWhitespace(payload.message) || "(tanpa pesan)";
+  const message = normalizeMessage(payload.message) || "(tanpa pesan)";
   const page = normalizeWhitespace(payload.page) || "-";
   const url = normalizeWhitespace(payload.url) || "-";
   const phase = normalizeWhitespace(payload.phase) || "Perubahan Kedua";

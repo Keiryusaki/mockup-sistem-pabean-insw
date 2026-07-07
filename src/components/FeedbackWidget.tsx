@@ -262,7 +262,7 @@ export function FeedbackWidget() {
         body: JSON.stringify({
           type: feedbackType,
           name: name.trim(),
-          message: message.trim(),
+          message: message.replace(/\r\n/g, "\n").trim(),
           page: currentRouteLabel,
           url: currentUrl,
           phase: "Perubahan Kedua",
@@ -291,7 +291,7 @@ export function FeedbackWidget() {
         type: feedbackType,
         reporter: name.trim() || "-",
         authorRole: "user",
-        message: message.trim(),
+        message: message.replace(/\r\n/g, "\n").trim(),
         page: currentRouteLabel,
         url: currentUrl,
         createdAt: new Date().toISOString(),
