@@ -1,24 +1,162 @@
 {
-  "generatedAt": "2026-07-07T02:49:06.211Z",
+  "generatedAt": "2026-07-07T16:15:02.833Z",
   "items": [
     {
-      "id": "discord-1523882924607410210",
-      "kind": "root",
+      "id": "discord-1523984138720251955",
+      "parentId": "discord-1523940412296007782",
+      "kind": "reply",
       "type": "Perbaikan",
-      "reporter": "test",
+      "reporter": "𓆩✧𓆪 𝗠𝗿. 𝗞𝗲𝗶",
       "authorRole": "user",
-      "message": "test",
-      "page": "/progress",
-      "url": "http://localhost:5173/progress?pengajuan=2012342ED12320260606000001",
-      "createdAt": "2026-07-07T02:46:41.602Z",
+      "message": "done lokal",
+      "page": "#Perbaikan dari vani",
+      "url": "https://discord.com/channels/1429374216393719942/1523940412296007782/1523984138720251955",
+      "createdAt": "2026-07-07T09:28:52.927Z",
       "phase": "Perubahan Kedua",
       "source": "discord",
       "status": "Baru",
-      "channel": "#Masukan dari test",
-      "discordChannelId": "1523882924607410210",
-      "discordMessageId": "1523882924607410210",
-      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523882924607410210/1523882924607410210",
-      "attachments": [],
+      "channel": "#Perbaikan dari vani",
+      "discordChannelId": "1523940412296007782",
+      "discordMessageId": "1523984138720251955",
+      "discordReplyToMessageId": "1523940412296007782",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523940412296007782/1523984138720251955",
+      "attachments": [
+        {
+          "name": "image.png",
+          "kind": "image",
+          "mimeType": "image/png",
+          "size": 43096,
+          "previewUrl": "https://media.discordapp.net/attachments/1523940412296007782/1523984138435035276/image.png?ex=6a4e1854&is=6a4cc6d4&hm=c76d1c48d0eac3cbf3044d21763f2c0b8a1d95ad1ef66a7e3055e4d527560296&"
+        }
+      ],
+      "tags": [
+        "reply",
+        "discord",
+        "user",
+        "message"
+      ]
+    },
+    {
+      "id": "discord-1523960132231233547",
+      "kind": "root",
+      "type": "Perbaikan",
+      "reporter": "Mata Elang",
+      "authorRole": "user",
+      "message": "icon copy beda dengan yg lain, terlihat lebih besar",
+      "page": "Dashboard",
+      "url": "https://keiryusaki.github.io/mockup-sistem-pabean-insw/",
+      "createdAt": "2026-07-07T07:53:29.334Z",
+      "phase": "Perubahan Kedua",
+      "source": "discord",
+      "status": "Baru",
+      "channel": "#Perbaikan dari Mata Elang",
+      "discordChannelId": "1523960132231233547",
+      "discordMessageId": "1523960132231233547",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523960132231233547/1523960132231233547",
+      "attachments": [
+        {
+          "name": "Perbaikan Baru.png",
+          "kind": "image",
+          "mimeType": "image/png",
+          "previewUrl": "https://cdn.discordapp.com/attachments/1523960132231233547/1523960132365586452/clipboard-1783410791247.png?ex=6a4e01f9&is=6a4cb079&hm=d79d01341379843ddfaa7f1bced0e17bd2c8bbe35ae68e0cb4153eaed7e5224a&"
+        }
+      ],
+      "tags": [
+        "root",
+        "discord",
+        "user",
+        "perbaikanbaru"
+      ]
+    },
+    {
+      "id": "discord-1523940412296007782",
+      "kind": "root",
+      "type": "Perbaikan",
+      "reporter": "vani",
+      "authorRole": "user",
+      "message": "Disetujui menjadi selesai",
+      "page": "/data",
+      "url": "https://keiryusaki.github.io/mockup-sistem-pabean-insw/data?status=Disetujui",
+      "createdAt": "2026-07-07T06:35:07.735Z",
+      "phase": "Perubahan Kedua",
+      "source": "discord",
+      "status": "Baru",
+      "channel": "#Perbaikan dari vani",
+      "discordChannelId": "1523940412296007782",
+      "discordMessageId": "1523940412296007782",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523940412296007782/1523940412296007782",
+      "attachments": [
+        {
+          "name": "Perbaikan Baru.png",
+          "kind": "image",
+          "mimeType": "image/png",
+          "previewUrl": "https://cdn.discordapp.com/attachments/1523940412296007782/1523940412530753556/clipboard-1783406083415.png?ex=6a4def9b&is=6a4c9e1b&hm=2af942974516e5bfa5de7b249bfebb544b1fca069b68838898397a65e9cd4446&"
+        }
+      ],
+      "tags": [
+        "root",
+        "discord",
+        "user",
+        "perbaikanbaru"
+      ]
+    },
+    {
+      "id": "discord-1523931495301906523",
+      "kind": "root",
+      "type": "Masukan",
+      "reporter": "devani",
+      "authorRole": "user",
+      "message": "tambahin filter waktu, pagenation, filter jenis dokumen",
+      "page": "/data",
+      "url": "https://keiryusaki.github.io/mockup-sistem-pabean-insw/data",
+      "createdAt": "2026-07-07T05:59:41.758Z",
+      "phase": "Perubahan Kedua",
+      "source": "discord",
+      "status": "Baru",
+      "channel": "#Masukan dari devani",
+      "discordChannelId": "1523931495301906523",
+      "discordMessageId": "1523931495301906523",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523931495301906523/1523931495301906523",
+      "attachments": [
+        {
+          "name": "Masukan Baru.png",
+          "kind": "image",
+          "mimeType": "image/png",
+          "previewUrl": "https://cdn.discordapp.com/attachments/1523931495301906523/1523931495478333520/clipboard-1783403953055.png?ex=6a4de74d&is=6a4c95cd&hm=6c88fedf3a26537dfcffad47e00ab07b26793541e05c7e0f61e3fe368686a1d1&"
+        }
+      ],
+      "tags": [
+        "root",
+        "discord",
+        "user",
+        "masukanbaru"
+      ]
+    },
+    {
+      "id": "discord-1523931164912390175",
+      "kind": "root",
+      "type": "Masukan",
+      "reporter": "vani",
+      "authorRole": "user",
+      "message": "Dashboard perlu dilengkapi dengan: Notifikasi sistem, pengumuman, panduan penggunaan atau user manual",
+      "page": "Dashboard",
+      "url": "https://keiryusaki.github.io/mockup-sistem-pabean-insw/",
+      "createdAt": "2026-07-07T05:58:22.987Z",
+      "phase": "Perubahan Kedua",
+      "source": "discord",
+      "status": "Baru",
+      "channel": "#Masukan dari vani",
+      "discordChannelId": "1523931164912390175",
+      "discordMessageId": "1523931164912390175",
+      "discordMessageUrl": "https://discord.com/channels/1429374216393719942/1523931164912390175/1523931164912390175",
+      "attachments": [
+        {
+          "name": "Masukan Baru.png",
+          "kind": "image",
+          "mimeType": "image/png",
+          "previewUrl": "https://cdn.discordapp.com/attachments/1523931164912390175/1523931165176762428/clipboard-1783403871127.png?ex=6a4de6ff&is=6a4c957f&hm=202792a7afb6d21fafad5f255b8c7c17d65777e2b5ef82e09dacf338f713705a&"
+        }
+      ],
       "tags": [
         "root",
         "discord",

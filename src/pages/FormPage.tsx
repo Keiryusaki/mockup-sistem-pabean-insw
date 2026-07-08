@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Badge } from "../components/Badge";
 import { Button, IconButton } from "../components/Button";
-import { Checkbox, Input, Select, Textarea } from "../components/FormControls";
+import { Input, Select, Textarea } from "../components/FormControls";
 import { Modal } from "../components/Surface";
 import {
+  ArrowLeftIcon,
   ArrowRightIcon,
+  CheckReadIcon,
   BriefcaseIcon,
   BuildingsIcon,
   CopyIcon,
@@ -11,7 +14,9 @@ import {
   EyeIcon,
   HamburgerMenuIcon,
   MagniferIcon,
-  PenNewSquareIcon,
+  PlainIcon,
+  Pen2Icon,
+  RoundedMagniferIcon,
   TrashBinTrashIcon,
   TruckIcon,
   UserIcon,
@@ -162,7 +167,7 @@ const mandatoryPengajuanFields: MandatoryKey[] = [
   "tempatTimbun",
 ];
 
-type EntityKind = "importir" | "ppjk" | "penjual" | "pemilikBarang" | "pengangkut";
+type EntityKind = "pengusahaImportir" | "ppjk" | "penerima" | "pembeli" | "penanggungJawab" | "barangEksporLcl";
 type EntityFieldType = "input" | "select" | "textarea";
 type EntityFieldOption = { label: string; value: string; description?: string };
 type EntityFieldConfig = {
@@ -173,16 +178,23 @@ type EntityFieldConfig = {
   options?: EntityFieldOption[];
   span?: 1 | 2 | 3;
   note?: string;
+  readOnly?: boolean;
+  disabled?: boolean;
+  lookup?: boolean;
 };
 type EntityDefinition = {
   kind: EntityKind;
   title: string;
-  badge: "Wajib" | "Opsional";
   description: string;
   icon: typeof BuildingsIcon;
   defaultOpen?: boolean;
+  headerFields?: EntityFieldConfig[];
+  bodyHeading?: string;
+  toggle?: { key: string; label: string };
   fields: EntityFieldConfig[];
+  requiredFields: string[];
   defaultValues: Row;
+  emptyState: string;
 };
 
 const countryOptions: EntityFieldOption[] = [
@@ -208,55 +220,96 @@ const apiOptions: EntityFieldOption[] = [
 ];
 
 const statusOptions: EntityFieldOption[] = [
-  { label: "Aktif", value: "Aktif" },
-  { label: "Tidak Aktif", value: "Tidak Aktif" },
-  { label: "Dalam Proses", value: "Dalam Proses" },
+  { label: "Perorangan", value: "PERORANGAN" },
+  { label: "Badan Usaha", value: "BADAN USAHA" },
+  { label: "Badan Hukum", value: "BADAN HUKUM" },
+  { label: "Cabang", value: "CABANG" },
 ];
 
 const entityDefinitions: EntityDefinition[] = [
   {
-    kind: "importir",
-    title: "Importir",
-    badge: "Wajib",
-    description: "Aktor utama yang mewakili pihak pengaju barang masuk.",
+    kind: "pengusahaImportir",
+    title: "Pengusaha",
+    description: "Entitas utama pengaju. Beberapa data dapat terisi otomatis dari SSO atau NIB.",
     icon: BuildingsIcon,
     defaultOpen: true,
+    headerFields: [
+      {
+        key: "Jenis Pemberitahuan",
+        label: "Jenis Pemberitahuan",
+        type: "select",
+        options: [{ label: "PENGUSAHA", value: "PENGUSAHA" }],
+        span: 1,
+      },
+    ],
+    bodyHeading: "Pengusaha",
+    requiredFields: [
+      "Jenis Pemberitahuan",
+      "NIB",
+      "No Identitas (16 Digit)",
+      "6 Digit Terakhir NITKU",
+      "Nama Perusahaan",
+      "Provinsi",
+      "Kota / Kabupaten",
+      "Kecamatan",
+      "Kode Pos",
+      "RT / RW",
+      "Telephone",
+      "Email",
+      "On Behalf",
+      "Status",
+      "Alamat",
+    ],
+    emptyState: "Data pengusaha / importir belum diisi.",
     defaultValues: {
-      "Jenis Entitas": "Importir",
-      "Jenis Identitas": "NPWP",
-      "NITKU / NPWP": "3171010000001",
-      "Nama Perusahaan": "PT Contoh Nusantara",
-      Alamat: "Jl. Contoh Raya No. 123, Jakarta",
-      NIB: "1234567890123",
-      "Jenis API": "API-U",
-      Status: "Aktif",
-      Negara: "ID",
-      "Kode Afiliasi": "00",
+      "Jenis Entitas": "Pengusaha",
+      "Jenis Pemberitahuan": "PENGUSAHA",
+      NIB: "9120100781919",
+      "No Identitas (16 Digit)": "0027681030529000",
+      "6 Digit Terakhir NITKU": "000000",
+      "Nama Perusahaan": "DASINDO",
+      Provinsi: "JAWA TENGAH",
+      "Kota / Kabupaten": "KAB. PURBALINGGA",
+      Kecamatan: "BOJONGSARI",
+      "Kode Pos": "24352",
+      "RT / RW": "-",
+      Telephone: "+9712180861000",
+      Email: "gunawan.septiyadi@kemenkeu.go.id",
+      "On Behalf": "",
+      Status: "PERORANGAN",
+      Alamat: "DESA GEMBONG",
     },
     fields: [
-      { key: "Jenis Identitas", label: "Jenis Identitas", type: "select", options: identityOptions, span: 1 },
-      { key: "NITKU / NPWP", label: "NITKU / NPWP", placeholder: "Masukkan NITKU atau NPWP", span: 1 },
-      { key: "Nama Perusahaan", label: "Nama Perusahaan", placeholder: "Nama perusahaan importir", span: 2 },
-      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat lengkap perusahaan", span: 3 },
       { key: "NIB", label: "NIB", placeholder: "Nomor Induk Berusaha", span: 1 },
-      { key: "Jenis API", label: "Jenis API", type: "select", options: apiOptions, span: 1 },
+      { key: "No Identitas (16 Digit)", label: "No Identitas (16 Digit)", placeholder: "16 digit identitas", span: 1, readOnly: true, disabled: true },
+      { key: "6 Digit Terakhir NITKU", label: "6 Digit Terakhir NITKU", placeholder: "000000", span: 1, lookup: true },
+      { key: "Nama Perusahaan", label: "Nama Perusahaan", placeholder: "Nama perusahaan", span: 1 },
+      { key: "Provinsi", label: "Provinsi", placeholder: "Provinsi", span: 1 },
+      { key: "Kota / Kabupaten", label: "Kota / Kabupaten", placeholder: "Kabupaten / kota", span: 1 },
+      { key: "Kecamatan", label: "Kecamatan", placeholder: "Kecamatan", span: 1 },
+      { key: "Kode Pos", label: "Kode Pos", placeholder: "Kode pos", span: 1 },
+      { key: "RT / RW", label: "RT / RW", placeholder: "-", span: 1 },
+      { key: "Telephone", label: "Telephone", placeholder: "Nomor telepon", span: 1 },
+      { key: "Email", label: "Email", placeholder: "email@domain.com", span: 1 },
+      { key: "On Behalf", label: "On Behalf", placeholder: "Atas nama / perwakilan", span: 2 },
       { key: "Status", label: "Status", type: "select", options: statusOptions, span: 1 },
-      { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
-      { key: "Kode Afiliasi", label: "Kode Afiliasi", placeholder: "Kode afiliasi", span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat lengkap", span: 3 },
     ],
   },
   {
     kind: "ppjk",
     title: "PPJK",
-    badge: "Opsional",
-    description: "Pengusaha Pengurusan Jasa Kepabeanan bila proses menggunakan perantara kepabeanan.",
+    description: "Gunakan bila pengurusan dilakukan melalui perantara kepabeanan.",
     icon: BriefcaseIcon,
+    toggle: { key: "Menggunakan PPJK", label: "Menggunakan PPJK" },
+    requiredFields: ["Nama PPJK", "Nomor PPJK", "NPWP / NITKU", "Alamat"],
     defaultValues: {
       "Jenis Entitas": "PPJK",
-      "Nama PPJK": "PT Mitra PPJK",
-      "Nomor PPJK": "PPJK-001",
-      "NPWP / NITKU": "3171010000002",
-      Alamat: "Jl. Pelabuhan No. 45, Jakarta",
+      "Menggunakan PPJK": "",
+      "Nama PPJK": "",
+      "Nomor PPJK": "",
+      "NPWP / NITKU": "",
+      Alamat: "",
     },
     fields: [
       { key: "Nama PPJK", label: "Nama PPJK", placeholder: "Nama perusahaan PPJK", span: 2 },
@@ -264,66 +317,112 @@ const entityDefinitions: EntityDefinition[] = [
       { key: "NPWP / NITKU", label: "NPWP / NITKU", placeholder: "NPWP atau NITKU", span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat PPJK", span: 3 },
     ],
+    emptyState: "PPJK belum diaktifkan pada pengajuan ini.",
   },
   {
-    kind: "penjual",
-    title: "Penjual",
-    badge: "Opsional",
-    description: "Pihak yang menjual barang kepada importir.",
+    kind: "penerima",
+    title: "Penerima",
+    description: "Pihak penerima barang atau shipment.",
     icon: UserIcon,
+    defaultOpen: true,
+    requiredFields: ["Nama", "Alamat", "Negara"],
     defaultValues: {
-      "Jenis Entitas": "Penjual",
-      "Nama Penjual": "PT Global Trade",
-      Alamat: "Shenzhen, China",
-      Negara: "CN",
+      "Jenis Entitas": "Penerima",
+      Nama: "testing",
+      Alamat: "testing",
+      Negara: "SG",
     },
     fields: [
-      { key: "Nama Penjual", label: "Nama Penjual", placeholder: "Nama penjual", span: 2 },
-      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penjual", span: 2 },
+      { key: "Nama", label: "Nama", placeholder: "Nama penerima", span: 2 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penerima", span: 2 },
       { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
     ],
+    emptyState: "Data penerima belum diisi.",
   },
   {
-    kind: "pemilikBarang",
-    title: "Pemilik Barang",
-    badge: "Opsional",
-    description: "Pihak yang memiliki barang apabila berbeda dari importir.",
+    kind: "pembeli",
+    title: "Pembeli",
+    description: "Dapat disamakan dengan penerima jika datanya sama.",
     icon: DocumentsIcon,
+    toggle: { key: "Sama dengan Penerima", label: "Sama dengan Penerima" },
+    requiredFields: ["Nama", "Alamat", "Negara"],
     defaultValues: {
-      "Jenis Entitas": "Pemilik Barang",
-      Nama: "PT Pemilik Satu",
-      Alamat: "Jl. Industri No. 7, Batam",
-      Negara: "ID",
+      "Jenis Entitas": "Pembeli",
+      "Sama dengan Penerima": "Ya",
+      Nama: "testing",
+      Alamat: "testing",
+      Negara: "SG",
     },
     fields: [
-      { key: "Nama", label: "Nama", placeholder: "Nama pemilik barang", span: 2 },
-      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pemilik barang", span: 2 },
+      { key: "Nama", label: "Nama", placeholder: "Nama pembeli", span: 2 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pembeli", span: 2 },
       { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
     ],
+    emptyState: "Pembeli akan mengikuti data penerima.",
   },
   {
-    kind: "pengangkut",
-    title: "Pengangkut",
-    badge: "Opsional",
-    description: "Pihak atau operator sarana angkut yang membawa barang.",
-    icon: TruckIcon,
+    kind: "penanggungJawab",
+    title: "Penanggung Jawab",
+    description: "Kontak utama yang menangani pengajuan dan tindak lanjut.",
+    icon: UserIcon,
+    requiredFields: ["Nama", "Jabatan", "Kota", "Kode Pos", "Email"],
     defaultValues: {
-      "Jenis Entitas": "Pengangkut",
-      "Nama Pengangkut": "MV Contoh Nusantara",
-      Negara: "ID",
-      "Nomor Sarana Angkut": "VY-0626",
+      "Jenis Entitas": "Penanggung Jawab",
+      Nama: "testing",
+      Jabatan: "test",
+      Kota: "Kota Jakarta Selatan",
+      "Kode Pos": "00000",
+      Email: "testing@test.com",
+      Keterangan: "test",
     },
     fields: [
-      { key: "Nama Pengangkut", label: "Nama Pengangkut", placeholder: "Nama pengangkut", span: 2 },
-      { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
-      { key: "Nomor Sarana Angkut", label: "Nomor Sarana Angkut", placeholder: "Nomor sarana angkut", span: 2 },
+      { key: "Nama", label: "Nama", placeholder: "Nama penanggung jawab", span: 2, lookup: true },
+      { key: "Jabatan", label: "Jabatan", placeholder: "Jabatan", span: 1 },
+      { key: "Kota", label: "Kota", placeholder: "Kota", span: 1 },
+      { key: "Kode Pos", label: "Kode Pos", placeholder: "Kode pos", span: 1 },
+      { key: "Email", label: "Email", placeholder: "email@domain.com", span: 1 },
+      { key: "Keterangan", label: "Keterangan", type: "textarea", placeholder: "Keterangan tambahan", span: 3 },
     ],
+    emptyState: "Data penanggung jawab belum diisi.",
+  },
+  {
+    kind: "barangEksporLcl",
+    title: "Barang Ekspor Konsolidasi / LCL",
+    description: "Aktifkan bila pengajuan melibatkan konsolidasi atau LCL.",
+    icon: TruckIcon,
+    toggle: { key: "Aktifkan Konsolidasi", label: "Gunakan Barang Ekspor Konsolidasi / LCL" },
+    requiredFields: ["Jenis Konsolidasi", "Jumlah House", "Nomor House"],
+    defaultValues: {
+      "Jenis Entitas": "Barang Ekspor Konsolidasi / LCL",
+      "Aktifkan Konsolidasi": "",
+      "Jenis Konsolidasi": "",
+      "Jumlah House": "",
+      "Nomor House": "",
+      Keterangan: "",
+    },
+    fields: [
+      {
+        key: "Jenis Konsolidasi",
+        label: "Jenis Konsolidasi",
+        type: "select",
+        options: [
+          { label: "LCL", value: "LCL" },
+          { label: "FCL", value: "FCL" },
+          { label: "Gabungan", value: "Gabungan" },
+        ],
+        span: 1,
+      },
+      { key: "Jumlah House", label: "Jumlah House", placeholder: "Jumlah house", span: 1 },
+      { key: "Nomor House", label: "Nomor House", placeholder: "Nomor house", span: 1 },
+      { key: "Keterangan", label: "Keterangan", type: "textarea", placeholder: "Keterangan tambahan", span: 3 },
+    ],
+    emptyState: "Barang ekspor konsolidasi belum diaktifkan.",
   },
 ];
 
 const entityDefinitionMap = Object.fromEntries(entityDefinitions.map((definition) => [definition.kind, definition])) as Record<EntityKind, EntityDefinition>;
 
-const entityOrder: EntityKind[] = ["importir", "penjual", "ppjk", "pengangkut", "pemilikBarang"];
+const entityOrder: EntityKind[] = ["pengusahaImportir", "ppjk", "penerima", "pembeli", "penanggungJawab", "barangEksporLcl"];
 
 const stepFieldGroups = [
   {
@@ -416,6 +515,53 @@ const createBlankBarangRow = (seri: string) =>
 const hasAnyValue = (row: Row) => Object.values(row).some((value) => value.trim().length > 0);
 const hasAnyRows = (rows: Row[]) => rows.some(hasAnyValue);
 const countFilledRows = (rows: Row[]) => rows.filter(hasAnyValue).length;
+const isTruthyValue = (value?: string) => ["1", "true", "ya", "yes", "on"].includes((value ?? "").trim().toLowerCase());
+const getSectionRow = (rows: Row[], title: string) => rows.find((row) => row["Jenis Entitas"] === title) ?? null;
+const getSectionColumns = (definition: EntityDefinition) => [
+  "Jenis Entitas",
+  ...(definition.headerFields?.map((field) => field.key) ?? []),
+  ...(definition.toggle ? [definition.toggle.key] : []),
+  ...definition.fields.map((field) => field.key),
+];
+const isSectionComplete = (definition: EntityDefinition, row: Row | null, rows: Row[]) => {
+  if (!row) return false;
+  if (definition.toggle && !isTruthyValue(row[definition.toggle.key])) {
+    return false;
+  }
+
+  if (definition.kind === "pembeli" && isTruthyValue(row["Sama dengan Penerima"])) {
+    const penerima = getSectionRow(rows, "Penerima");
+    return Boolean(penerima) && definition.requiredFields.every((field) => isMandatoryFilled(row[field] ?? ""));
+  }
+
+  return definition.requiredFields.every((field) => isMandatoryFilled(row[field] ?? ""));
+};
+
+const isSectionStarted = (definition: EntityDefinition, row: Row | null) => {
+  if (!row) return false;
+  if (definition.toggle && isTruthyValue(row[definition.toggle.key])) return true;
+  return definition.fields.some((field) => isMandatoryFilled(row[field.key] ?? "")) || hasAnyValue(row);
+};
+
+const getSectionStatus = (definition: EntityDefinition, row: Row | null, rows: Row[]) => {
+  if (!row) {
+    return { label: "Belum Diisi", tone: "neutral" as const };
+  }
+
+  if (definition.toggle && !isTruthyValue(row[definition.toggle.key])) {
+    return { label: "Belum Diisi", tone: "neutral" as const };
+  }
+
+  if (isSectionComplete(definition, row, rows)) {
+    return { label: "Lengkap", tone: "success" as const };
+  }
+
+  if (isSectionStarted(definition, row)) {
+    return { label: "Perlu Dilengkapi", tone: "warning" as const };
+  }
+
+  return { label: "Belum Diisi", tone: "neutral" as const };
+};
 
 const formStepOrder: WizardStepId[] = ["pengajuan", "entitas", "dokumen", "kemasan", "barang", "review"];
 
@@ -480,24 +626,21 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
       pelabuhanTujuan: "IDTPP",
       tempatTimbun: "JICT",
     },
-    entitas: [
-      createRow(["Jenis Entitas", "Jenis Identitas", "NITKU / NPWP", "Nama Perusahaan", "Alamat", "NIB", "Jenis API", "Status", "Negara", "Kode Afiliasi"], {
-        "Jenis Entitas": "Importir",
-        "Jenis Identitas": "NPWP",
-        "NITKU / NPWP": "3171010000001",
-        "Nama Perusahaan": companyName,
-        Alamat: "Jl. Contoh Raya No. 123, Jakarta",
-        NIB: nib,
-        "Jenis API": "API-U",
-        Status: "Aktif",
-        Negara: "ID",
-        "Kode Afiliasi": "00",
-      }),
-      createRow(["Jenis Entitas", "Nama Penjual", "Alamat", "Negara"], { "Jenis Entitas": "Penjual" }),
-      createRow(["Jenis Entitas", "Nama PPJK", "Nomor PPJK", "NPWP / NITKU", "Alamat"], { "Jenis Entitas": "PPJK" }),
-      createRow(["Jenis Entitas", "Nama Pengangkut", "Negara", "Nomor Sarana Angkut"], { "Jenis Entitas": "Pengangkut" }),
-      createRow(["Jenis Entitas", "Nama", "Alamat", "Negara"], { "Jenis Entitas": "Pemilik Barang" }),
-    ],
+    entitas: entityDefinitions.map((definition) =>
+      createRow(
+        ["Jenis Entitas", ...(definition.headerFields?.map((field) => field.key) ?? []), ...definition.fields.map((field) => field.key), ...(definition.toggle ? [definition.toggle.key] : [])],
+        {
+          ...definition.defaultValues,
+          ...(definition.kind === "pengusahaImportir"
+            ? {
+                "Nama Perusahaan": companyName,
+                "No Identitas (16 Digit)": npwp,
+                NIB: nib,
+              }
+            : {}),
+        },
+      ),
+    ),
     dokumen: [
       createRow(["Seri", "Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"], {
         Seri: "1",
@@ -666,7 +809,7 @@ function AccordionCard({
   subtitle?: string;
   children: ReactNode;
   defaultOpen?: boolean;
-  badge?: { label: string; tone?: "brand" | "neutral" | "error" | "success" };
+  badge?: { label: string; tone?: "brand" | "neutral" | "error" | "success" | "warning" | "info" };
   leadingIcon?: ReactNode;
   headerActions?: ReactNode;
 }) {
@@ -696,6 +839,10 @@ function AccordionCard({
                       ? "bg-error-50 text-error-600"
                       : badge.tone === "success"
                         ? "bg-success-50 text-success-600"
+                        : badge.tone === "warning"
+                          ? "bg-warning-100 text-warning-600"
+                          : badge.tone === "info"
+                            ? "bg-info-100 text-info-600"
                         : badge.tone === "neutral"
                           ? "bg-neutral-100 text-neutral-700"
                           : "bg-brand-primary-50 text-brand-primary-700",
@@ -726,13 +873,46 @@ function EntityFieldRenderer({
   field,
   value,
   onChange,
+  disabled = false,
+  onLookup,
 }: {
   field: EntityFieldConfig;
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
+  onLookup?: () => void;
 }) {
   const widthClass = field.span === 3 ? "md:col-span-2 xl:col-span-3" : field.span === 2 ? "md:col-span-2" : "";
   const wrapperClass = ["flex flex-col gap-1.5", widthClass].filter(Boolean).join(" ");
+  const isDisabled = disabled || field.readOnly || field.disabled;
+
+  if (field.lookup) {
+    return (
+      <label className={wrapperClass}>
+        <span className="text-[12px] font-medium text-neutral-700">{field.label}</span>
+        <div className="flex items-center gap-2">
+          <Input
+            className="flex-1"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={field.placeholder ?? field.label}
+            readOnly={isDisabled}
+            disabled={isDisabled}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onLookup}
+            disabled={disabled || field.disabled}
+            className="whitespace-nowrap"
+          >
+            Cari
+          </Button>
+        </div>
+      </label>
+    );
+  }
 
   if (field.type === "textarea") {
     return (
@@ -743,6 +923,7 @@ function EntityFieldRenderer({
         onChange={(event) => onChange(event.target.value)}
         placeholder={field.placeholder ?? field.label}
         rows={4}
+        disabled={isDisabled}
       />
     );
   }
@@ -756,6 +937,7 @@ function EntityFieldRenderer({
         onValueChange={onChange}
         placeholder={field.placeholder ?? `Pilih ${field.label.toLowerCase()}`}
         options={field.options ?? []}
+        disabled={isDisabled}
       />
     );
   }
@@ -767,6 +949,8 @@ function EntityFieldRenderer({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={field.placeholder ?? field.label}
+      readOnly={isDisabled}
+      disabled={isDisabled}
     />
   );
 }
@@ -775,10 +959,14 @@ function EntityCardContent({
   entity,
   row,
   onChange,
+  disabled = false,
+  onLookup,
 }: {
   entity: EntityDefinition;
   row: Row;
   onChange: (column: string, value: string) => void;
+  disabled?: boolean;
+  onLookup?: (field: string) => void;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -788,9 +976,53 @@ function EntityCardContent({
           field={field}
           value={row[field.key] ?? ""}
           onChange={(value) => onChange(field.key, value)}
+          disabled={disabled}
+          onLookup={field.lookup ? () => onLookup?.(field.key) : undefined}
         />
       ))}
     </div>
+  );
+}
+
+function EntitasCheckbox({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex items-center gap-2 rounded-full border border-border-primary bg-white px-3 py-2 text-[12px] font-medium text-neutral-700 shadow-sm transition-colors hover:border-brand-primary-200 hover:bg-brand-primary-50/40">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-border-primary text-brand-primary-600 focus:ring-brand-primary-100"
+      />
+      <span className="whitespace-nowrap">{label}</span>
+    </label>
+  );
+}
+
+function EntitasSectionNote({ text }: { text: string }) {
+  return <div className="rounded-xl border border-border-primary bg-background-primary/40 px-4 py-3 text-[12px] leading-6 text-neutral-700">{text}</div>;
+}
+
+function SectionEmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border-primary bg-background-primary/20 px-4 py-4 text-[12px] leading-6 text-neutral-600">
+      {text}
+    </div>
+  );
+}
+
+function SectionStatusBadge({ label, tone }: { label: string; tone: "brand" | "neutral" | "warning" | "success" | "error" | "info" }) {
+  return (
+    <Badge variant={tone === "neutral" ? "secondary" : tone === "brand" ? "brand" : tone} className="px-2.5 py-1 text-[10px] font-semibold">
+      {label}
+    </Badge>
   );
 }
 
@@ -901,18 +1133,18 @@ function EditableTable({
 type BarangDetailSection = "spesifikasi" | "dokumen" | "vd" | "tarif" | "karantina";
 
 function MiniStatusPill({ value }: { value: string }) {
-  const toneClass =
+  const variant =
     value === "Lengkap"
-      ? "bg-success-100 text-success-600"
+      ? "success"
       : value === "Perlu Dilengkapi"
-        ? "bg-warning-50 text-warning-600"
+        ? "warning"
         : value === "Perlu Validasi"
-          ? "bg-info-100 text-info-600"
+          ? "info"
           : value === "Belum Dicek"
-            ? "bg-neutral-100 text-neutral-700"
-            : "bg-error-50 text-error-600";
+            ? "secondary"
+            : "error";
 
-  return <span className={["inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold", toneClass].join(" ")}>{value}</span>;
+  return <Badge variant={variant}>{value}</Badge>;
 }
 
 function CompactEditableTable({
@@ -1457,26 +1689,58 @@ function StepFooterActions({
   step,
   onPrevious,
   onCheck,
+  onSaveDraft,
   onNext,
+  showPrevious = true,
+  showNext = true,
+  saveDraftLabel,
+  primaryLabel = "Selanjutnya",
+  primaryStartIcon,
+  primaryEndIcon = <ArrowRightIcon className="h-3.5 w-3.5" />,
 }: {
   step: WizardStepId;
   onPrevious?: () => void;
   onCheck: () => void;
+  onSaveDraft: () => void;
   onNext?: () => void;
+  showPrevious?: boolean;
+  showNext?: boolean;
+  saveDraftLabel?: string;
+  primaryLabel?: string;
+  primaryStartIcon?: React.ReactNode;
+  primaryEndIcon?: React.ReactNode;
 }) {
+  const stepLabelMap: Record<WizardStepId, string> = {
+    pengajuan: "Pengajuan",
+    entitas: "Entitas",
+    dokumen: "Dokumen",
+    kemasan: "Kemasan",
+    barang: "Barang",
+    review: "Review",
+  };
+
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-primary pt-4">
-      <Button variant="outline" size="sm" onClick={onPrevious} disabled={!onPrevious}>
-        {"< sebelumnya"}
-      </Button>
+      {showPrevious ? (
+        <Button variant="outline" size="sm" onClick={onPrevious} disabled={!onPrevious} startIcon={<ArrowLeftIcon className="h-3.5 w-3.5" />}>
+          Sebelumnya
+        </Button>
+      ) : (
+        <span />
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onCheck}>
+        <Button variant="outline" size="sm" onClick={onCheck} startIcon={<RoundedMagniferIcon className="h-3.5 w-3.5" />}>
           Cek Kelengkapan
         </Button>
-        <Button variant="primary" size="sm" onClick={onNext} disabled={!onNext}>
-          selanjutnya {">"}
+        <Button variant="outline" size="sm" onClick={onSaveDraft} startIcon={<CheckReadIcon className="h-3.5 w-3.5" />}>
+          {saveDraftLabel ?? `Simpan Draft ${stepLabelMap[step]}`}
         </Button>
+        {showNext ? (
+          <Button variant="primary" size="sm" onClick={onNext} disabled={!onNext} startIcon={primaryStartIcon} endIcon={primaryEndIcon}>
+            {primaryLabel}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -1486,7 +1750,6 @@ export function FormPage() {
   const [draft, setDraft] = useState<AiSubmissionDraft | null>(null);
   const [formState, setFormState] = useState<FormState>(() => createInitialFormState(null));
   const [activeStep, setActiveStep] = useState<WizardStepId>("pengajuan");
-  const [notif, setNotif] = useState(true);
   const [source, setSource] = useState<FormSource | null>(null);
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Data bisa dikoreksi sebelum submit.");
@@ -1499,6 +1762,8 @@ export function FormPage() {
   const [importExcelFileName, setImportExcelFileName] = useState("");
   const [importExcelStage, setImportExcelStage] = useState<BarangImportStage>("upload");
   const [clearBarangOpen, setClearBarangOpen] = useState(false);
+  const [activeEntitasSection, setActiveEntitasSection] = useState<EntityKind>(entityDefinitions[0]?.kind ?? "pengusahaImportir");
+  const entitasSectionRefs = useRef<Partial<Record<EntityKind, HTMLDivElement | null>>>({});
 
   useEffect(() => {
     const savedForm = sessionStorage.getItem(BC20_FORM_STORAGE_KEY);
@@ -1539,16 +1804,77 @@ export function FormPage() {
     }
   }, []);
 
-  const importirRow = formState.entitas.find((row) => row["Jenis Entitas"] === "Importir") ?? formState.entitas[0] ?? null;
+  useEffect(() => {
+    if (activeStep !== "entitas") return;
+    const observedSections = entityDefinitions
+      .map((definition) => ({ definition, element: entitasSectionRefs.current[definition.kind] }))
+      .filter((item): item is { definition: EntityDefinition; element: HTMLDivElement } => Boolean(item.element));
+
+    if (!observedSections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        if (!visibleEntries.length) return;
+
+        const nextEntry =
+          visibleEntries.find((entry) => entry.target.id === activeEntitasSection) ??
+          visibleEntries.sort(
+            (left, right) => left.boundingClientRect.top - right.boundingClientRect.top,
+          )[0];
+
+        if (nextEntry) {
+          setActiveEntitasSection(nextEntry.target.id as EntityKind);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-22% 0px -62% 0px",
+        threshold: 0.01,
+      },
+    );
+
+    observedSections.forEach(({ element }) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [activeEntitasSection, activeStep]);
+
+  const entitasRowsByKind = useMemo(
+    () =>
+      Object.fromEntries(entityDefinitions.map((definition) => [definition.kind, getSectionRow(formState.entitas, definition.title)])) as Record<EntityKind, Row | null>,
+    [formState.entitas],
+  );
+
+  const entitasSectionStatus = useMemo(
+    () =>
+      Object.fromEntries(
+        entityDefinitions.map((definition) => [definition.kind, getSectionStatus(definition, entitasRowsByKind[definition.kind], formState.entitas)]),
+      ) as Record<EntityKind, { label: string; tone: "brand" | "neutral" | "warning" | "success" | "error" | "info" }>,
+    [entitasRowsByKind, formState.entitas],
+  );
+
+  const syncPembeliFromPenerima = (rows: Row[], penerimaRow: Row) => {
+    const pembeliDefinition = entityDefinitionMap.pembeli;
+    const pembeliIndex = rows.findIndex((row) => row["Jenis Entitas"] === pembeliDefinition.title);
+    if (pembeliIndex < 0) return rows;
+
+    const pembeliRow = rows[pembeliIndex];
+    if (!isTruthyValue(pembeliRow["Sama dengan Penerima"])) return rows;
+
+    rows[pembeliIndex] = {
+      ...pembeliRow,
+      Nama: penerimaRow.Nama ?? "",
+      Alamat: penerimaRow.Alamat ?? "",
+      Negara: penerimaRow.Negara ?? "",
+    };
+    return rows;
+  };
 
   const stepComplete = useMemo(
     () => ({
       pengajuan: mandatoryPengajuanFields.every((key) => isMandatoryFilled(formState.pengajuan[key] ?? "")),
-      entitas:
-        hasAnyRows(formState.entitas) &&
-        ["Jenis Entitas", "Jenis Identitas", "NITKU / NPWP", "Nama Perusahaan", "Alamat", "NIB", "Jenis API", "Status", "Negara", "Kode Afiliasi"].every((column) =>
-          isMandatoryFilled(importirRow?.[column] ?? ""),
-        ),
+      entitas: entityDefinitions
+        .filter((definition) => !definition.toggle || isTruthyValue(entitasRowsByKind[definition.kind]?.[definition.toggle.key]))
+        .every((definition) => isSectionComplete(definition, entitasRowsByKind[definition.kind], formState.entitas)),
       dokumen: hasAnyRows(formState.dokumen) && ["Seri", "Kode Dokumen", "Nomor Dokumen"].every((column) => isMandatoryFilled(formState.dokumen[0]?.[column] ?? "")),
       kemasan:
         hasAnyRows(formState.kemasan) &&
@@ -1561,7 +1887,7 @@ export function FormPage() {
           isMandatoryFilled(formState.barang[0]?.[column] ?? ""),
         ),
     }),
-    [formState, importirRow],
+    [formState, entitasRowsByKind],
   );
 
   const reviewStatus = useMemo(() => {
@@ -1836,12 +2162,30 @@ export function FormPage() {
   };
 
   const updateEntityField = (kind: EntityKind, column: string, value: string) => {
-    const entityTitle = entityDefinitionMap[kind].title;
     setFormState((current) => {
+      const entityTitle = entityDefinitionMap[kind].title;
       const rowIndex = current.entitas.findIndex((row) => row["Jenis Entitas"] === entityTitle);
       if (rowIndex < 0) return current;
       const rows = [...current.entitas];
       rows[rowIndex] = { ...rows[rowIndex], [column]: value };
+
+      if (kind === "penerima") {
+        syncPembeliFromPenerima(rows, rows[rowIndex]);
+      }
+
+      if (kind === "pembeli" && column === "Sama dengan Penerima" && isTruthyValue(value)) {
+        const penerimaRow = rows.find((row) => row["Jenis Entitas"] === entityDefinitionMap.penerima.title);
+        if (penerimaRow) {
+          rows[rowIndex] = {
+            ...rows[rowIndex],
+            Nama: penerimaRow.Nama ?? "",
+            Alamat: penerimaRow.Alamat ?? "",
+            Negara: penerimaRow.Negara ?? "",
+            "Sama dengan Penerima": "Ya",
+          };
+        }
+      }
+
       return { ...current, entitas: rows };
     });
   };
@@ -1870,6 +2214,13 @@ export function FormPage() {
     }
 
     setStatusMessage(stepComplete[stepKey] ? "Step ini sudah lengkap." : "Masih ada field mandatory yang harus dilengkapi.");
+  };
+
+  const scrollToEntitasSection = (kind: EntityKind) => {
+    const target = entitasSectionRefs.current[kind];
+    if (!target) return;
+    setActiveEntitasSection(kind);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -1983,48 +2334,159 @@ export function FormPage() {
           ))}
           <StepFooterActions
             step="pengajuan"
-            onPrevious={() => setActiveStep(goToStep("pengajuan", -1))}
             onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
             onNext={() => setActiveStep(goToStep("pengajuan", 1))}
+            showPrevious={false}
           />
         </div>
         )}
 
       {activeStep === "entitas" && (
         <div className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-            <div className="flex flex-col gap-4 border-b border-border-primary pb-4">
-              <div>
+          <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <aside className="lg:sticky lg:top-[var(--shell-sticky-top)] lg:self-start">
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Table of Content</div>
+                <div className="mt-1 text-[12px] leading-5 text-neutral-600">Lompat ke section entitas yang ingin ditinjau.</div>
+                <div className="mt-4 flex flex-col gap-2">
+                  {entityDefinitions.map((definition) => {
+                    const status = entitasSectionStatus[definition.kind];
+                    const active = activeEntitasSection === definition.kind;
+                    const Icon = definition.icon;
+
+                    return (
+                      <button
+                        key={definition.kind}
+                        type="button"
+                        onClick={() => scrollToEntitasSection(definition.kind)}
+                        className={[
+                          "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
+                          active
+                            ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                            : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                            active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                          ].join(" ")}
+                        >
+                          <Icon className="h-4.5 w-4.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-[12px] font-semibold text-neutral-800">{definition.title}</span>
+                            <Badge
+                              variant={status.tone === "neutral" ? "secondary" : status.tone === "brand" ? "brand" : status.tone}
+                              className="px-2 py-0.5 text-[10px] font-semibold"
+                            >
+                              {status.label}
+                            </Badge>
+                          </span>
+                          <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{definition.description}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
+
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
                 <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Profil Pelaku Usaha</div>
                 <h2 className="mt-1 text-[22px] font-semibold tracking-[-0.02em] text-neutral-800">Entitas</h2>
                 <p className="mt-2 max-w-4xl text-[12px] leading-6 text-neutral-600">
-                  Isi profil masing-masing pelaku usaha yang terlibat dalam pengajuan. Setiap card mewakili satu entitas bisnis, bukan baris tabel.
+                  Isi profil masing-masing pelaku usaha yang terlibat dalam pengajuan. Beberapa data dapat terisi otomatis dari SSO atau NIB dan tetap bisa ditinjau sebelum submit.
                 </p>
               </div>
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {entityOrder.map((kind) => {
-                const entity = entityDefinitionMap[kind];
-                const entityRow = formState.entitas.find((row) => row["Jenis Entitas"] === entity.title);
-                if (!entityRow) return null;
-                const Icon = entity.icon;
-                const wideCard = kind === "importir";
+              <div className="flex flex-col gap-4">
+                {entityDefinitions.map((definition) => {
+                  const entityRow = entitasRowsByKind[definition.kind] ?? getSectionRow(formState.entitas, definition.title);
+                  const status = entitasSectionStatus[definition.kind];
+                  const Icon = definition.icon;
+                  const isToggleActive = definition.toggle ? isTruthyValue(entityRow?.[definition.toggle.key]) : true;
+                  const isPembeliSame = definition.kind === "pembeli" && isTruthyValue(entityRow?.["Sama dengan Penerima"]);
+                  const isOptionalCollapsed = Boolean(definition.toggle) && !isToggleActive;
 
-                return (
-                  <div key={kind} className={wideCard ? "lg:col-span-2" : ""}>
-                    <AccordionCard
-                      title={entity.title}
-                      subtitle={entity.description}
-                      defaultOpen={entity.defaultOpen ?? false}
-                      badge={{ label: entity.badge, tone: entity.badge === "Wajib" ? "brand" : "neutral" }}
-                      leadingIcon={<Icon className="h-5 w-5" />}
+                  return (
+                    <div
+                      key={definition.kind}
+                      id={definition.kind}
+                      ref={(node) => {
+                        entitasSectionRefs.current[definition.kind] = node;
+                      }}
+                      className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
                     >
-                      <EntityCardContent entity={entity} row={entityRow} onChange={(column, value) => updateEntityField(kind, column, value)} />
-                    </AccordionCard>
-                  </div>
-                );
-              })}
+                      <AccordionCard
+                        title={definition.title}
+                        subtitle={definition.description}
+                        defaultOpen={definition.defaultOpen ?? false}
+                        leadingIcon={<Icon className="h-5 w-5" />}
+                        headerActions={<SectionStatusBadge label={status.label} tone={status.tone} />}
+                      >
+                        <div className="flex flex-col gap-4">
+                          {definition.headerFields?.length ? (
+                            <div className="flex flex-col gap-4">
+                              <div className="grid grid-cols-1 gap-4 md:max-w-md">
+                                {definition.headerFields.map((field) => (
+                                  <EntityFieldRenderer
+                                    key={field.key}
+                                    field={field}
+                                    value={entityRow?.[field.key] ?? field.placeholder ?? ""}
+                                    onChange={(value) => updateEntityField(definition.kind, field.key, value)}
+                                  />
+                                ))}
+                              </div>
+                              <div className="border-t border-border-primary pt-4">
+                                {definition.bodyHeading ? (
+                                  <div className="text-[22px] font-semibold tracking-[-0.02em] text-neutral-800">{definition.bodyHeading}</div>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {definition.toggle ? (
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-primary bg-background-primary/25 px-4 py-3">
+                              <div className="min-w-0">
+                                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{definition.toggle.label}</div>
+                                <div className="mt-1 text-[12px] leading-5 text-neutral-600">{isToggleActive ? "Section aktif dan siap diisi." : definition.emptyState}</div>
+                              </div>
+                              <EntitasCheckbox
+                                label={definition.toggle.label}
+                                checked={isToggleActive}
+                                onChange={(checked) => {
+                                  updateEntityField(definition.kind, definition.toggle!.key, checked ? "Ya" : "");
+                                }}
+                              />
+                            </div>
+                          ) : null}
+
+                          {isOptionalCollapsed ? <SectionEmptyState text={definition.emptyState} /> : null}
+
+                          {(!definition.toggle || isToggleActive) && !isOptionalCollapsed ? (
+                            <>
+                              {definition.kind === "pembeli" && isPembeliSame ? (
+                                <EntitasSectionNote text="Data pembeli disamakan dengan penerima. Ubah ceklis bila ingin mengisi manual." />
+                              ) : null}
+                              <EntityCardContent
+                                entity={definition}
+                                row={entityRow ?? createRow(getSectionColumns(definition), definition.defaultValues)}
+                                disabled={definition.kind === "pembeli" && isPembeliSame}
+                                onChange={(column, value) => updateEntityField(definition.kind, column, value)}
+                                onLookup={definition.kind === "penanggungJawab" ? () => setStatusMessage("Lookup penanggung jawab masih mock lokal.") : undefined}
+                              />
+                            </>
+                          ) : null}
+                        </div>
+                      </AccordionCard>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -2032,6 +2494,7 @@ export function FormPage() {
             step="entitas"
             onPrevious={() => setActiveStep(goToStep("entitas", -1))}
             onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
             onNext={() => setActiveStep(goToStep("entitas", 1))}
           />
         </div>
@@ -2053,6 +2516,7 @@ export function FormPage() {
           step="dokumen"
           onPrevious={() => setActiveStep(goToStep("dokumen", -1))}
           onCheck={handleCheckCompleteness}
+          onSaveDraft={saveSnapshot}
           onNext={() => setActiveStep(goToStep("dokumen", 1))}
         />
         </div>
@@ -2084,6 +2548,7 @@ export function FormPage() {
             step="kemasan"
             onPrevious={() => setActiveStep(goToStep("kemasan", -1))}
             onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
             onNext={() => setActiveStep(goToStep("kemasan", 1))}
           />
         </div>
@@ -2154,31 +2619,30 @@ export function FormPage() {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          startIcon={<PenNewSquareIcon className="h-4 w-4" />}
-                          onClick={() => openEditBarang(row)}
-                        >
-                          Kelola Detail
-                        </Button>
-                      </td>
+              <td className="px-3 py-3">
+                <Button
+                  variant="warning"
+                  size="sm"
+                  startIcon={<Pen2Icon className="h-4 w-4" />}
+                  className="whitespace-nowrap"
+                  onClick={() => openEditBarang(row)}
+                >
+                  Kelola Detail
+                </Button>
+              </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-dashed border-border-primary bg-background-primary/30 p-4 text-[12px] text-neutral-700">
-              Child data seperti spesifikasi, dokumen, VD, tarif, dan karantina sekarang melekat pada barang seri yang dipilih.
-            </div>
           </section>
 
           <StepFooterActions
             step="barang"
             onPrevious={() => setActiveStep(goToStep("barang", -1))}
             onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
             onNext={() => setActiveStep(goToStep("barang", 1))}
           />
 
@@ -2259,7 +2723,7 @@ export function FormPage() {
                 <div className="mt-3 space-y-2 text-[12px] text-neutral-700">
                   <div>
                     <span className="font-medium">Nama Perusahaan: </span>
-                    {draft?.namaPerusahaan || importirRow?.["Nama Perusahaan"] || "PT Contoh Nusantara"}
+                    {draft?.namaPerusahaan || entitasRowsByKind.pengusahaImportir?.["Nama Perusahaan"] || "PT Contoh Nusantara"}
                   </div>
                   <div>
                     <span className="font-medium">NPWP: </span>
@@ -2276,46 +2740,21 @@ export function FormPage() {
                 </div>
               </div>
             </div>
-
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <Button variant="outline" size="sm" onClick={() => setActiveStep(goToStep("review", -1))}>
-                {"< sebelumnya"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={saveSnapshot}>
-                Simpan Draft
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCheckCompleteness}>
-                Cek Kelengkapan
-              </Button>
-              <Button variant="primary" size="sm" onClick={submitForm}>
-                Submit Pengajuan
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setActiveStep("review")}>
-                selanjutnya {">"}
-              </Button>
-            </div>
           </div>
+
+          <StepFooterActions
+            step="review"
+            onPrevious={() => setActiveStep(goToStep("review", -1))}
+            onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
+            onNext={submitForm}
+            saveDraftLabel="Simpan Keseluruhan Draft"
+            primaryLabel="Submit Pengajuan"
+            primaryStartIcon={<PlainIcon className="h-3.5 w-3.5" />}
+            primaryEndIcon={null}
+          />
         </div>
         )}
-
-        <div className="mt-6 rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex items-center gap-2 text-[12px] text-neutral-600">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600">
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v6h5v2h-7V7h2Z" />
-              </svg>
-            </span>
-            <span>Data tetap bisa diedit manual kapan saja. Semua perubahan masih mock/local dulu.</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Checkbox label="Kirim notifikasi email" checked={notif} onChange={(event) => setNotif(event.target.checked)} />
-            <Button variant="outline" size="sm" onClick={saveSnapshot}>
-              Simpan Draft
-            </Button>
-          </div>
-          </div>
-        </div>
 
         <Modal
           open={importExcelOpen}

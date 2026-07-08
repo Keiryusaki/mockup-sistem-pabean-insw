@@ -5,63 +5,73 @@ import { Viewer, Worker } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { CopyIcon, EyeIcon, PenNewSquareIcon, ProgressIcon, TrashBinTrashIcon } from "../components/Icons";
-import { Input, Select } from "../components/FormControls";
+import { Checkbox, Input, Select } from "../components/FormControls";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 
-type ProposalStatus = "Draft" | "Proses" | "Disetujui" | "Ditolak";
+type ProposalStatus = "Draft" | "Proses" | "Selesai" | "Ditolak";
 
 type ProposalRow = {
   pengajuan: string;
   dokumen: string;
   kirim: string;
+  kirimAt: string | null;
   perusahaan: string;
   status: ProposalStatus;
+  progressLabel?: string;
   canEditAfterReject?: boolean;
 };
 
 export const proposalRows: ProposalRow[] = [
   {
     pengajuan: "2012342ED12320260606000001",
-    dokumen: "BC 2.0 - PIB Impor",
-    kirim: "06-06-2026",
+    dokumen: "BC 2.0",
+    kirim: "06-06-2026, 08:14",
+    kirimAt: "2026-06-06T08:14:00",
     perusahaan: "0027681030529000000000 - PERWIRA MULIA SEMESTA",
-    status: "Disetujui",
+    status: "Selesai",
   },
   {
     pengajuan: "2010142ED12320260606000001",
-    dokumen: "BC 2.3 - PIB Ekspor",
-    kirim: "06-06-2026",
+    dokumen: "BC 2.3",
+    kirim: "06-06-2026, 09:03",
+    kirimAt: "2026-06-06T09:03:00",
     perusahaan: "1234567890123456000000 - test",
     status: "Proses",
+    progressLabel: "Review Bea Cukai",
   },
   {
     pengajuan: "201202BE4BC020260606000001",
-    dokumen: "BC 2.7 - PEB",
-    kirim: "06-06-2026",
+    dokumen: "BC 2.7",
+    kirim: "Belum ada pencatatan waktu",
+    kirimAt: null,
     perusahaan: "0809692049081000000000 - TEST",
     status: "Draft",
   },
   {
     pengajuan: "2011642ED12320260605000005",
-    dokumen: "BC 2.0 - PIB Impor",
-    kirim: "05-06-2026",
+    dokumen: "BC 2.0",
+    kirim: "05-06-2026, 15:22",
+    kirimAt: "2026-06-05T15:22:00",
     perusahaan: "1234567890123456000000 - Test",
     status: "Ditolak",
     canEditAfterReject: false,
   },
   {
     pengajuan: "2011642ED12320260605000004",
-    dokumen: "BC 2.16 - Lartas",
-    kirim: "05-06-2026",
+    dokumen: "BC 2.16",
+    kirim: "05-06-2026, 11:48",
+    kirimAt: "2026-06-05T11:48:00",
     perusahaan: "1234567890123456000000 - DASINDO",
-    status: "Disetujui",
+    status: "Selesai",
   },
   {
     pengajuan: "2011642ED12320260605000003",
-    dokumen: "BC 2.3 - PIB Ekspor",
-    kirim: "04-06-2026",
+    dokumen: "BC 2.3",
+    kirim: "04-06-2026, 17:05",
+    kirimAt: "2026-06-04T17:05:00",
     perusahaan: "1234567890123456000000 - SAMPLE TECH",
     status: "Ditolak",
     canEditAfterReject: true,
@@ -77,37 +87,37 @@ const stats = [
   {
     label: "Draft",
     value: "1",
-    cardTone: "border-brand-primary-100 bg-brand-primary-50/80",
-    hoverTone: "hover:border-brand-primary-200 hover:bg-brand-primary-100",
-    textTone: "text-brand-primary-800",
-    badgeTone: "bg-brand-primary-500 text-white",
+    cardTone: "border-neutral-200 bg-neutral-50/80",
+    hoverTone: "hover:border-neutral-300 hover:bg-neutral-100/80",
+    textTone: "text-neutral-800",
+    badgeTone: "bg-neutral-100 text-neutral-700",
     filter: "Draft",
   },
   {
     label: "Proses",
     value: "1",
-    cardTone: "border-info-100 bg-info-50/80",
-    hoverTone: "hover:border-info-200 hover:bg-info-100",
-    textTone: "text-info-800",
-    badgeTone: "bg-info-600 text-white",
+    cardTone: "border-warning-100 bg-warning-50/80",
+    hoverTone: "hover:border-warning-200 hover:bg-warning-100/80",
+    textTone: "text-warning-800",
+    badgeTone: "bg-warning-100 text-warning-600",
     filter: "Proses",
   },
   {
-    label: "Disetujui",
+    label: "Selesai",
     value: "2",
-    cardTone: "border-success-100 bg-success-50/80",
-    hoverTone: "hover:border-success-200 hover:bg-success-100",
+    cardTone: "border-success-100 bg-success-50/70",
+    hoverTone: "hover:border-success-200 hover:bg-success-100/80",
     textTone: "text-success-800",
-    badgeTone: "bg-success-600 text-white",
-    filter: "Disetujui",
+    badgeTone: "bg-success-100 text-success-700",
+    filter: "Selesai",
   },
   {
     label: "Ditolak",
     value: "2",
-    cardTone: "border-error-100 bg-error-50/80",
-    hoverTone: "hover:border-error-200 hover:bg-error-100",
+    cardTone: "border-error-100 bg-error-50/70",
+    hoverTone: "hover:border-error-200 hover:bg-error-100/80",
     textTone: "text-error-800",
-    badgeTone: "bg-error-600 text-white",
+    badgeTone: "bg-error-100 text-error-700",
     filter: "Ditolak",
   },
 ];
@@ -118,60 +128,141 @@ const proposalStatusMeta: Record<
 > = {
   Semua: {
     label: "Semua",
-    tone: "bg-neutral-50 text-neutral-700",
-    activeTone: "bg-neutral-800 text-white",
-    borderTone: "border-neutral-200",
+    tone: "bg-brand-primary-50 text-brand-primary-700",
+    activeTone: "bg-brand-primary-800 text-white",
+    borderTone: "border-brand-primary-100",
   },
   Draft: {
     label: "Draft",
-    tone: "bg-brand-primary-50 text-brand-primary-700",
-    activeTone: "bg-brand-primary-500 text-white",
-    borderTone: "border-brand-primary-100",
+    tone: "bg-neutral-50 text-neutral-700",
+    activeTone: "bg-neutral-700 text-white",
+    borderTone: "border-neutral-200",
   },
   Proses: {
     label: "Proses",
-    tone: "bg-info-50 text-info-700",
-    activeTone: "bg-info-600 text-white",
-    borderTone: "border-info-100",
+    tone: "bg-warning-50 text-warning-700",
+    activeTone: "bg-warning-500 text-white",
+    borderTone: "border-warning-100",
   },
-  Disetujui: {
-    label: "Disetujui",
+  Selesai: {
+    label: "Selesai",
     tone: "bg-success-50 text-success-700",
     activeTone: "bg-success-600 text-white",
     borderTone: "border-success-100",
   },
   Ditolak: {
     label: "Ditolak",
-    tone: "bg-error-50 text-error-700",
+    tone: "bg-error-100 text-error-600",
     activeTone: "bg-error-600 text-white",
     borderTone: "border-error-100",
   },
 };
 
-const suratExamples = [
+const proposalBadgeVariant: Record<ProposalStatus, "secondary" | "warning" | "success" | "error"> = {
+  Draft: "secondary",
+  Proses: "warning",
+  Selesai: "success",
+  Ditolak: "error",
+};
+
+const copyDataGroups: CopyDataGroup[] = [
+  { key: "header", title: "Header Pengajuan", description: "Data utama seperti nomor, kantor, dan jenis pengajuan." },
+  { key: "transaksi", title: "Transaksi", description: "Informasi nilai, pembayaran, dan data transaksi lainnya." },
+  { key: "pengangkutan", title: "Pengangkutan", description: "Data sarana angkut, voyage, dan tujuan pengiriman." },
+  { key: "entitas", title: "Entitas", description: "Data pelaku usaha seperti pengusaha, penerima, dan penanggung jawab." },
+  { key: "dokumen", title: "Dokumen", description: "Daftar dokumen utama dan lampiran pendukung pengajuan." },
+  { key: "kemasanKontainer", title: "Kemasan & Kontainer", description: "Informasi packaging, jumlah, dan rincian kontainer." },
+  { key: "barang", title: "Barang", description: "Detail barang, spesifikasi, serta turunannya." },
+];
+
+const systemNotifications = [
   {
-    title: "Surat Pengajuan Barang Impor",
-    file: "surat_pengajuan_impor_v01.docx",
-    type: "DOCX",
-    note: "Template dasar untuk pengajuan impor.",
+    title: "Pengajuan BC 2.0 membutuhkan perbaikan data barang.",
+    badge: "Perlu Tindakan",
+    badgeTone: "bg-error-100 text-error-700",
+    note: "Ada data barang yang belum sesuai hasil validasi sistem dan perlu dilengkapi sebelum diproses lanjut.",
   },
   {
-    title: "Surat Pengajuan Ekspor",
-    file: "surat_pengajuan_ekspor_v02.docx",
-    type: "DOCX",
-    note: "Contoh format pengajuan ekspor yang sudah disesuaikan.",
+    title: "Dokumen persetujuan telah diterbitkan.",
+    badge: "Info",
+    badgeTone: "bg-info-100 text-info-700",
+    note: "Sistem sudah menghasilkan dokumen final yang dapat diunduh oleh pengguna terkait.",
   },
   {
-    title: "Lampiran Data Kontainer",
-    file: "lampiran_kontainer.xlsx",
-    type: "XLSX",
-    note: "Contoh file lampiran untuk detail kontainer.",
+    title: "Validasi sistem berhasil dilakukan.",
+    badge: "Penting",
+    badgeTone: "bg-warning-100 text-warning-700",
+    note: "Seluruh data dasar berhasil dibaca dan siap masuk ke tahap pemeriksaan berikutnya.",
+  },
+];
+
+const systemAnnouncements = [
+  {
+    title: "Pemeliharaan sistem terjadwal",
+    category: "Jadwal",
+    categoryTone: "bg-brand-primary-100 text-brand-primary-700",
+    date: "08 Jul 2026",
+    note: "Akses layanan akan dibatasi sementara selama proses pemeliharaan rutin berlangsung.",
   },
   {
-    title: "Surat Keterangan Tambahan",
-    file: "surat_keterangan_tambahan.pdf",
-    type: "PDF",
-    note: "Referensi surat pendukung untuk kebutuhan verifikasi.",
+    title: "Perubahan format template dokumen",
+    category: "Template",
+    categoryTone: "bg-info-100 text-info-700",
+    date: "10 Jul 2026",
+    note: "Template pengajuan dan lampiran barang mendapat penyesuaian untuk menyamakan struktur data.",
+  },
+  {
+    title: "Informasi integrasi layanan INSW",
+    category: "Integrasi",
+    categoryTone: "bg-success-100 text-success-700",
+    date: "12 Jul 2026",
+    note: "Sinkronisasi antar layanan dan validasi sumber data dilakukan secara bertahap.",
+  },
+];
+
+const usageGuides = [
+  {
+    title: "Panduan Membuat Pengajuan Baru",
+    description: "Alur cepat untuk memulai pengajuan dari dashboard hingga form utama.",
+    file: "panduan_membuat_pengajuan_baru.pdf",
+  },
+  {
+    title: "Panduan Menggunakan Smart Submission Assistant",
+    description: "Penjelasan langkah identifikasi, upload, parsing, dan review data.",
+    file: "panduan_smart_submission_assistant.pdf",
+  },
+  {
+    title: "Panduan Import Excel Barang",
+    description: "Cara menyiapkan file Excel, upload, dan membaca hasil parsing barang.",
+    file: "panduan_import_excel_barang.pdf",
+  },
+  {
+    title: "Panduan Melihat Progress Pengajuan",
+    description: "Menjelaskan cara memantau status proses, review, dan dokumen terbit.",
+    file: "panduan_progress_pengajuan.pdf",
+  },
+];
+
+const pdfExamples = [
+  {
+    title: "Contoh Surat Pengajuan - Impor",
+    file: "contoh_surat_pengajuan_bc20.pdf",
+    note: "Referensi format surat pengajuan impor.",
+  },
+  {
+    title: "Contoh Surat Pengajuan - Ekspor",
+    file: "contoh_surat_pengajuan_bc20_ekspor.pdf",
+    note: "Referensi format surat pengajuan ekspor.",
+  },
+  {
+    title: "Contoh Lampiran - Data Kontainer",
+    file: "contoh_lampiran_barang.pdf",
+    note: "Referensi lampiran data kontainer.",
+  },
+  {
+    title: "Contoh Dokumen Pendukung",
+    file: "contoh_dokumen_pendukung.pdf",
+    note: "Contoh file tambahan yang biasanya ikut diunggah.",
   },
 ];
 
@@ -204,6 +295,12 @@ type StartChoice = "assistant" | "manual" | "copy" | "upload";
 
 type ManualDocumentOption = {
   id: string;
+  title: string;
+  description: string;
+};
+
+type CopyDataGroup = {
+  key: string;
   title: string;
   description: string;
 };
@@ -255,6 +352,7 @@ type UploadFlowContext = {
   source: Exclude<FormSource, "assistant">;
   documentType?: string;
   copyRow?: CopyProposalRow | null;
+  copyGroups?: string[];
 };
 
 type AiWizardSnapshot = {
@@ -294,14 +392,14 @@ const COPY_HISTORY_ROWS: CopyProposalRow[] = [
     nomor: "10001",
     dokumen: "BC 2.0 - PIB Impor",
     tanggal: "20/06/2026",
-    status: "Disetujui",
+    status: "Selesai",
     perusahaan: "PT Maju Jaya",
   },
   {
     nomor: "10002",
     dokumen: "BC 2.3 - PIB Ekspor",
     tanggal: "18/06/2026",
-    status: "Disetujui",
+    status: "Selesai",
     perusahaan: "PT Sinar Samudera",
   },
   {
@@ -322,7 +420,7 @@ const COPY_HISTORY_ROWS: CopyProposalRow[] = [
     nomor: "10005",
     dokumen: "BC 2.16 - Lartas",
     tanggal: "14/06/2026",
-    status: "Disetujui",
+    status: "Selesai",
     perusahaan: "PT Global Sentosa",
   },
 ];
@@ -1336,7 +1434,7 @@ function CopyDataModal({
             onValueChange={setStatus}
             options={[
               { label: "Semua", value: "Semua" },
-              { label: "Disetujui", value: "Disetujui" },
+              { label: "Selesai", value: "Selesai" },
               { label: "Proses", value: "Proses" },
               { label: "Draft", value: "Draft" },
             ]}
@@ -1388,6 +1486,132 @@ function CopyDataModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CopyDataSelectionModal({
+  open,
+  row,
+  value,
+  onClose,
+  onBack,
+  onChange,
+  onSelectAll,
+  onContinue,
+}: {
+  open: boolean;
+  row: CopyProposalRow | null;
+  value: string[];
+  onClose: () => void;
+  onBack: () => void;
+  onChange: (keys: string[]) => void;
+  onSelectAll: (checked: boolean) => void;
+  onContinue: () => void;
+}) {
+  if (!open || !row) return null;
+
+  const allSelected = copyDataGroups.every((group) => value.includes(group.key));
+
+  const toggleGroup = (key: string) => {
+    onChange(value.includes(key) ? value.filter((item) => item !== key) : [...value, key]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+      <div className="relative flex w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)]">
+        <div className="border-b border-border-primary px-5 py-5 sm:px-8">
+          <h3 className="text-[24px] font-semibold text-neutral-800">Pilih Data yang Akan Dicopy</h3>
+          <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">
+            Tentukan kelompok data mana saja yang ingin dipakai sebagai dasar draft baru sebelum lanjut ke upload dokumen.
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
+          <div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 shadow-sm">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Ringkasan Pengajuan Terpilih</div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <SummaryMini label="Nomor" value={row.nomor} />
+              <SummaryMini label="Jenis Dokumen" value={row.dokumen} />
+              <SummaryMini label="Tanggal" value={row.tanggal} />
+              <SummaryMini label="Status" value={row.status} />
+            </div>
+            <div className="mt-3 text-[12px] text-neutral-700">
+              Perusahaan: <span className="font-semibold text-neutral-800">{row.perusahaan}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Kelompok Data</div>
+                <div className="mt-1 text-[13px] font-semibold text-neutral-800">Pilih bagian data yang akan disalin</div>
+              </div>
+              <Checkbox
+                checked={allSelected}
+                onChange={(event) => onSelectAll(event.target.checked)}
+                label="Pilih Semua"
+                className="min-w-[180px] rounded-xl bg-background-primary/30"
+              />
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {copyDataGroups.map((group) => {
+                const checked = value.includes(group.key);
+                return (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => toggleGroup(group.key)}
+                    className={[
+                      "flex items-start gap-3 rounded-2xl border px-4 py-4 text-left transition-colors",
+                      checked
+                        ? "border-brand-primary-300 bg-brand-primary-50/60 shadow-sm"
+                        : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/30",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={[
+                        "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border",
+                        checked ? "border-brand-primary-500 bg-brand-primary-500 text-white" : "border-border-primary bg-white text-transparent",
+                      ].join(" ")}
+                    >
+                      ✓
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-neutral-800">{group.title}</span>
+                      <span className="mt-1 block text-[12px] leading-5 text-neutral-600">{group.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-border-primary px-5 py-4 sm:px-8">
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              Kembali
+            </Button>
+            <div className="flex items-center gap-3">
+              <ModalCancelButton onClick={onClose} />
+              <Button variant="primary" size="sm" onClick={onContinue} disabled={!value.length}>
+                Lanjut
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryMini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border-primary bg-white px-3 py-2 shadow-sm">
+      <div className="text-[10px] uppercase tracking-[0.14em] text-neutral-500">{label}</div>
+      <div className="mt-1 text-[12px] font-semibold text-neutral-800">{value}</div>
     </div>
   );
 }
@@ -1897,6 +2121,15 @@ function UploadBarangModal({
               Salin dari: {context.copyRow.nomor} - {context.copyRow.dokumen}
             </div>
           )}
+          {context?.copyGroups?.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {context.copyGroups.map((group) => (
+                <span key={group} className="rounded-full bg-background-primary px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
+                  {copyDataGroups.find((item) => item.key === group)?.title ?? group}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
@@ -3321,10 +3554,13 @@ function DashboardContent() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [copySelectionOpen, setCopySelectionOpen] = useState(false);
+  const [copySelectionRow, setCopySelectionRow] = useState<CopyProposalRow | null>(null);
+  const [copySelectionDraft, setCopySelectionDraft] = useState<string[]>(copyDataGroups.map((item) => item.key));
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadContext, setUploadContext] = useState<UploadFlowContext | null>(null);
-  const filteredExamples = suratExamples.filter((item) => {
-    const haystack = `${item.title} ${item.file} ${item.type} ${item.note}`.toLowerCase();
+  const filteredPdfExamples = pdfExamples.filter((item) => {
+    const haystack = `${item.title} ${item.file} ${item.note}`.toLowerCase();
     return haystack.includes(query.toLowerCase());
   });
 
@@ -3372,6 +3608,26 @@ function DashboardContent() {
     setUploadOpen(true);
   };
 
+  const openCopySelection = (row: CopyProposalRow) => {
+    setCopyOpen(false);
+    setCopySelectionRow(row);
+    setCopySelectionDraft(copyDataGroups.map((item) => item.key));
+    setCopySelectionOpen(true);
+  };
+
+  const closeCopySelection = () => {
+    setCopySelectionOpen(false);
+    setCopySelectionRow(null);
+    setCopySelectionDraft(copyDataGroups.map((item) => item.key));
+  };
+
+  const continueCopySelection = () => {
+    if (!copySelectionRow) return;
+    setCopySelectionOpen(false);
+    setUploadContext({ source: "copy", copyRow: copySelectionRow, copyGroups: copySelectionDraft });
+    setUploadOpen(true);
+  };
+
   const buildDraftFromUpload = (context: UploadFlowContext | null, excelFiles: string[], ocrFiles: string[]) => {
     const hasExcel = excelFiles.length > 0;
     const hasOcr = ocrFiles.length > 0;
@@ -3405,7 +3661,7 @@ function DashboardContent() {
           : hasOcr
             ? "Data hasil OCR perlu ditinjau kembali."
             : context?.source === "copy"
-              ? `Prefill disiapkan dari pengajuan sebelumnya ${context.copyRow?.nomor ?? ""}.`
+              ? `Prefill disiapkan dari pengajuan sebelumnya ${context.copyRow?.nomor ?? ""}.${context.copyGroups?.length ? ` Kelompok yang dipilih: ${context.copyGroups.length}.` : ""}`
               : `Prefill disiapkan dari dokumen ${jenisPengajuan}.`,
       dokumen: sourceDocuments.length ? sourceDocuments : ["surat_pengajuan_impor_v01.docx"],
     };
@@ -3489,12 +3745,124 @@ function DashboardContent() {
         ))}
       </div>
 
-      <div className="mt-5 rounded-lg border border-border-primary bg-background-primary/40 p-3 sm:p-4">
-        <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">Notifikasi Sistem</div>
+              <h5 className="mt-1 text-left font-medium tracking-[-0.02em] text-neutral-800">
+                Informasi terbaru untuk dipantau tim
+              </h5>
+              <p className="mt-1 text-[12px] text-neutral-600">
+                Daftar notifikasi yang penting untuk memantau kondisi pengajuan dan layanan.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="w-fit">
+              Lihat Semua
+            </Button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {systemNotifications.map((item) => (
+              <article key={item.title} className="rounded-lg border border-border-primary bg-background-primary/40 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
+                    <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.note}</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.badgeTone}`}>
+                    {item.badge}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">Pengumuman</div>
+              <h5 className="mt-1 text-left font-medium tracking-[-0.02em] text-neutral-800">
+                Informasi resmi dari sistem
+              </h5>
+              <p className="mt-1 text-[12px] text-neutral-600">
+                Pengumuman yang berkaitan dengan layanan, jadwal, dan pembaruan dokumen.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="w-fit">
+              Selengkapnya
+            </Button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {systemAnnouncements.map((item) => (
+              <article key={item.title} className="rounded-lg border border-border-primary bg-background-primary/40 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.categoryTone}`}>
+                        {item.category}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.note}</p>
+                  </div>
+                  <div className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700">
+                    {item.date}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">Contoh Surat Pengajuan</div>
+            <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">Panduan Penggunaan</div>
             <h5 className="mt-1 text-left font-medium tracking-[-0.02em] text-neutral-800">
-              Cari template surat atau file lampiran
+              User manual dan referensi ringkas
+            </h5>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {usageGuides.map((item) => (
+            <article
+              key={item.file}
+              className="flex h-full flex-col rounded-lg border border-border-primary bg-background-primary/35 p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-brand-primary-50 p-2 text-brand-primary-700">
+                  <FileIcon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h6 className="text-[14px] font-semibold leading-snug text-neutral-800">{item.title}</h6>
+                  <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.description}</p>
+                </div>
+              </div>
+
+              <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+                <Button variant="outline" size="sm" startIcon={<EyeIcon />}>
+                  Lihat PDF
+                </Button>
+                <Button variant="primary" size="sm" startIcon={<DownloadIcon />}>
+                  Unduh
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-[12px] uppercase tracking-[0.12em] text-neutral-600">Contoh Dokumen PDF</div>
+            <h5 className="mt-1 text-left font-medium tracking-[-0.02em] text-neutral-800">
+              Contoh file PDF yang sering dipakai
             </h5>
           </div>
           <div className="relative w-full sm:max-w-[320px]">
@@ -3505,20 +3873,18 @@ function DashboardContent() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               type="search"
-              placeholder="Cari contoh file..."
+              placeholder="Cari contoh PDF..."
               className="h-11 w-full rounded-md border border-border-primary bg-white pl-10 pr-3 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
             />
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filteredExamples.map((item) => (
-            <article key={item.file} className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
+          {filteredPdfExamples.map((item) => (
+            <article key={item.file} className="flex h-full flex-col rounded-lg border border-border-primary bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-brand-primary-600">
-                    {item.type}
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-brand-primary-600">PDF</div>
                   <h6 className="mt-2 text-[16px] font-semibold leading-snug text-neutral-800">{item.title}</h6>
                 </div>
                 <div className="rounded-md bg-brand-primary-50 px-2 py-1 text-[11px] font-semibold text-brand-primary-600">
@@ -3533,7 +3899,7 @@ function DashboardContent() {
                 <div className="mt-1 break-all text-[12px] font-medium text-neutral-800">{item.file}</div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="mt-auto flex items-center justify-between gap-3 pt-4">
                 <Button variant="outline" size="sm">
                   Lihat
                 </Button>
@@ -3545,9 +3911,9 @@ function DashboardContent() {
           ))}
         </div>
 
-        {filteredExamples.length === 0 && (
+        {filteredPdfExamples.length === 0 && (
           <div className="mt-4 rounded-lg border border-dashed border-border-secondary bg-white p-6 text-center text-[12px] text-neutral-600">
-            Tidak ada contoh file yang cocok dengan pencarian.
+            Tidak ada contoh PDF yang cocok dengan pencarian.
           </div>
         )}
       </div>
@@ -3586,11 +3952,24 @@ function DashboardContent() {
           setCopyOpen(false);
           setManualMethodOpen(true);
         }}
-        onUse={(row) => {
-          setCopyOpen(false);
-          setUploadContext({ source: "copy", copyRow: row });
-          setUploadOpen(true);
+        onUse={openCopySelection}
+      />
+      <CopyDataSelectionModal
+        open={copySelectionOpen}
+        row={copySelectionRow}
+        value={copySelectionDraft}
+        onClose={() => {
+          closeCopySelection();
         }}
+        onBack={() => {
+          closeCopySelection();
+          setCopyOpen(true);
+        }}
+        onChange={setCopySelectionDraft}
+        onSelectAll={(checked) => {
+          setCopySelectionDraft(checked ? copyDataGroups.map((item) => item.key) : []);
+        }}
+        onContinue={continueCopySelection}
       />
       <UploadBarangModal
         open={uploadOpen}
@@ -3599,11 +3978,15 @@ function DashboardContent() {
           setUploadContext(null);
         }}
         onBack={() => {
-          setUploadOpen(false);
-          if (uploadContext?.source === "copy") {
-            setCopyOpen(true);
-            return;
-          }
+      setUploadOpen(false);
+      if (uploadContext?.source === "copy") {
+        if (copySelectionRow) {
+          setCopySelectionOpen(true);
+          return;
+        }
+        setCopyOpen(true);
+        return;
+      }
           if (uploadContext?.source === "manual") {
             setManualOpen(true);
             return;
@@ -3636,26 +4019,86 @@ export function ProposalListTable({
   subtitle?: string;
 }) {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [documentTypeDraft, setDocumentTypeDraft] = useState("Semua");
+  const [dateFromDraft, setDateFromDraft] = useState("");
+  const [dateToDraft, setDateToDraft] = useState("");
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
+  const [appliedDocumentTypeFilter, setAppliedDocumentTypeFilter] = useState("Semua");
+  const [appliedDateFrom, setAppliedDateFrom] = useState("");
+  const [appliedDateTo, setAppliedDateTo] = useState("");
+  const [pageIndex, setPageIndex] = useState(1);
   const { location } = useRouterState();
   const searchParams = new URLSearchParams(location.search);
-  const statusFilter = (searchParams.get("status") as "Semua" | ProposalStatus | null) ?? "Semua";
-  const visibleRows = useMemo(() => {
-    const byStatus = statusFilter === "Semua" ? proposalRows : proposalRows.filter((row) => row.status === statusFilter);
-    const normalized = searchQuery.trim().toLowerCase();
-    if (!normalized) return byStatus;
+  const rawStatusFilter = searchParams.get("status") as "Semua" | ProposalStatus | "Disetujui" | null;
+  const statusFilter = rawStatusFilter === "Disetujui" ? "Selesai" : rawStatusFilter ?? "Semua";
+  const documentTypeOptions = useMemo(() => ["Semua", ...new Set(proposalRows.map((row) => row.dokumen))], []);
+  const filteredRows = useMemo(() => {
+    const normalized = appliedSearchQuery.trim().toLowerCase();
+    const fromDate = appliedDateFrom ? new Date(`${appliedDateFrom}T00:00:00`) : null;
+    const toDate = appliedDateTo ? new Date(`${appliedDateTo}T23:59:59.999`) : null;
 
-    return byStatus.filter((row) =>
-      `${row.pengajuan} ${row.dokumen} ${row.kirim} ${row.perusahaan} ${row.status}`.toLowerCase().includes(normalized),
-    );
-  }, [searchQuery, statusFilter]);
-  const summaryItems: Array<"Semua" | ProposalStatus> = ["Semua", "Draft", "Proses", "Disetujui", "Ditolak"];
+    return proposalRows.filter((row) => {
+      const matchesStatus = statusFilter === "Semua" || row.status === statusFilter;
+      const matchesDocType = appliedDocumentTypeFilter === "Semua" || row.dokumen === appliedDocumentTypeFilter;
+      const rowDate = row.kirimAt ? new Date(row.kirimAt) : null;
+      const matchesFrom = !fromDate || (rowDate ? rowDate >= fromDate : false);
+      const matchesTo = !toDate || (rowDate ? rowDate <= toDate : false);
+      const matchesQuery =
+        !normalized ||
+        `${row.pengajuan} ${row.dokumen} ${row.kirim} ${row.perusahaan} ${row.status}`.toLowerCase().includes(normalized);
+
+      return matchesStatus && matchesDocType && matchesFrom && matchesTo && matchesQuery;
+    });
+  }, [appliedDateFrom, appliedDateTo, appliedDocumentTypeFilter, appliedSearchQuery, statusFilter]);
+  const pageSize = 5;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const currentPage = Math.min(pageIndex, totalPages);
+  const visibleRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredRows.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredRows]);
+  const summaryItems: Array<"Semua" | ProposalStatus> = ["Semua", "Draft", "Proses", "Selesai", "Ditolak"];
   const summaryCounts: Record<"Semua" | ProposalStatus, number> = {
     Semua: proposalRows.length,
     Draft: proposalRows.filter((row) => row.status === "Draft").length,
     Proses: proposalRows.filter((row) => row.status === "Proses").length,
-    Disetujui: proposalRows.filter((row) => row.status === "Disetujui").length,
+    Selesai: proposalRows.filter((row) => row.status === "Selesai").length,
     Ditolak: proposalRows.filter((row) => row.status === "Ditolak").length,
+  };
+
+  useEffect(() => {
+    setPageIndex(1);
+  }, [appliedDateFrom, appliedDateTo, appliedDocumentTypeFilter, appliedSearchQuery, statusFilter]);
+
+  const hasPendingFilterChanges =
+    searchDraft !== appliedSearchQuery ||
+    documentTypeDraft !== appliedDocumentTypeFilter ||
+    dateFromDraft !== appliedDateFrom ||
+    dateToDraft !== appliedDateTo;
+  const hasAppliedFilters =
+    appliedSearchQuery.trim() !== "" ||
+    appliedDocumentTypeFilter !== "Semua" ||
+    appliedDateFrom !== "" ||
+    appliedDateTo !== "";
+  const canResetFilters = hasPendingFilterChanges || hasAppliedFilters;
+
+  const applyFilters = () => {
+    setAppliedSearchQuery(searchDraft);
+    setAppliedDocumentTypeFilter(documentTypeDraft);
+    setAppliedDateFrom(dateFromDraft);
+    setAppliedDateTo(dateToDraft);
+  };
+
+  const resetFilters = () => {
+    setSearchDraft("");
+    setDocumentTypeDraft("Semua");
+    setDateFromDraft("");
+    setDateToDraft("");
+    setAppliedSearchQuery("");
+    setAppliedDocumentTypeFilter("Semua");
+    setAppliedDateFrom("");
+    setAppliedDateTo("");
   };
 
   return (
@@ -3665,27 +4108,6 @@ export function ProposalListTable({
           <div className="text-[12px] uppercase tracking-[0.18em] text-neutral-600">Data Pengajuan</div>
           <h5 className="mt-1 text-left font-medium tracking-[-0.02em] text-neutral-800">{title}</h5>
           <p className="mt-1 text-[12px] text-neutral-600">{subtitle}</p>
-        </div>
-
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-          <div className="w-full sm:w-[320px]">
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              type="search"
-              placeholder="Cari pengajuan..."
-              prefixIcon={<SearchIcon />}
-            />
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            startIcon={<PlusIcon />}
-            className="!border-brand-primary-800 !bg-brand-primary-800 hover:!border-brand-primary-700 hover:!bg-brand-primary-700"
-            onClick={() => navigate({ to: "/", search: { launcher: "1" } as never })}
-          >
-            Pengajuan
-          </Button>
         </div>
       </div>
 
@@ -3717,7 +4139,63 @@ export function ProposalListTable({
         })}
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-border-primary">
+      <div className="mt-1 border-b border-border-primary pb-1">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-6">
+          <div className="md:col-span-2 xl:col-span-2">
+            <Input
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              type="search"
+              placeholder="Cari pengajuan..."
+              prefixIcon={<SearchIcon />}
+            />
+          </div>
+          <Select
+            value={documentTypeDraft}
+            onValueChange={setDocumentTypeDraft}
+            options={documentTypeOptions.map((item) => ({ label: item, value: item }))}
+          />
+          <Input
+            value={dateFromDraft}
+            onChange={(event) => setDateFromDraft(event.target.value)}
+            type="date"
+            placeholder="Tanggal awal"
+          />
+          <Input
+            value={dateToDraft}
+            onChange={(event) => setDateToDraft(event.target.value)}
+            type="date"
+            placeholder="Tanggal akhir"
+          />
+          <div className="md:col-span-2 xl:col-span-1 xl:self-end">
+            <div className="flex flex-wrap justify-end gap-2 xl:pt-0">
+              <Button variant="outline" size="sm" onClick={resetFilters} disabled={!canResetFilters}>
+                Reset
+              </Button>
+              <Button variant="primary" size="sm" onClick={applyFilters} disabled={!hasPendingFilterChanges}>
+                Terapkan
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-1 flex items-center justify-between gap-3 border-b border-border-primary pb-1">
+        <div className="text-[12px] text-neutral-600">
+          Menampilkan <span className="font-semibold text-neutral-800">{filteredRows.length}</span> data pengajuan
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          startIcon={<PlusIcon />}
+          className="!border-brand-primary-800 !bg-brand-primary-800 hover:!border-brand-primary-700 hover:!bg-brand-primary-700"
+          onClick={() => navigate({ to: "/", search: { launcher: "1" } as never })}
+        >
+          Pengajuan
+        </Button>
+      </div>
+
+      <div className="mt-1 overflow-hidden rounded-2xl border border-border-primary">
         <div className="overflow-x-auto overscroll-x-contain">
           <table className="min-w-full border-collapse text-left text-[12px]">
           <thead className="bg-brand-primary-500 text-white">
@@ -3735,30 +4213,24 @@ export function ProposalListTable({
               <tr key={row.pengajuan} className="border-t border-border-primary hover:bg-brand-primary-50/30">
                 <td className="px-3 py-2 align-middle text-brand-primary-600">{row.pengajuan}</td>
                 <td className="px-3 py-2 align-middle">
-                  <span className="inline-flex rounded-full bg-brand-primary-50 px-2.5 py-1 text-[11px] font-semibold text-brand-primary-700">
+                  <span className="whitespace-nowrap text-[12px] font-medium text-neutral-800">
                     {row.dokumen}
                   </span>
                 </td>
-                <td className="px-3 py-2 align-middle">{row.kirim}</td>
+                <td className="px-3 py-2 align-middle">
+                  <span className={row.status === "Draft" ? "whitespace-nowrap text-neutral-500" : "whitespace-nowrap"}>
+                    {row.kirim}
+                  </span>
+                </td>
                 <td className="px-3 py-2 align-middle">
                   <span className="block max-w-[260px] whitespace-normal leading-5 text-neutral-800">
                     {row.perusahaan}
                   </span>
                 </td>
                 <td className="px-3 py-2 align-middle">
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${
-                      row.status === "Draft"
-                        ? "bg-brand-primary-50 text-brand-primary-700"
-                        : row.status === "Proses"
-                          ? "bg-info-50 text-info-700"
-                          : row.status === "Disetujui"
-                            ? "bg-success-50 text-success-700"
-                            : "bg-error-50 text-error-700"
-                    }`}
-                  >
-                    {row.status}
-                  </span>
+                  <Badge variant={proposalBadgeVariant[row.status]}>
+                    {row.status === "Proses" ? row.progressLabel ?? "Proses" : row.status}
+                  </Badge>
                 </td>
                 <td className="px-3 py-2 align-middle">
                   <div className="flex items-center justify-end gap-2">
@@ -3819,7 +4291,49 @@ export function ProposalListTable({
         </div>
       </div>
 
-      {visibleRows.length === 0 ? (
+      <div className="mt-1 flex flex-col gap-2 px-0 py-0 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-[12px] text-neutral-600">
+          Menampilkan <span className="font-semibold text-neutral-800">{visibleRows.length}</span> dari{" "}
+          <span className="font-semibold text-neutral-800">{filteredRows.length}</span> data pengajuan
+        </div>
+        {totalPages > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPageIndex((value) => Math.max(1, value - 1))}
+            >
+              Sebelumnya
+            </Button>
+            {Array.from({ length: totalPages }).map((_, index) => {
+              const page = index + 1;
+              const active = page === currentPage;
+              return (
+                <Button
+                  key={page}
+                  variant={active ? "primary" : "outline"}
+                  size="sm"
+                  className={active ? "!border-brand-primary-800 !bg-brand-primary-800" : ""}
+                  onClick={() => setPageIndex(page)}
+                >
+                  {page}
+                </Button>
+              );
+            })}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPageIndex((value) => Math.min(totalPages, value + 1))}
+            >
+              Selanjutnya
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {filteredRows.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-border-secondary bg-white p-6 text-center text-[12px] text-neutral-600">
           Tidak ada pengajuan dengan filter ini.
         </div>

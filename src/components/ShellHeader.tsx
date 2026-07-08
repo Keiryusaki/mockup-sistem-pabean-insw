@@ -47,8 +47,8 @@ const DEFAULT_NOTICES: HeaderNotice[] = [
 const CHANGELOG_PREVIEW = [
   {
     id: "changelog-1",
-    title: "Perubahan pertama",
-    description: "Checkpoint awal yang mencakup dashboard, flow pengajuan, entitas, header, dan live docs.",
+    title: "Perubahan kedua",
+    description: "Checkpoint kedua yang menata feedback, avatar shortcut, mirror inbox, dan service Discord.",
   },
 ];
 
@@ -67,9 +67,9 @@ function LogoMark() {
   return <img src={logoSrc} alt="Indonesia National Single Window" className="h-9 w-auto object-contain" />;
 }
 
-function ChangelogIcon() {
+function ChangelogIcon({ className = "h-4 w-4" }: { className?: string } = {}) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current">
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`fill-none stroke-current ${className}`}>
       <path d="M6 7h12" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M6 12h12" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M6 17h8" strokeWidth="1.5" strokeLinecap="round" />
@@ -339,6 +339,15 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
                     <span className="min-w-0">
                       <span className="block text-[12px] font-semibold text-neutral-800">Lapor Pak !!</span>
                       <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Masukan atau perbaikan untuk tim TW.</span>
+                    </span>
+                  </MenuItem>
+                  <MenuItem href="/changelog">
+                    <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-600">
+                      <ChangelogIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[12px] font-semibold text-neutral-800">Change Log</span>
+                      <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Buka catatan perubahan dan checkpoint terbaru.</span>
                     </span>
                   </MenuItem>
                   <MenuItem href="/component">

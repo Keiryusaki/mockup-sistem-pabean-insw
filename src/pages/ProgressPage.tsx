@@ -1,201 +1,207 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Badge, type BadgeVariant } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card, CardBody, CardHeader } from "../components/Surface";
-import { ClockCircleIcon, DocumentsIcon, DownloadIcon, EyeIcon, ProgressIcon } from "../components/Icons";
+import {
+  ArrowLeftIcon,
+  CheckReadIcon,
+  ClockCircleIcon,
+  DocumentsIcon,
+  DownloadIcon,
+  EyeIcon,
+  ProgressIcon,
+  SparklesIcon,
+  UserIcon,
+} from "../components/Icons";
 import { proposalRows } from "./Dashboard";
 
 type ProposalRow = (typeof proposalRows)[number];
 
-type StageKey =
-  | "draft"
-  | "validasi-sistem"
-  | "review-insw"
-  | "review-bea-cukai"
-  | "review-karantina"
-  | "approval"
-  | "dokumen-terbit"
-  | "selesai";
+type TimelineKind = "activity" | "response" | "note" | "upload" | "forward" | "status";
 
-type StageStatus = "completed" | "current" | "pending";
-
-type StageDocument = {
-  name: string;
-  type: string;
-};
-
-type StageActivity = {
+type TimelineEvent = {
+  id: string;
   time: string;
-  title: string;
-  note: string;
-};
-
-type StageMeta = {
-  key: StageKey;
-  label: string;
-  docs: number;
-  comments: number;
-  warning?: boolean;
-  pic: string;
   date: string;
-  sla: string;
-  reviewerNotes: string[];
-  documents: StageDocument[];
-  activities: StageActivity[];
+  title: string;
+  kind: TimelineKind;
+  source: string;
+  meta?: string;
+  responseFileId?: string;
 };
 
-const STAGES: StageMeta[] = [
+type ResponseFile = {
+  id: string;
+  fileName: string;
+  instansi: string;
+  date: string;
+  description: string;
+  eventId: string;
+};
+
+const timelineEvents: TimelineEvent[] = [
   {
-    key: "draft",
-    label: "Draft",
-    docs: 0,
-    comments: 0,
-    pic: "Sistem",
-    date: "04 Jul 2026, 08:15",
-    sla: "0 jam",
-    reviewerNotes: [],
-    documents: [],
-    activities: [{ time: "08:15", title: "Draft dibuat", note: "Pengajuan disimpan sebagai draft awal." }],
+    id: "evt-response-karantina",
+    time: "10:05",
+    date: "07 Jul 2026",
+    title: "Respon Karantina diterbitkan",
+    kind: "response",
+    source: "Karantina",
+    meta: "1 file",
+    responseFileId: "resp-karantina",
   },
   {
-    key: "validasi-sistem",
-    label: "Validasi Sistem",
-    docs: 1,
-    comments: 0,
-    pic: "Sistem",
-    date: "04 Jul 2026, 08:32",
-    sla: "15 menit",
-    reviewerNotes: [],
-    documents: [{ name: "Log Validasi.xlsx", type: "Dokumen sistem" }],
-    activities: [
-      { time: "08:22", title: "Validasi dimulai", note: "Data hasil input mulai dipetakan." },
-      { time: "08:32", title: "Validasi selesai", note: "Field inti lolos validasi otomatis." },
-    ],
+    id: "evt-reviewer-open",
+    time: "09:55",
+    date: "07 Jul 2026",
+    title: "Reviewer membuka berkas",
+    kind: "activity",
+    source: "INSW",
   },
   {
-    key: "review-insw",
-    label: "Review INSW",
-    docs: 2,
-    comments: 1,
-    pic: "Reviewer INSW",
-    date: "04 Jul 2026, 09:05",
-    sla: "2 jam",
-    reviewerNotes: ["Struktur data sudah sesuai, tinggal cek konsistensi lampiran."],
-    documents: [
-      { name: "Ringkasan Review INSW.pdf", type: "PDF" },
-      { name: "Checklist Review.xlsx", type: "XLSX" },
-    ],
-    activities: [
-      { time: "08:55", title: "Antrian review", note: "Dokumen masuk antrean INSW." },
-      { time: "09:05", title: "Reviewer membuka berkas", note: "Pemeriksaan awal dimulai." },
-    ],
+    id: "evt-response-bea",
+    time: "09:50",
+    date: "07 Jul 2026",
+    title: "Respon Bea Cukai diterbitkan",
+    kind: "response",
+    source: "Bea Cukai",
+    meta: "1 file",
+    responseFileId: "resp-bea-cukai",
   },
   {
-    key: "review-bea-cukai",
-    label: "Review Bea Cukai",
-    docs: 1,
-    comments: 2,
-    warning: true,
-    pic: "Pejabat Bea Cukai",
-    date: "04 Jul 2026, 10:20",
-    sla: "4 jam",
-    reviewerNotes: [
-      "Ada catatan pada uraian barang dan lampiran pendukung.",
-      "Perlu verifikasi tambahan untuk HS Code item 3.",
-    ],
-    documents: [{ name: "Surat Review Bea Cukai.pdf", type: "PDF" }],
-    activities: [
-      { time: "09:40", title: "Review dimulai", note: "Dokumen diterima petugas." },
-      { time: "10:05", title: "Catatan ditambahkan", note: "User diminta melengkapi detail tertentu." },
-      { time: "10:20", title: "Dokumen review tersedia", note: "Hasil review sudah bisa dipelajari." },
-    ],
+    id: "evt-forward",
+    time: "09:30",
+    date: "07 Jul 2026",
+    title: "Pengajuan diteruskan ke Bea Cukai",
+    kind: "forward",
+    source: "Sistem",
+    meta: "Forward",
   },
   {
-    key: "review-karantina",
-    label: "Review Karantina",
-    docs: 0,
-    comments: 0,
-    pic: "Karantina",
-    date: "-",
-    sla: "Belum mulai",
-    reviewerNotes: [],
-    documents: [],
-    activities: [],
+    id: "evt-note",
+    time: "09:20",
+    date: "07 Jul 2026",
+    title: "Catatan reviewer ditambahkan",
+    kind: "note",
+    source: "Reviewer",
+    meta: "Catatan",
   },
   {
-    key: "approval",
-    label: "Approval",
-    docs: 0,
-    comments: 0,
-    pic: "Approver",
-    date: "-",
-    sla: "Belum mulai",
-    reviewerNotes: [],
-    documents: [],
-    activities: [],
+    id: "evt-upload",
+    time: "09:10",
+    date: "07 Jul 2026",
+    title: "Invoice.pdf diupload",
+    kind: "upload",
+    source: "User",
+    meta: "Upload",
   },
   {
-    key: "dokumen-terbit",
-    label: "Dokumen Terbit",
-    docs: 0,
-    comments: 0,
-    pic: "Sistem",
-    date: "-",
-    sla: "Belum mulai",
-    reviewerNotes: [],
-    documents: [],
-    activities: [],
+    id: "evt-response-insw",
+    time: "08:55",
+    date: "07 Jul 2026",
+    title: "Respon INSW diterbitkan",
+    kind: "response",
+    source: "INSW",
+    meta: "1 file",
+    responseFileId: "resp-insw",
   },
   {
-    key: "selesai",
-    label: "Selesai",
-    docs: 0,
-    comments: 0,
-    pic: "Sistem",
-    date: "-",
-    sla: "Belum mulai",
-    reviewerNotes: [],
-    documents: [],
-    activities: [],
+    id: "evt-draft",
+    time: "08:50",
+    date: "07 Jul 2026",
+    title: "Draft dibuat",
+    kind: "status",
+    source: "Sistem",
+    meta: "Draft",
   },
 ];
 
-const statusToStage: Record<ProposalRow["status"], StageKey> = {
-  Draft: "draft",
-  Proses: "review-bea-cukai",
-  Disetujui: "selesai",
-  Ditolak: "review-bea-cukai",
+const responseFiles: ResponseFile[] = [
+  {
+    id: "resp-karantina",
+    fileName: "Surat Pemeriksaan.pdf",
+    instansi: "Karantina",
+    date: "07 Jul 2026, 10:05",
+    description: "Respon karantina untuk pemeriksaan lanjutan.",
+    eventId: "evt-response-karantina",
+  },
+  {
+    id: "resp-bea-cukai",
+    fileName: "SPPB.pdf",
+    instansi: "Bea Cukai",
+    date: "07 Jul 2026, 09:50",
+    description: "Dokumen respon hasil review bea cukai.",
+    eventId: "evt-response-bea",
+  },
+  {
+    id: "resp-insw",
+    fileName: "Ringkasan Review.pdf",
+    instansi: "INSW",
+    date: "07 Jul 2026, 08:55",
+    description: "Ringkasan review awal dari proses internal.",
+    eventId: "evt-response-insw",
+  },
+];
+
+const eventKindLabel: Record<TimelineKind, string> = {
+  activity: "Aktivitas",
+  response: "Respon",
+  note: "Catatan",
+  upload: "Upload",
+  forward: "Forward",
+  status: "Status",
 };
 
-const stageTone: Record<StageStatus, string> = {
-  completed: "border-success-100 bg-success-50 text-success-700",
-  current: "border-warning-100 bg-warning-50 text-warning-700",
-  pending: "border-neutral-200 bg-white text-neutral-500",
+const responseTone: Record<string, BadgeVariant> = {
+  INSW: "secondary",
+  "Bea Cukai": "info",
+  Karantina: "success",
 };
 
-function getStageState(index: number, currentIndex: number): StageStatus {
-  if (index < currentIndex) return "completed";
-  if (index === currentIndex) return "current";
-  return "pending";
+function getProposalStatusLabel(status: ProposalRow["status"]) {
+  if (status === "Selesai") return "Selesai";
+  if (status === "Proses") return "Review Bea Cukai";
+  if (status === "Draft") return "Draft";
+  return "Ditolak";
 }
 
-function getStatusText(stage: StageMeta, state: StageStatus) {
-  if (state === "completed") return stage.key === "selesai" ? "Selesai" : "Terselesaikan";
-  if (state === "current") return stage.key === "selesai" ? "Selesai" : "Sedang Berjalan";
-  return "Belum Diproses";
+function getProposalStatusVariant(status: ProposalRow["status"]) {
+  if (status === "Selesai") return "success" as const;
+  if (status === "Proses") return "warning" as const;
+  if (status === "Draft") return "secondary" as const;
+  return "error" as const;
+}
+
+function getKindIcon(kind: TimelineKind) {
+  switch (kind) {
+    case "activity":
+      return <UserIcon className="h-4 w-4" />;
+    case "response":
+      return <DocumentsIcon className="h-4 w-4" />;
+    case "note":
+      return <SparklesIcon className="h-4 w-4" />;
+    case "upload":
+      return <DocumentsIcon className="h-4 w-4" />;
+    case "forward":
+      return <ProgressIcon className="h-4 w-4" />;
+    case "status":
+      return <CheckReadIcon className="h-4 w-4" />;
+    default:
+      return <ClockCircleIcon className="h-4 w-4" />;
+  }
+}
+
+function formatTimeLabel(time: string) {
+  return time;
+}
+
+function formatTimelineMeta(event: TimelineEvent) {
+  return event.meta ? `${event.source} • ${event.date} • ${event.meta}` : `${event.source} • ${event.date}`;
 }
 
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-xl border border-dashed border-border-secondary bg-neutral-50 px-4 py-5 text-[13px] text-neutral-500">{text}</div>;
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-border-primary bg-white px-4 py-4 text-left shadow-sm">
-      <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">{label}</p>
-      <p className="mt-2 break-words text-[14px] font-semibold leading-6 text-neutral-800">{value}</p>
-    </div>
-  );
 }
 
 export function ProgressPage() {
@@ -206,19 +212,70 @@ export function ProgressPage() {
     return proposalRows.find((row) => row.pengajuan === search?.pengajuan) ?? proposalRows[0];
   }, [search?.pengajuan]);
 
-  const initialStageKey = statusToStage[selectedProposal.status];
-  const [activeStageKey, setActiveStageKey] = useState<StageKey>(initialStageKey);
+  const [activeTimelineEventId, setActiveTimelineEventId] = useState(timelineEvents[0]?.id ?? "");
+  const [activeResponseId, setActiveResponseId] = useState(responseFiles[0]?.id ?? "");
+  const [flashTimelineEventId, setFlashTimelineEventId] = useState<string | null>(null);
+  const [flashResponseId, setFlashResponseId] = useState<string | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const timelineRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const responseRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
-    setActiveStageKey(initialStageKey);
-  }, [initialStageKey]);
+    setActiveTimelineEventId(timelineEvents[0]?.id ?? "");
+    setActiveResponseId(responseFiles[0]?.id ?? "");
+    setFlashTimelineEventId(null);
+    setFlashResponseId(null);
+  }, [selectedProposal.pengajuan]);
 
-  const currentStageKey = statusToStage[selectedProposal.status];
-  const currentStageIndex = STAGES.findIndex((stage) => stage.key === currentStageKey);
-  const activeStageIndex = STAGES.findIndex((stage) => stage.key === activeStageKey);
-  const activeStage = STAGES[activeStageIndex] ?? STAGES[0];
-  const currentStage = STAGES[currentStageIndex] ?? STAGES[0];
-  const currentStageDone = currentStage.key === "selesai";
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) {
+        window.clearTimeout(flashTimerRef.current);
+      }
+    };
+  }, []);
+
+  const triggerFlash = (timelineEventId: string, responseId?: string) => {
+    if (flashTimerRef.current) {
+      window.clearTimeout(flashTimerRef.current);
+    }
+
+    setFlashTimelineEventId(timelineEventId);
+    if (responseId) {
+      setFlashResponseId(responseId);
+    }
+
+    flashTimerRef.current = window.setTimeout(() => {
+      setFlashTimelineEventId(null);
+      setFlashResponseId(null);
+    }, 1800);
+  };
+
+  const focusTimelineEvent = (event: TimelineEvent) => {
+    setActiveTimelineEventId(event.id);
+    if (event.responseFileId) {
+      setActiveResponseId(event.responseFileId);
+      const response = responseFiles.find((file) => file.id === event.responseFileId);
+      triggerFlash(event.id, response?.id);
+      if (response) {
+        responseRefs.current[response.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    } else {
+      triggerFlash(event.id);
+    }
+
+    timelineRefs.current[event.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const focusResponse = (response: ResponseFile) => {
+    setActiveResponseId(response.id);
+    setActiveTimelineEventId(response.eventId);
+    triggerFlash(response.eventId, response.id);
+    timelineRefs.current[response.eventId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    responseRefs.current[response.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const latestResponse = responseFiles[0];
 
   return (
     <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-3 py-4 sm:px-4 sm:py-5">
@@ -229,275 +286,226 @@ export function ProgressPage() {
               <ProgressIcon className="h-4 w-4" />
               Progress Pengajuan
             </div>
-            <div>
-              <h1 className="text-[clamp(22px,3vw,38px)] font-semibold tracking-[-0.04em]">{selectedProposal.pengajuan}</h1>
-              <p className="mt-2 max-w-3xl text-[14px] leading-7 text-white/85">
-                Fokus halaman ini adalah perjalanan proses pengajuan, review, approval, dokumen yang dihasilkan, dan catatan reviewer.
-                Halaman ini berbeda dari detail pengajuan.
-              </p>
+
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-[clamp(22px,3vw,38px)] font-semibold tracking-[-0.04em]">Riwayat Proses Pengajuan</h1>
+                <p className="mt-2 max-w-3xl text-[14px] leading-7 text-white/85">
+                  Halaman ini memusatkan riwayat proses global dan semua respon instansi agar reviewer bisa cepat menelusuri kronologi serta
+                  hasil respon yang diterbitkan.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="bg-white/10 text-white ring-1 ring-white/15">
+                  {selectedProposal.pengajuan}
+                </Badge>
+                <Badge variant="secondary" className="bg-white/10 text-white ring-1 ring-white/15">
+                  {selectedProposal.dokumen}
+                </Badge>
+                <Badge variant={getProposalStatusVariant(selectedProposal.status)}>{getProposalStatusLabel(selectedProposal.status)}</Badge>
+              </div>
             </div>
-            <div className="grid gap-3 xl:grid-cols-5">
-              <SummaryCard label="Nomor Pengajuan" value={selectedProposal.pengajuan} />
-              <SummaryCard label="Jenis Dokumen" value={selectedProposal.dokumen} />
-              <SummaryCard label="Nama Perusahaan" value={selectedProposal.perusahaan} />
-              <SummaryCard label="Status Saat Ini" value={currentStageDone ? "Selesai" : currentStage.label} />
-              <SummaryCard label="Terakhir Diperbarui" value="04 Jul 2026, 10:20" />
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-white/95 px-4 py-4 text-left text-neutral-900 shadow-sm">
+                <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Nomor Pengajuan</p>
+                <p className="mt-2 break-words text-[14px] font-semibold leading-6 text-neutral-800">{selectedProposal.pengajuan}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/95 px-4 py-4 text-left text-neutral-900 shadow-sm">
+                <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Jenis Dokumen</p>
+                <p className="mt-2 break-words text-[14px] font-semibold leading-6 text-neutral-800">{selectedProposal.dokumen}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/95 px-4 py-4 text-left text-neutral-900 shadow-sm">
+                <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Status Saat Ini</p>
+                <p className="mt-2 break-words text-[14px] font-semibold leading-6 text-neutral-800">{getProposalStatusLabel(selectedProposal.status)}</p>
+              </div>
             </div>
           </div>
         </CardBody>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.75fr)_minmax(320px,1fr)]">
+        <Card className="min-w-0">
           <CardHeader className="items-start">
             <div>
-              <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-neutral-800">Progress Timeline</h2>
-              <p className="mt-1 text-[12px] leading-6 text-neutral-600">Klik tahapan untuk melihat detail proses pada panel kanan.</p>
+              <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-neutral-800">Riwayat Proses Pengajuan</h2>
+              <p className="mt-1 text-[12px] leading-6 text-neutral-600">
+                Aktivitas terbaru ditampilkan paling atas. Klik event respon untuk menyorot respon terkait di panel kanan.
+              </p>
             </div>
+            <Badge variant="info">{timelineEvents.length} event</Badge>
           </CardHeader>
+
           <CardBody className="px-4 py-4">
-            <div className="relative">
-              <div className="absolute left-4 top-3 bottom-3 w-px bg-border-primary/80" />
-              <div className="space-y-2">
-                {STAGES.map((stage, index) => {
-                  const state = getStageState(index, currentStageIndex);
-                  const active = stage.key === activeStageKey;
-                  const stateLabel = getStatusText(stage, state);
-                  return (
-                    <button
-                      key={stage.key}
-                      type="button"
-                      onClick={() => setActiveStageKey(stage.key)}
-                      className={`group relative w-full rounded-2xl py-2.5 pl-10 pr-3 text-left transition-all duration-300 ${
-                        active ? "bg-brand-primary-50/70 ring-1 ring-brand-primary-200" : "hover:bg-neutral-50"
-                      }`}
-                    >
-                      <span
-                        className={`absolute left-0 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-semibold ${stageTone[state]} ${
-                          active ? "ring-4 ring-brand-primary-50" : ""
-                        }`}
-                      >
-                        {state === "completed" ? "✓" : index + 1}
-                      </span>
+            <div className="space-y-0">
+              {timelineEvents.map((event, index) => {
+                const isActive = activeTimelineEventId === event.id;
+                const isFlash = flashTimelineEventId === event.id;
+                const isFirst = index === 0;
+                const isLast = index === timelineEvents.length - 1;
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    ref={(node) => {
+                      timelineRefs.current[event.id] = node;
+                    }}
+                    onClick={() => focusTimelineEvent(event)}
+                    className={[
+                      "timeline-event group relative w-full rounded-2xl px-0 py-1 text-left transition-all duration-300",
+                      isActive ? "bg-brand-primary-50/70 shadow-[inset_0_0_0_1px_rgba(3,83,164,0.18)]" : "bg-white hover:bg-neutral-50",
+                      isFlash ? "timeline-event--flash" : "",
+                    ].join(" ")}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={[
+                        "absolute left-[108px] z-0 w-[3px] bg-brand-primary-300/90",
+                        isFirst ? "top-1/2" : "-top-1",
+                        isLast ? "bottom-1/2" : "-bottom-1",
+                      ].join(" ")}
+                    />
 
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-[14px] font-semibold text-neutral-800">{stage.label}</p>
-                          <p className="mt-1 text-[12px] text-neutral-500">{stateLabel}</p>
-                        </div>
-                        <span className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full ${active ? "bg-white text-brand-primary-600 shadow-sm" : "text-neutral-300"}`}>
-                          →
+                    <div className="relative z-10 grid min-h-[42px] grid-cols-[72px_28px_minmax(0,1fr)] items-start gap-x-2.5 gap-y-0.5 pl-3 sm:grid-cols-[72px_28px_minmax(0,1fr)]">
+                      <div className="pt-0.5 text-[12px] font-semibold leading-5 text-brand-primary-700">{formatTimeLabel(event.time)}</div>
+
+                      <div className="relative row-span-2 flex h-full items-start justify-center pt-0.5">
+                        <span
+                          aria-hidden="true"
+                          className={[
+                            "relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-[2px] border-white shadow-[0_0_0_2px_rgba(3,83,164,0.72)] transition-all duration-300",
+                            isActive
+                              ? "bg-brand-primary-700 text-white shadow-[0_0_0_2px_rgba(2,50,98,0.95)]"
+                              : "bg-white text-brand-primary-700",
+                            isFlash ? "timeline-dot--flash" : "",
+                          ].join(" ")}
+                        >
+                          <span className="scale-[0.85]">{getKindIcon(event.kind)}</span>
                         </span>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 font-semibold text-neutral-600 shadow-sm ring-1 ring-border-primary/70">
-                          <DocumentsIcon className="h-3.5 w-3.5" />
-                          {stage.docs}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary-50 px-2.5 py-1 font-semibold text-brand-primary-700 ring-1 ring-brand-primary-100">
-                          <ClockCircleIcon className="h-3.5 w-3.5" />
-                          {stage.comments}
-                        </span>
-                        {stage.warning ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-50 px-2.5 py-1 font-semibold text-warning-700 ring-1 ring-warning-100">
-                            ⚠
-                          </span>
-                        ) : null}
+                      <div className="flex min-w-0 items-center gap-2 pt-0.5">
+                        <p className="truncate text-[13px] font-semibold leading-5 text-neutral-800">{event.title}</p>
+                        <Badge variant="secondary" className="bg-neutral-100 px-2 py-0.5 text-[10px] leading-none text-neutral-600">
+                          {eventKindLabel[event.kind]}
+                        </Badge>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+
+                      <div className="col-start-3 min-w-0">
+                        <div className="truncate text-[11px] leading-5 text-neutral-600">{formatTimelineMeta(event)}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </CardBody>
         </Card>
 
-        <div className="space-y-4 lg:col-span-8">
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-neutral-800">Detail Tahapan</h2>
-                <p className="mt-1 text-[12px] leading-6 text-neutral-600">Informasi pada panel ini mengikuti tahapan yang dipilih dari timeline.</p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border-primary bg-brand-primary-50 px-3 py-1.5 text-[12px] font-semibold text-brand-primary-700">
-                {activeStage.label}
-              </div>
-            </CardHeader>
+        <Card className="min-w-0 lg:sticky lg:top-[var(--shell-sticky-top)] lg:self-start">
+          <CardHeader className="items-start">
+            <div>
+              <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-neutral-800">Respon Instansi</h2>
+              <p className="mt-1 text-[12px] leading-6 text-neutral-600">
+                Semua respon yang pernah diterbitkan tampil di sini. Klik file untuk loncat ke event terkait di timeline.
+              </p>
+            </div>
+            <Badge variant="secondary">{responseFiles.length} file</Badge>
+          </CardHeader>
 
-            <CardBody className="space-y-4">
-              <Card className="border-border-primary/80 bg-brand-primary-50/30">
-                <CardBody className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Status Tahapan</p>
-                      <h3 className="mt-1 text-[18px] font-semibold tracking-[-0.03em] text-neutral-800">{activeStage.label}</h3>
-                    </div>
-                    <span
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold ${
-                        activeStageIndex < currentStageIndex
-                          ? "border-success-100 bg-success-50 text-success-700"
-                          : activeStageIndex === currentStageIndex
-                            ? currentStageDone
-                              ? "border-success-100 bg-success-50 text-success-700"
-                              : "border-warning-100 bg-warning-50 text-warning-700"
-                            : "border-neutral-200 bg-white text-neutral-500"
-                      }`}
+          <CardBody className="space-y-1.5 px-3 py-3">
+            {responseFiles.length > 0 ? (
+              responseFiles.map((file) => {
+                const active = activeResponseId === file.id;
+                const flash = flashResponseId === file.id;
+                const tone = responseTone[file.instansi] ?? "info";
+                return (
+                  <div
+                    key={file.id}
+                    ref={(node) => {
+                      responseRefs.current[file.id] = node;
+                    }}
+                    className={[
+                      "rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition-all duration-300",
+                      active ? "border-brand-primary-200 bg-brand-primary-50/50" : "border-border-primary hover:border-brand-primary-150",
+                      flash ? "ring-2 ring-warning-300" : "",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => focusResponse(file)}
+                      className="flex w-full items-start justify-between gap-2 text-left"
                     >
-                      {activeStageIndex < currentStageIndex
-                        ? "Selesai"
-                        : activeStageIndex === currentStageIndex
-                          ? currentStageDone
-                            ? "Selesai"
-                            : "Sedang Berjalan"
-                          : "Belum Diproses"}
-                    </span>
-                  </div>
-
-                  {activeStage.documents.length === 0 && activeStage.reviewerNotes.length === 0 && activeStage.activities.length === 0 ? (
-                    <EmptyState text="Tahapan ini belum diproses." />
-                  ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-xl border border-border-primary bg-white px-4 py-3">
-                        <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">PIC / Instansi</p>
-                        <p className="mt-2 text-[14px] font-semibold text-neutral-800">{activeStage.pic}</p>
-                      </div>
-                      <div className="rounded-xl border border-border-primary bg-white px-4 py-3">
-                        <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Tanggal</p>
-                        <p className="mt-2 text-[14px] font-semibold text-neutral-800">{activeStage.date}</p>
-                      </div>
-                      <div className="rounded-xl border border-border-primary bg-white px-4 py-3">
-                        <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">SLA</p>
-                        <p className="mt-2 text-[14px] font-semibold text-neutral-800">{activeStage.sla}</p>
-                      </div>
-                      <div className="rounded-xl border border-border-primary bg-white px-4 py-3">
-                        <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Dokumen</p>
-                        <p className="mt-2 text-[14px] font-semibold text-neutral-800">{activeStage.documents.length} file</p>
-                      </div>
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-
-              <div className="grid gap-4 xl:grid-cols-2">
-                <Card className="h-full">
-                  <CardHeader>
-                    <div>
-                      <h3 className="text-[14px] font-semibold tracking-[-0.02em] text-neutral-800">Catatan Reviewer</h3>
-                      <p className="mt-1 text-[12px] leading-6 text-neutral-600">Catatan ringkas dari tahapan yang sedang dipilih.</p>
-                    </div>
-                  </CardHeader>
-                  <CardBody>
-                    {activeStage.reviewerNotes.length > 0 ? (
-                      <div className="space-y-3">
-                        {activeStage.reviewerNotes.map((note) => (
-                          <div key={note} className="rounded-xl border border-border-primary bg-neutral-50 px-4 py-3 text-[13px] leading-6 text-neutral-700">
-                            {note}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="Belum ada catatan reviewer pada tahapan ini." />
-                    )}
-                  </CardBody>
-                </Card>
-
-                <Card className="h-full">
-                  <CardHeader>
-                    <div>
-                      <h3 className="text-[14px] font-semibold tracking-[-0.02em] text-neutral-800">Dokumen</h3>
-                      <p className="mt-1 text-[12px] leading-6 text-neutral-600">Dokumen yang dihasilkan pada tahapan ini.</p>
-                    </div>
-                  </CardHeader>
-                  <CardBody>
-                    {activeStage.documents.length > 0 ? (
-                      <div className="space-y-3">
-                        {activeStage.documents.map((doc) => (
-                          <div
-                            key={doc.name}
-                            className="flex flex-col gap-3 rounded-xl border border-border-primary bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-[14px] font-semibold text-neutral-800">{doc.name}</p>
-                              <p className="mt-1 text-[12px] leading-6 text-neutral-500">{doc.type}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" startIcon={<DownloadIcon className="h-4 w-4" />}>
-                                Download
-                              </Button>
-                              <Button size="sm" variant="info" startIcon={<EyeIcon className="h-4 w-4" />}>
-                                Preview
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="Belum ada dokumen pada tahapan ini." />
-                    )}
-                  </CardBody>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <div>
-                    <h3 className="text-[14px] font-semibold tracking-[-0.02em] text-neutral-800">Aktivitas</h3>
-                    <p className="mt-1 text-[12px] leading-6 text-neutral-600">Urutan aktivitas utama pada tahapan yang dipilih.</p>
-                  </div>
-                </CardHeader>
-                <CardBody>
-                  {activeStage.activities.length > 0 ? (
-                    <div className="space-y-3">
-                      {activeStage.activities.map((activity) => (
-                        <div key={`${activity.time}-${activity.title}`} className="grid grid-cols-[72px_16px_1fr] gap-3">
-                          <div className="pt-0.5 text-right text-[12px] font-semibold text-brand-primary-700">{activity.time}</div>
-                          <div className="relative">
-                            <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-border-primary" />
-                            <div className="relative mt-1 h-3 w-3 rounded-full bg-brand-primary-500 ring-4 ring-brand-primary-50" />
-                          </div>
-                          <div className="rounded-xl border border-border-primary bg-neutral-50 px-4 py-3">
-                            <p className="text-[13px] font-semibold text-neutral-800">{activity.title}</p>
-                            <p className="mt-1 text-[12px] leading-6 text-neutral-600">{activity.note}</p>
-                          </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-[13px] font-semibold text-neutral-800">{file.fileName}</p>
+                          <Badge variant={tone} className="whitespace-nowrap px-2 py-0.5 text-[10px]">
+                            {file.instansi}
+                          </Badge>
                         </div>
-                      ))}
+                        <p className="mt-1 line-clamp-1 text-[11px] leading-5 text-neutral-600">{file.description}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-1 font-semibold text-neutral-600 ring-1 ring-border-primary/70">
+                            <DocumentsIcon className="h-3.5 w-3.5" />
+                            {file.date}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-700 ring-1 ring-brand-primary-100">
+                          <DocumentsIcon className="h-4 w-4" />
+                        </span>
+                      </div>
+                    </button>
+
+                    <div className="mt-1.5 flex items-center justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-3 text-[11px]"
+                        startIcon={<DownloadIcon className="h-3.5 w-3.5" />}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                      >
+                        Download
+                      </Button>
                     </div>
-                  ) : (
-                    <EmptyState text="Tahapan ini belum diproses." />
-                  )}
-                </CardBody>
-              </Card>
-            </CardBody>
-          </Card>
+                  </div>
+                );
+              })
+            ) : (
+              <EmptyState text="Belum ada respon instansi pada pengajuan ini." />
+            )}
 
-          <Card className="border-brand-primary-100 bg-brand-primary-50/25">
-            <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Ringkasan cepat</p>
-                <p className="mt-1 text-[13px] leading-6 text-neutral-700">
-                  Pengajuan ini sedang berada di tahapan <span className="font-semibold text-brand-primary-700">{activeStage.label}</span>.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" startIcon={<EyeIcon className="h-4 w-4" />}>
-                  Detail Pengajuan
-                </Button>
-                <Button size="sm" variant="primary" startIcon={<DocumentsIcon className="h-4 w-4" />}>
-                  Lihat Dokumen
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+            <div className="rounded-2xl border border-dashed border-border-primary bg-neutral-50 px-3 py-2 text-[11px] leading-5 text-neutral-500">
+              File yang dipilih di panel kanan akan menyorot event respon yang sama di timeline.
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-border-primary bg-white px-4 py-3 text-[12px] text-neutral-600 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <span>Tampilan progress pengajuan dirancang ringkas agar cepat dipakai buat review bisnis.</span>
-        <Link to="/data" search={{ status: undefined } as never} className="text-brand-primary-700 transition-colors hover:text-brand-primary-600">
-          Kembali ke Data Pengajuan
-        </Link>
-      </div>
+      <Card className="border-brand-primary-100 bg-brand-primary-50/25">
+        <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[12px] tracking-[0.18em] text-neutral-500 uppercase">Ringkasan cepat</p>
+            <p className="mt-1 text-[13px] leading-6 text-neutral-700">
+              Respon terakhir: <span className="font-semibold text-brand-primary-700">{latestResponse.fileName}</span> dari {latestResponse.instansi}.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" startIcon={<EyeIcon className="h-4 w-4" />}>
+              Detail Pengajuan
+            </Button>
+            <Button size="sm" variant="primary" startIcon={<DocumentsIcon className="h-4 w-4" />}>
+              Lihat Dokumen
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
     </div>
   );
 }

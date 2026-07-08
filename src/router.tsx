@@ -20,7 +20,13 @@ const dataRoute = createRoute({
     const status = typeof search.status === "string" ? search.status : undefined;
     return {
       status:
-        status === "Draft" || status === "Proses" || status === "Disetujui" || status === "Ditolak" ? status : undefined,
+        status === "Draft" ||
+        status === "Proses" ||
+        status === "Selesai" ||
+        status === "Disetujui" ||
+        status === "Ditolak"
+          ? status
+          : undefined,
     };
   },
   component: DataPage,

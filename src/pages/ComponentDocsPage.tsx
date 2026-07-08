@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { Badge } from "../components/Badge";
 import { Button, IconButton } from "../components/Button";
 import { Checkbox, Input, Select, Switch, Textarea } from "../components/FormControls";
 import { Card, CardBody, CardFooter, CardHeader, Modal } from "../components/Surface";
@@ -77,6 +78,12 @@ type SemanticTone = {
   background: string;
   icon: string;
   description: string;
+};
+
+type BadgeExample = {
+  label: string;
+  variant: "brand" | "primary" | "secondary" | "accent" | "info" | "warning" | "success" | "error";
+  className: string;
 };
 
 const colorScales: ColorScale[] = [
@@ -223,6 +230,49 @@ const semanticColors: SemanticTone[] = [
     background: "#b2e4f4",
     icon: "#1e88b3",
     description: "Informational messages",
+  },
+];
+
+const badgeExamples: BadgeExample[] = [
+  {
+    label: "brand",
+    variant: "brand",
+    className: "insw-badge insw-badge--brand",
+  },
+  {
+    label: "primary",
+    variant: "primary",
+    className: "insw-badge insw-badge--primary",
+  },
+  {
+    label: "secondary",
+    variant: "secondary",
+    className: "insw-badge insw-badge--secondary",
+  },
+  {
+    label: "accent",
+    variant: "accent",
+    className: "insw-badge insw-badge--accent",
+  },
+  {
+    label: "info",
+    variant: "info",
+    className: "insw-badge insw-badge--info",
+  },
+  {
+    label: "warning",
+    variant: "warning",
+    className: "insw-badge insw-badge--warning",
+  },
+  {
+    label: "success",
+    variant: "success",
+    className: "insw-badge insw-badge--success",
+  },
+  {
+    label: "error",
+    variant: "error",
+    className: "insw-badge insw-badge--error",
   },
 ];
 
@@ -939,6 +989,35 @@ export function ComponentDocsPage() {
                 </div>
               </div>
             </Modal>
+          </Section>
+
+          <Section
+            id="badge"
+            title="Badge System"
+            badge="foundation"
+            description="Badge dipakai buat status singkat, penanda prioritas, dan label kecil yang sering muncul di tabel, card, dan header ringkas."
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                {badgeExamples.map((badge) => (
+                  <div key={badge.label} className="flex flex-col items-start gap-2">
+                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                    <div className="font-mono text-[11px] leading-4 text-neutral-600">{badge.className}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-border-primary bg-background-primary/35 p-4">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Catatan standar</div>
+                <p className="mt-2 text-[12px] leading-6 text-neutral-700">
+                  Badge harus tetap pendek, <span className="font-semibold">nowrap</span>, dan cukup dibaca sekilas.
+                  Acuannya sekarang sama seperti semantic color: <span className="font-semibold">background badge</span>{" "}
+                  ambil tone background card, sedangkan <span className="font-semibold">text badge</span> ambil tone
+                  yang lebih tegas seperti icon checklist. Kalau kamu mau tone-nya disamain lagi, tinggal koreksi
+                  token ini lalu kita pakai sebagai standar di halaman lain.
+                </p>
+              </div>
+            </div>
           </Section>
 
           <Section

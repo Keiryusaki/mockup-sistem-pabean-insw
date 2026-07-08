@@ -147,6 +147,82 @@ const entries: ChangeLogEntry[] = [
       },
     ],
   },
+  {
+    id: "commit-002",
+    commit: "Checkpoint 02",
+    date: "6 Juli 2026",
+    label: "Perubahan kedua",
+    title: "Feedback widget, avatar shortcut, dan mirror inbox disiapkan",
+    summary:
+      "Checkpoint kedua mulai masuk setelah 6 Juli 2026 pukul 12.00. Fokusnya pindah ke jalur feedback: tombol Lapor Pak dipindah ke avatar menu, changelog shortcut tetap tersedia di dropdown, feedback bisa dikirim ke Discord, dan inbox mirror disiapkan supaya TW bisa baca thread tanpa buka Discord.",
+    scope: ["Feedback", "Discord", "Mirror Inbox", "Header", "Bugfix"],
+    sections: [
+      {
+        title: "1. Avatar menu dan akses cepat",
+        summary: "Akses ke feedback dan changelog dipusatkan di dropdown avatar supaya header lebih rapi tapi tetap punya shortcut penting.",
+        bullets: [
+          "Item `Lapor Pak !!` dipindah ke dropdown avatar agar akses feedback lebih dekat ke kontrol akun.",
+          "Shortcut `Change Log` ditambahkan lagi di bawah `Lapor Pak !!` supaya catatan perubahan tetap gampang dibuka.",
+          "Avatar menu tetap menyimpan akses ke komponen lokal dan logout, jadi semua action akun ngumpul di satu tempat.",
+          "Copy menu dirapikan supaya user langsung paham tiap shortcut tanpa harus baca terlalu panjang.",
+        ],
+      },
+      {
+        title: "2. Feedback widget dan submit flow",
+        summary: "Widget feedback dibuat lebih siap dipakai, dengan input yang mendukung lampiran, paste gambar, dan verifikasi sederhana sebelum submit.",
+        bullets: [
+          "Feedback widget mengirim payload ke endpoint Discord service dengan nama, pesan, halaman, url, phase, dan lampiran.",
+          "Pasting gambar dari clipboard didukung langsung supaya laporan cepat dikirim tanpa proses upload tambahan.",
+          "Lampiran file dan image dipreview sebelum dikirim, termasuk penghapusan item per file.",
+          "Challenge matematika ditambahkan sebagai gate ringan supaya submit tidak kebanjiran spam.",
+        ],
+      },
+      {
+        title: "3. Discord service dan mirror feed",
+        summary: "Data feedback disiapkan untuk bisa diproses service Discord, lalu dimirror ke feed lokal yang bisa dibaca ulang oleh UI mockup.",
+        bullets: [
+          "Service Discord menormalisasi payload feedback ke format yang bisa dipakai ulang oleh inbox mirror.",
+          "Feed lokal mendukung record root dan reply sehingga thread bisa dibaca sebagai percakapan, bukan satu pesan tunggal.",
+          "Phase `Perubahan Kedua` disematkan ke data feedback supaya laporan TW konsisten dengan batas phase baru.",
+          "Label lampiran dan isi pesan dijaga agar line break serta tipe embed tetap terbaca konsisten di hasil mirror.",
+        ],
+      },
+      {
+        title: "4. Feedback inbox dan baca thread",
+        summary: "Halaman inbox dirombak jadi mirror panel yang bisa filter, refresh otomatis, buka thread, dan preview lampiran tanpa keluar dari app.",
+        bullets: [
+          "`/feedback` sekarang menampilkan daftar root feedback, reply di dalam thread, status, tag, dan raw JSON payload.",
+          "Filter ditambah untuk jenis feedback, status, dan item yang punya lampiran.",
+          "Refresh otomatis dipasang supaya mirror tetap sinkron saat feed berubah.",
+          "Preview lampiran gambar dibuat bisa dibuka fullscreen dengan zoom, cocok untuk cek screenshot atau bukti visual.",
+        ],
+      },
+      {
+        title: "5. Penyesuaian data dan microcopy",
+        summary: "Beberapa penyesuaian kecil dilakukan supaya phase kedua rapi di UI dan data yang tampil tidak campur dengan phase pertama.",
+        bullets: [
+          "Record demo dan storage lokal sekarang memakai phase `Perubahan Kedua` untuk membedakan masukan phase baru.",
+          "Label dan copy pada feedback mirror disesuaikan agar cocok untuk pembacaan TW, bukan hanya untuk testing internal.",
+          "Kolom `Jenis Dokumen` di tabel data pengajuan kini menampilkan kode dokumen saja, dan opsi filternya diseragamkan ke kode yang sama.",
+          "Format line break pada pesan dijaga supaya isi feedback tetap enak dibaca di inbox dan payload mentah.",
+          "Perubahan ini jadi batas resmi sesudah checkpoint pertama selesai.",
+        ],
+      },
+      {
+        title: "6. Text, badge, dan state visual",
+        summary: "Selain alur dan struktur data, checkpoint kedua juga merapikan copy, label badge, dan state visual supaya semua titik masuk terasa konsisten.",
+        bullets: [
+          "Dropdown avatar sekarang menampilkan item `Lapor Pak !!`, `Change Log`, `Komponen Lokal`, dan `Logout` dengan label yang lebih tegas dan urutan yang lebih masuk akal.",
+          "Badge phase di data feedback memakai `Perubahan Kedua`, jadi root record, reply, dan preview mirror langsung terbaca berada di checkpoint yang sama.",
+          "Di feedback mirror, status badge dipakai untuk membedakan `Baru`, `Dibaca`, `Ditindaklanjuti`, dan `Selesai` tanpa harus buka detail thread.",
+          "Badge tipe `Masukan` dan `Perbaikan` dirapikan supaya filter dan kartu ringkasan lebih gampang dipindai.",
+          "Header feedback menampilkan badge `Feedback mirror`, `Thread ready`, dan badge source agar user tahu data yang dilihat itu dari mana.",
+          "Badge kecil pada lampiran dan preview juga disesuaikan supaya file image, file biasa, dan state preview terbaca lebih cepat.",
+          "Copy ringkas di halaman changelog, inbox feedback, dan widget submit disamakan nadanya supaya terasa satu keluarga, bukan potongan teks yang berdiri sendiri.",
+        ],
+      },
+    ],
+  },
 ];
 
 function AccordionIcon({ open }: { open: boolean }) {
@@ -510,7 +586,7 @@ export function ChangeLogPage() {
                 <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Ringkasan checkpoint</div>
-                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama</h2>
+                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama &amp; kedua</h2>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
                     {entries.length} checkpoint
@@ -518,8 +594,9 @@ export function ChangeLogPage() {
                 </CardHeader>
                 <CardBody>
                   <p className="max-w-4xl text-[13px] leading-6 text-neutral-700">
-                    Saat ini changelog masih berisi checkpoint pertama, tapi strukturnya sudah dibuat supaya ke depan tinggal tambah entry baru tanpa
-                    mengubah pola baca. List di kiri dipakai sebagai TOC, sedangkan detail utama dibuka per accordion di sini.
+                    Saat ini changelog sudah dibagi jadi 2 checkpoint: checkpoint pertama untuk fondasi dashboard dan flow utama, lalu checkpoint
+                    kedua untuk perubahan feedback dan mirror inbox yang masuk setelah 6 Juli 2026 pukul 12.00. List di kiri dipakai sebagai TOC,
+                    sedangkan detail utama dibuka per accordion di sini.
                   </p>
                 </CardBody>
               </Card>
@@ -602,7 +679,7 @@ export function ChangeLogPage() {
                 <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Ringkasan checkpoint</div>
-                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama</h2>
+                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama &amp; kedua</h2>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
                     {entries.length} checkpoint
@@ -610,8 +687,9 @@ export function ChangeLogPage() {
                 </CardHeader>
                 <CardBody>
                   <p className="max-w-4xl text-[13px] leading-6 text-neutral-700">
-                    Saat ini changelog masih berisi checkpoint pertama, tapi strukturnya sudah dibuat supaya ke depan tinggal tambah entry baru tanpa
-                    mengubah pola baca. List di kiri dipakai sebagai TOC, sedangkan detail utama dibuka per accordion di sini.
+                    Saat ini changelog sudah dibagi jadi 2 checkpoint: checkpoint pertama untuk fondasi dashboard dan flow utama, lalu checkpoint
+                    kedua untuk perubahan feedback dan mirror inbox yang masuk setelah 6 Juli 2026 pukul 12.00. List di kiri dipakai sebagai TOC,
+                    sedangkan detail utama dibuka per accordion di sini.
                   </p>
                 </CardBody>
               </Card>

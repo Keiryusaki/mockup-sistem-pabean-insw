@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { ShellFooter } from "./ShellFooter";
 import { ShellHeader } from "./ShellHeader";
 import { FeedbackWidget } from "./FeedbackWidget";
+import { ArrowLeftIcon } from "./Icons";
 
 const BREADCRUMBS: Record<string, string> = {
   "/": "Dashboard / Ringkasan Pengajuan",
@@ -20,8 +21,13 @@ export function AppLayout() {
   const breadcrumb = BREADCRUMBS[location.pathname] ?? "Mockup";
   const action =
     location.pathname === "/form" || location.pathname === "/progress" ? (
-      <Link to="/data" search={{ status: undefined } as never} className="text-white/90 transition-colors hover:text-white">
-        &lt; Kembali
+      <Link
+        to="/data"
+        search={{ status: undefined } as never}
+        className="inline-flex items-center gap-1.5 text-white/90 transition-colors hover:text-white"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        <span>Kembali</span>
       </Link>
     ) : undefined;
 
