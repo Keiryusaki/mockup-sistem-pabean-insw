@@ -3757,7 +3757,7 @@ function DashboardContent() {
                 Daftar notifikasi yang penting untuk memantau kondisi pengajuan dan layanan.
               </p>
             </div>
-            <Button variant="outline" size="sm" className="w-fit">
+            <Button variant="outline" size="sm" className="w-fit whitespace-nowrap">
               Lihat Semua
             </Button>
           </div>
@@ -3770,7 +3770,7 @@ function DashboardContent() {
                     <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
                     <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.note}</p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.badgeTone}`}>
+                  <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.badgeTone}`}>
                     {item.badge}
                   </span>
                 </div>
@@ -3790,7 +3790,7 @@ function DashboardContent() {
                 Pengumuman yang berkaitan dengan layanan, jadwal, dan pembaruan dokumen.
               </p>
             </div>
-            <Button variant="outline" size="sm" className="w-fit">
+            <Button variant="outline" size="sm" className="w-fit whitespace-nowrap">
               Selengkapnya
             </Button>
           </div>
@@ -3802,7 +3802,7 @@ function DashboardContent() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.categoryTone}`}>
+                      <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.categoryTone}`}>
                         {item.category}
                       </span>
                     </div>
