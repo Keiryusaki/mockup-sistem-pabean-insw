@@ -25,6 +25,7 @@ type AttachmentPreview = {
 };
 
 const FEEDBACK_SUBMIT_URL = (((import.meta as unknown as { env?: { VITE_DISCORD_FEEDBACK_SUBMIT_URL?: string } }).env?.VITE_DISCORD_FEEDBACK_SUBMIT_URL ?? "").trim());
+const CURRENT_FEEDBACK_PHASE = "Perubahan Ketiga";
 
 function makeChallenge(): MathChallenge {
   const mode = Math.floor(Math.random() * 3);
@@ -265,7 +266,7 @@ export function FeedbackWidget() {
           message: message.replace(/\r\n/g, "\n").trim(),
           page: currentRouteLabel,
           url: currentUrl,
-          phase: "Perubahan Kedua",
+          phase: CURRENT_FEEDBACK_PHASE,
           attachments: submitAttachments,
         }),
       });
@@ -295,7 +296,7 @@ export function FeedbackWidget() {
         page: currentRouteLabel,
         url: currentUrl,
         createdAt: new Date().toISOString(),
-        phase: "Perubahan Kedua",
+        phase: CURRENT_FEEDBACK_PHASE,
         source: "discord",
         status: "Baru",
         channel: "#kotak-saran",

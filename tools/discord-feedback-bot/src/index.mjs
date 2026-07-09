@@ -7,6 +7,7 @@ import { createDiscordFeedbackMapper } from "./mapper.mjs";
 import { readMirrorFile, pushMirrorFeed, writeMirrorFile } from "./mirror-store.mjs";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const CURRENT_FEEDBACK_PHASE = "Perubahan Ketiga";
 
 function parseEnvFile(text) {
   const parsed = {};
@@ -127,7 +128,7 @@ function buildSubmissionEmbed(payload, attachments) {
   const message = normalizeMessage(payload.message) || "(tanpa pesan)";
   const page = normalizeWhitespace(payload.page) || "-";
   const url = normalizeWhitespace(payload.url) || "-";
-  const phase = normalizeWhitespace(payload.phase) || "Perubahan Kedua";
+  const phase = normalizeWhitespace(payload.phase) || CURRENT_FEEDBACK_PHASE;
   const submittedAt = new Date().toISOString();
 
   const embed = {

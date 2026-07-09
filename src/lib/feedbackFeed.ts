@@ -32,6 +32,7 @@ export type FeedbackRecord = {
 };
 
 export const FEEDBACK_FEED_STORAGE_KEY = "insw-feedback-feed";
+export const CURRENT_FEEDBACK_PHASE = "Perubahan Ketiga";
 
 const SVG_DATA_URI_PREFIX = "data:image/svg+xml;charset=UTF-8,";
 
@@ -226,7 +227,7 @@ export function normalizeFeedbackRecord(item: unknown): FeedbackRecord | null {
     page: typeof value.page === "string" && value.page.trim() ? value.page : "-",
     url: typeof value.url === "string" && value.url.trim() ? value.url : "-",
     createdAt: typeof value.createdAt === "string" && value.createdAt.trim() ? value.createdAt : new Date().toISOString(),
-    phase: typeof value.phase === "string" && value.phase.trim() ? value.phase : "Perubahan Kedua",
+    phase: typeof value.phase === "string" && value.phase.trim() ? value.phase : CURRENT_FEEDBACK_PHASE,
     source: value.source === "local" || value.source === "demo" ? value.source : "discord",
     status,
     channel: typeof value.channel === "string" ? value.channel : undefined,

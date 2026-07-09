@@ -78,7 +78,7 @@ It is focused on:
 ## Work Phases
 
 - Perubahan Pertama is closed as of 2026-07-06 12:00 local time.
-- Any request after that cutoff belongs to Perubahan Kedua.
+- Any request after 2026-07-08 12:00 local time belongs to Perubahan Ketiga.
 - Keep changelog and future implementation notes grouped by phase so the next agent can pick up context quickly.
 
 ## Current Upload Flow Notes

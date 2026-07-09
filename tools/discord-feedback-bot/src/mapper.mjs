@@ -44,6 +44,8 @@ function pickAttachmentKind(attachment) {
   return "file";
 }
 
+const CURRENT_FEEDBACK_PHASE = "Perubahan Ketiga";
+
 function normalizeFieldName(value) {
   return String(value ?? "")
     .toLowerCase()
@@ -116,7 +118,7 @@ export function createDiscordFeedbackMapper(env = process.env) {
         message.author.username;
       const page = getEmbedField(embed, ["Halaman", "Page", "Lokasi"]) ?? (message.channel?.name ? `#${message.channel.name}` : "-");
       const url = getEmbedField(embed, ["URL", "Link", "Sumber"]) ?? message.url;
-      const phase = getEmbedField(embed, ["Phase", "Tahap"]) ?? "Perubahan Kedua";
+      const phase = getEmbedField(embed, ["Phase", "Tahap"]) ?? CURRENT_FEEDBACK_PHASE;
       const messageText = embedDescription || message.content?.trim() || "(tanpa pesan)";
       const attachmentItems = [
         ...message.attachments.map((attachment) => ({
