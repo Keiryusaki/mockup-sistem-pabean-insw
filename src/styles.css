@@ -453,6 +453,8 @@ button:disabled {
 
 :root {
   --shell-sticky-top: 84px;
+  --shell-footer-height: 64px;
+  --shell-content-gap-y: 32px;
 }
 
 @media (min-width: 1024px) {

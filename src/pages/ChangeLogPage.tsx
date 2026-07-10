@@ -223,6 +223,107 @@ const entries: ChangeLogEntry[] = [
       },
     ],
   },
+  {
+    id: "commit-003",
+    commit: "Checkpoint 03",
+    date: "10 Juli 2026",
+    label: "Perubahan ketiga",
+    title: "Seluruh perubahan lokal yang belum dipush dirangkum di sini",
+    summary:
+      "Checkpoint ketiga sekarang dipakai sebagai kumpulan semua perubahan lokal yang belum dipush ke git. Isinya mencakup pemecahan halaman dashboard/data/detail/progress/form, penyesuaian sidebar dan launcher, perapihan komponen lokal dan icon library, sampai penyempurnaan alur dokumen lampiran dan review status.",
+    scope: ["Dashboard", "Data", "Form", "Detail", "Progress", "Docs", "Sidebar", "Launcher", "Bugfix"],
+    sections: [
+      {
+        title: "1. Struktur halaman dan routing",
+        summary: "Halaman utama dipisah dan dipetakan ulang supaya tiap flow punya route dan breadcrumb sendiri.",
+        bullets: [
+          "Route baru `Data Pengajuan / Detail Pengajuan` ditambahkan supaya detail readonly punya halaman sendiri dan tidak bercampur dengan form.",
+          "Breadcrumb dan aksi `Kembali` di layout utama diperluas untuk halaman detail, progress, dan form.",
+          "Struktur dashboard, data pengajuan, detail, progress, dan form dipisah ke komponen halaman yang lebih ringan agar editing berikutnya lebih aman.",
+          "Banyak helper dashboard dipecah ke folder `src/pages/dashboard` supaya entry page, launcher, dan data statis tidak menumpuk di satu file besar.",
+          "Shell layout juga ikut disesuaikan agar footer, breadcrumb, dan area sticky tidak saling makan ruang di desktop.",
+          "Variabel layout global ditambah supaya tinggi sticky dan spacing antar area lebih gampang dihitung ulang.",
+        ],
+      },
+      {
+        title: "2. Dashboard, data pengajuan, dan launcher",
+        summary: "CTA pengajuan dan tabel data disesuaikan supaya flow dari dashboard maupun `/data` terasa konsisten.",
+        bullets: [
+          "CTA `Pengajuan` di dashboard dan di halaman `/data` memakai icon lokal yang sama dari library icon internal.",
+          "Launcher pengajuan bisa dibuka dari halaman data tanpa memaksa user pindah ke dashboard, lalu modal tetap ditutup di halaman yang sama.",
+          "Tombol dan search field di tabel data pengajuan dirapikan ukuran serta proporsinya agar lebih konsisten.",
+          "Menu sidebar dashboard disesuaikan icon-nya, dibuat collapsible seperti TOC, dan tinggi panelnya mengikuti ruang viewport dengan lebih pas.",
+          "Card ringkasan pengajuan, statistik, dan filter status dashboard dipisah agar lebih gampang dipelihara.",
+          "Data tabel pengajuan tetap mempertahankan aksi detail, progress, edit, copy, dan delete sesuai status baris.",
+          "Favicon browser diarahkan ke aset lokal supaya tampilan app lebih konsisten dengan brand INSW.",
+        ],
+      },
+      {
+        title: "3. Form pengajuan dan upload flow",
+        summary: "Flow form dipecah dan diselaraskan ulang supaya step upload, parsing, review, dan dokumen lampiran lebih jelas.",
+        bullets: [
+          "Step upload assistant dan non-assistant disesuaikan lagi agar ketentuan alurnya sama, termasuk tombol footer, status lanjut parsing, dan copy tombol.",
+          "Step review diringkas: badge status disamakan ke komponen lokal, statistik ditata ulang, dan label yang redundan dihapus.",
+          "Step `Dokumen Lampiran` sekarang lebih file-driven: ada input file, nama file masuk ke `Nomor Dokumen`, dan simpan ditahan kalau file belum dipilih.",
+          "TOC di form pengajuan dan entitas diatur ulang supaya urutan jump ke section sama dengan urutan card kontennya.",
+          "Bagian sticky TOC di form dan detail diberi top offset yang lebih nyaman, plus scrollbar internal untuk daftar TOC yang panjang.",
+          "Notifikasi draft terakhir di bawah wizard dijadikan toast/alert yang bisa di-dismiss, bukan banner statis.",
+          "Beberapa badge review dan label status di form diselaraskan lagi supaya tidak duplikatif dan lebih mudah dibaca.",
+          "Wordings pada step upload, parsing, review, dan dokumen lampiran dipoles ulang supaya konsisten dengan approval client sebelumnya.",
+          "Alur pengajuan dengan assistant tetap membawa step identifikasi, upload, parsing, dan review, tapi state lokalnya di-reset lewat session hook supaya modal tidak menyimpan state lama.",
+        ],
+      },
+      {
+        title: "4. Detail, progress, dan dokumen pendukung",
+        summary: "Halaman detail dan progress diperkaya supaya lebih dekat ke kebutuhan baca-audit, bukan sekadar tampilan statis.",
+        bullets: [
+          "Halaman progress sekarang punya detail timeline yang lebih informatif, dukungan note detail, dan aksi download response JSON.",
+          "Halaman detail pengajuan ditambahkan sebagai route readonly dengan TOC, breadcrumb, dan drawer/section yang lebih jelas.",
+          "Komponen dokumen pendukung di progress serta halaman detail disesuaikan agar action dan label lebih mudah dipindai.",
+          "Drawer/section child data di step barang dan compliance juga dirapikan agar status aktif, action, dan file referensi lebih konsisten.",
+          "Timeline progress sekarang punya detail note yang bisa dibuka ke modal, bukan cuma label statis di daftar.",
+          "Ringkasan progress dan file respon instansi ditambah aksi download agar lebih cocok untuk peninjauan internal.",
+          "Download response dibungkus jadi JSON payload lokal supaya preview data bisa dicontoh tanpa backend.",
+        ],
+      },
+      {
+        title: "5. Live docs, icon, dan komponen lokal",
+        summary: "Library komponen lokal dan icon set dijadikan referensi yang lebih lengkap untuk pekerjaan berikutnya.",
+        bullets: [
+          "Halaman `/component` ditambah materi tooltip, badge, dan pembenahan urutan section supaya lebih representatif sebagai live docs.",
+          "Halaman `/icon` tetap jadi referensi icon set lokal, dan beberapa icon baru/penyesuaian dipakai langsung di dashboard serta data pengajuan.",
+          "Input kompak, tooltip portal, badge, dan icon wrapper dirapikan supaya dipakai ulang ke banyak flow tanpa duplikasi style.",
+          "Badge system, tooltip, dan icon library dijadikan bagian live docs supaya tim gampang cek perilaku komponen lokal sebelum dipakai ke page utama.",
+          "Icon lokal dipakai ulang untuk menu dashboard, CTA pengajuan, action tabel, dan area search agar visualnya konsisten.",
+          "Favicon app diarahkan ke `public/favico.png` supaya identitas visual konsisten di browser.",
+          "Urutan section pada live docs juga diubah supaya representatif: badge/tooltip masuk lebih awal, loading state tetap ada di bawah sebagai referensi lain.",
+        ],
+      },
+      {
+        title: "6. Shell, layout, dan copy umum",
+        summary: "Beberapa penyesuaian global dilakukan supaya ruang layar, footer, dan copy umum lebih pas.",
+        bullets: [
+          "Shell header, breadcrumb, footer, dan sidebar layout disesuaikan supaya tinggi panel terasa lebih pas di viewport desktop.",
+          "Style dasar dan helper layout ditambah variabel shell agar perhitungan sticky area lebih eksplisit.",
+          "Copy pada changelog, dashboard, dan form dirapikan supaya narasinya konsisten untuk laporan client dan workflow internal.",
+          "Tooltip, badge, button, input, dan modal lokal diberi penyesuaian kecil agar ukuran dan jaraknya tidak jomplang antar halaman.",
+          "Wording kecil di tombol, helper text, dan badge status diganti berkali-kali supaya lebih cocok dengan pola bahasa yang sudah disepakati client.",
+          "Beberapa aset statis dan file revisi lama dibersihkan dari workspace setelah dipindahkan ke struktur baru.",
+        ],
+      },
+      {
+        title: "7. Wiring data, state, dan bugfix antar modal",
+        summary: "Bagian paling teknis dari checkpoint ini ada di alur state, penghubung modal, dan sinkronisasi antar halaman.",
+        bullets: [
+          "State launcher, wizard, parsing, dan review sekarang dipecah ke hook dan helper supaya modal yang sama bisa dipakai di dashboard maupun data page.",
+          "Alur upload template, upload OCR, parsing review, dan copy data disatukan lagi lewat komponen shared agar tidak ada duplikasi UI yang beda tipis.",
+          "State pilihan file, status upload, dan tombol lanjut parsing diselaraskan supaya disabled/enabled mengikuti status sebenarnya.",
+          "Beberapa data mock seperti summary card, proposal list, dan upload flow juga dipindahkan agar page utama cuma fokus ke render.",
+          "Bug kecil seperti icon terlalu besar, badge dobel, TOC aktif yang loncat, dan ruang kosong di menu ikut dibenahi sebagai bagian dari checkpoint ini.",
+        ],
+      },
+    ],
+  },
 ];
 
 function AccordionIcon({ open }: { open: boolean }) {
@@ -586,7 +687,7 @@ export function ChangeLogPage() {
                 <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Ringkasan checkpoint</div>
-                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama &amp; kedua</h2>
+                    <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Perubahan pertama, kedua, &amp; ketiga</h2>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
                     {entries.length} checkpoint
@@ -594,9 +695,10 @@ export function ChangeLogPage() {
                 </CardHeader>
                 <CardBody>
                   <p className="max-w-4xl text-[13px] leading-6 text-neutral-700">
-                    Saat ini changelog sudah dibagi jadi 2 checkpoint: checkpoint pertama untuk fondasi dashboard dan flow utama, lalu checkpoint
-                    kedua untuk perubahan feedback dan mirror inbox yang masuk setelah 6 Juli 2026 pukul 12.00. List di kiri dipakai sebagai TOC,
-                    sedangkan detail utama dibuka per accordion di sini.
+                    Saat ini changelog sudah dibagi jadi 3 checkpoint: checkpoint pertama untuk fondasi dashboard dan flow utama, checkpoint
+                    kedua untuk perubahan feedback dan mirror inbox yang masuk setelah 6 Juli 2026 pukul 12.00, lalu checkpoint ketiga untuk
+                    semua perubahan lokal yang belum dipush ke git. List di kiri dipakai sebagai TOC, sedangkan detail utama dibuka per accordion
+                    di sini.
                   </p>
                 </CardBody>
               </Card>

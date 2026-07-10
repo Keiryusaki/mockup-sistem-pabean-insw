@@ -4,6 +4,7 @@ import { ComponentDocsPage } from "./pages/ComponentDocsPage";
 import { ChangeLogPage } from "./pages/ChangeLogPage";
 import { Dashboard } from "./pages/Dashboard";
 import { DataPage } from "./pages/DataPage";
+import { DetailPage } from "./pages/DetailPage";
 import { FormPage } from "./pages/FormPage";
 import { IconPage } from "./pages/IconPage";
 import { ProgressPage } from "./pages/ProgressPage";
@@ -31,6 +32,14 @@ const dataRoute = createRoute({
   },
   component: DataPage,
 });
+const detailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/detail",
+  validateSearch: (search: Record<string, unknown>) => ({
+    pengajuan: typeof search.pengajuan === "string" ? search.pengajuan : undefined,
+  }),
+  component: DetailPage,
+});
 const formRoute = createRoute({ getParentRoute: () => rootRoute, path: "/form", component: FormPage });
 const progressRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -46,7 +55,7 @@ const componentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/co
 const iconRoute = createRoute({ getParentRoute: () => rootRoute, path: "/icon", component: IconPage });
 const changelogRoute = createRoute({ getParentRoute: () => rootRoute, path: "/changelog", component: ChangeLogPage });
 
-const routeTree = rootRoute.addChildren([indexRoute, dataRoute, formRoute, progressRoute, loadingRoute, feedbackRoute, componentRoute, iconRoute, changelogRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, dataRoute, detailRoute, formRoute, progressRoute, loadingRoute, feedbackRoute, componentRoute, iconRoute, changelogRoute]);
 
 const basepath = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
 

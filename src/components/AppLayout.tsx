@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from "./Icons";
 const BREADCRUMBS: Record<string, string> = {
   "/": "Dashboard / Ringkasan Pengajuan",
   "/data": "Data Pengajuan / Daftar Pengajuan",
+  "/detail": "Data Pengajuan / Detail Pengajuan",
   "/progress": "Data Pengajuan / Progress Pengajuan",
   "/form": "Form Pengajuan",
   "/loading": "Loading State",
@@ -20,7 +21,7 @@ export function AppLayout() {
   const { location } = useRouterState();
   const breadcrumb = BREADCRUMBS[location.pathname] ?? "Mockup";
   const action =
-    location.pathname === "/form" || location.pathname === "/progress" ? (
+    location.pathname === "/form" || location.pathname === "/progress" || location.pathname === "/detail" ? (
       <Link
         to="/data"
         search={{ status: undefined } as never}

@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "../components/Badge";
 import { Button, IconButton } from "../components/Button";
 import { Input, Select, Textarea } from "../components/FormControls";
 import { Modal } from "../components/Surface";
+import { Tooltip } from "../components/Tooltip";
+import {
+  AI_DRAFT_STORAGE_KEY,
+  BC20_FORM_STORAGE_KEY,
+  FORM_NOTICE_STORAGE_KEY,
+  FORM_SOURCE_STORAGE_KEY,
+} from "./dashboard/formSnapshotData";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -10,11 +17,13 @@ import {
   BriefcaseIcon,
   BuildingsIcon,
   CopyIcon,
+  CalendarIcon,
   DocumentsIcon,
   EyeIcon,
   HamburgerMenuIcon,
   MagniferIcon,
   PlainIcon,
+  PencilIcon,
   Pen2Icon,
   RoundedMagniferIcon,
   TrashBinTrashIcon,
@@ -72,15 +81,10 @@ type StoredFormState = {
   formState: FormState;
 };
 
-const AI_DRAFT_STORAGE_KEY = "insw-ai-submission-draft";
-const BC20_FORM_STORAGE_KEY = "insw-bc20-form-draft";
-const FORM_SOURCE_STORAGE_KEY = "insw-form-source";
-const FORM_NOTICE_STORAGE_KEY = "insw-form-notice";
-
 const wizardSteps: Array<{ id: WizardStepId; label: string; description: string }> = [
   { id: "pengajuan", label: "Pengajuan", description: "Header, transaksi, pengangkutan, dan pelabuhan." },
   { id: "entitas", label: "Entitas", description: "Data pelaku usaha dan identitas entitas." },
-  { id: "dokumen", label: "Dokumen", description: "Daftar dokumen pengajuan yang dilampirkan." },
+  { id: "dokumen", label: "Dokumen Lampiran", description: "Daftar dokumen pengajuan yang dilampirkan." },
   { id: "kemasan", label: "Kemasan & Kontainer", description: "Kemasan dan data kontainer pengiriman." },
   { id: "barang", label: "Barang", description: "Rincian barang, spesifikasi, dan tarif." },
   { id: "review", label: "Review & Submit", description: "Ringkasan akhir sebelum submit." },
@@ -89,6 +93,10 @@ const wizardSteps: Array<{ id: WizardStepId; label: string; description: string 
 const sectionTone = "rounded-2xl border border-border-primary bg-white shadow-sm";
 const fieldTone =
   "h-10 w-full rounded-md border border-border-primary bg-white px-3 text-[12px] text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100";
+const tocStickyClass = "lg:sticky lg:top-[calc(var(--shell-sticky-top)+12px)] lg:self-start";
+const tocShellClass =
+  "flex flex-col rounded-2xl border border-border-primary bg-white shadow-sm lg:h-[calc(100vh-var(--shell-sticky-top)-36px)] lg:max-h-[calc(100vh-var(--shell-sticky-top)-36px)]";
+const tocScrollClass = "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1";
 
 const barangMasterColumns = [
   "Seri",
@@ -146,7 +154,7 @@ const complianceTocItems = [
   { id: "compliance-lartas", title: "Lartas" },
   { id: "compliance-coo", title: "COO" },
   { id: "compliance-masterlist", title: "Masterlist" },
-  { id: "compliance-tkq", title: "TKQ" },
+  { id: "compliance-trq", title: "TRQ" },
   { id: "compliance-transportasi", title: "Transportasi" },
   { id: "compliance-karantina", title: "Karantina" },
   { id: "compliance-pendukung", title: "Dokumen Pendukung" },
@@ -233,18 +241,8 @@ const entityDefinitions: EntityDefinition[] = [
     description: "Entitas utama pengaju. Beberapa data dapat terisi otomatis dari SSO atau NIB.",
     icon: BuildingsIcon,
     defaultOpen: true,
-    headerFields: [
-      {
-        key: "Jenis Pemberitahuan",
-        label: "Jenis Pemberitahuan",
-        type: "select",
-        options: [{ label: "PENGUSAHA", value: "PENGUSAHA" }],
-        span: 1,
-      },
-    ],
     bodyHeading: "Pengusaha",
     requiredFields: [
-      "Jenis Pemberitahuan",
       "NIB",
       "No Identitas (16 Digit)",
       "6 Digit Terakhir NITKU",
@@ -263,7 +261,6 @@ const entityDefinitions: EntityDefinition[] = [
     emptyState: "Data pengusaha / importir belum diisi.",
     defaultValues: {
       "Jenis Entitas": "Pengusaha",
-      "Jenis Pemberitahuan": "PENGUSAHA",
       NIB: "9120100781919",
       "No Identitas (16 Digit)": "0027681030529000",
       "6 Digit Terakhir NITKU": "000000",
@@ -312,7 +309,7 @@ const entityDefinitions: EntityDefinition[] = [
       Alamat: "",
     },
     fields: [
-      { key: "Nama PPJK", label: "Nama PPJK", placeholder: "Nama perusahaan PPJK", span: 2 },
+      { key: "Nama PPJK", label: "Nama PPJK", placeholder: "Nama perusahaan PPJK", span: 1 },
       { key: "Nomor PPJK", label: "Nomor PPJK", placeholder: "Nomor registrasi PPJK", span: 1 },
       { key: "NPWP / NITKU", label: "NPWP / NITKU", placeholder: "NPWP atau NITKU", span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat PPJK", span: 3 },
@@ -334,8 +331,8 @@ const entityDefinitions: EntityDefinition[] = [
     },
     fields: [
       { key: "Nama", label: "Nama", placeholder: "Nama penerima", span: 2 },
-      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penerima", span: 2 },
       { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penerima", span: 3 },
     ],
     emptyState: "Data penerima belum diisi.",
   },
@@ -355,8 +352,8 @@ const entityDefinitions: EntityDefinition[] = [
     },
     fields: [
       { key: "Nama", label: "Nama", placeholder: "Nama pembeli", span: 2 },
-      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pembeli", span: 2 },
       { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pembeli", span: 3 },
     ],
     emptyState: "Pembeli akan mengikuti data penerima.",
   },
@@ -428,6 +425,7 @@ const stepFieldGroups = [
   {
     id: "header-pengajuan",
     title: "Header Pengajuan",
+    icon: DocumentsIcon,
     fields: [
       { key: "nomorPengajuan", label: "Nomor Pengajuan", mandatory: true },
       { key: "kantorPabean", label: "Kantor Pabean", mandatory: true },
@@ -439,6 +437,7 @@ const stepFieldGroups = [
   {
     id: "transaksi",
     title: "Transaksi",
+    icon: CopyIcon,
     fields: [
       { key: "valuta", label: "Valuta", mandatory: true },
       { key: "ndpbm", label: "NDPBM", mandatory: true },
@@ -453,6 +452,7 @@ const stepFieldGroups = [
   {
     id: "pengangkutan",
     title: "Pengangkutan",
+    icon: TruckIcon,
     fields: [
       { key: "caraPengangkutan", label: "Cara Pengangkutan", mandatory: true },
       { key: "namaSaranaAngkut", label: "Nama Sarana Angkut", mandatory: true },
@@ -464,6 +464,7 @@ const stepFieldGroups = [
   {
     id: "pelabuhan",
     title: "Pelabuhan & Tempat Timbun",
+    icon: CalendarIcon,
     fields: [
       { key: "pelabuhanMuat", label: "Pelabuhan Muat" },
       { key: "pelabuhanTransit", label: "Pelabuhan Transit" },
@@ -474,6 +475,31 @@ const stepFieldGroups = [
 ] as const;
 
 const dokumenColumns = ["Seri", "Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"];
+const mandatoryDokumenDefinitions = [
+  { seri: "1", kode: "INV", placeholder: "surat_pengajuan_impor_v01.docx" },
+  { seri: "2", kode: "PL", placeholder: "packing_list_mock.pdf" },
+  { seri: "3", kode: "BL", placeholder: "bill_of_lading_mock.pdf" },
+] as const;
+
+const createDokumenLampiranRow = (definition: (typeof mandatoryDokumenDefinitions)[number], nomorDokumen?: string) =>
+  createRow(dokumenColumns, {
+    Seri: definition.seri,
+    "Kode Dokumen": definition.kode,
+    "Nomor Dokumen": nomorDokumen || definition.placeholder,
+    Tanggal: "2026-06-30",
+    "Kode Fasilitas": "-",
+    "Kode Ijin": "-",
+  });
+
+const normalizeDokumenRows = (rows: Row[]) => {
+  const mandatoryRows = mandatoryDokumenDefinitions.map((definition) => {
+    const existing = rows.find((row) => row["Kode Dokumen"] === definition.kode);
+    return existing ? createRow(dokumenColumns, { ...existing, Seri: definition.seri, "Kode Dokumen": definition.kode }) : createDokumenLampiranRow(definition);
+  });
+  const extraRows = rows.filter((row) => !mandatoryDokumenDefinitions.some((definition) => row["Kode Dokumen"] === definition.kode));
+  return [...mandatoryRows, ...extraRows.map((row, index) => createRow(dokumenColumns, { ...row, Seri: row.Seri || String(index + mandatoryRows.length + 1) }))];
+};
+
 const kemasanColumns = ["Seri", "Jenis Kemasan", "Merek"];
 const kontainerColumns = ["Seri", "Nomor Kontainer", "Ukuran", "Jenis Muatan", "Tipe"];
 const barangColumns = [
@@ -599,7 +625,7 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
   const companyName = draft?.namaPerusahaan || "PT Contoh Nusantara";
   const npwp = draft?.npwp || "01.234.567.8-999.000";
   const nib = draft?.nib || "1234567890123";
-  const documents = draft?.dokumen?.length ? draft.dokumen : ["surat_pengajuan_impor_v01.docx"];
+  const documents = draft?.dokumen?.length ? draft.dokumen : mandatoryDokumenDefinitions.map((definition) => definition.placeholder);
 
   return {
     pengajuan: {
@@ -641,24 +667,11 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
         },
       ),
     ),
-    dokumen: [
-      createRow(["Seri", "Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"], {
-        Seri: "1",
-        "Kode Dokumen": "INV",
-        "Nomor Dokumen": documents[0] || "surat_pengajuan_impor_v01.docx",
-        Tanggal: "2026-06-30",
-        "Kode Fasilitas": "-",
-        "Kode Ijin": "-",
-      }),
-      createRow(["Seri", "Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"], {
-        Seri: "2",
-        "Kode Dokumen": "PL",
-        "Nomor Dokumen": documents[1] || "packing_list_mock.pdf",
-        Tanggal: "2026-06-30",
-        "Kode Fasilitas": "-",
-        "Kode Ijin": "-",
-      }),
-    ],
+    dokumen: normalizeDokumenRows([
+      createDokumenLampiranRow(mandatoryDokumenDefinitions[0], documents[0]),
+      createDokumenLampiranRow(mandatoryDokumenDefinitions[1], documents[1]),
+      createDokumenLampiranRow(mandatoryDokumenDefinitions[2], documents[2]),
+    ]),
     kemasan: [createRow(kemasanColumns, { Seri: "1", "Jenis Kemasan": "Pallet", Merek: "INSW" })],
     kontainer: [createRow(kontainerColumns, { Seri: "1", "Nomor Kontainer": "MSKU1234567", Ukuran: "40", "Jenis Muatan": "FCL", Tipe: "Dry" })],
     barang: [
@@ -762,6 +775,11 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
     ],
   };
 };
+
+const normalizeFormState = (state: FormState): FormState => ({
+  ...state,
+  dokumen: normalizeDokumenRows(state.dokumen),
+});
 
 function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -1056,19 +1074,35 @@ function FormField({
 function EditableTable({
   columns,
   rows,
-  onChange,
   onAdd,
   onRemove,
   minWidth,
   columnWidths,
+  showAddButton = true,
+  editingRowIndex,
+  editingRow,
+  onEditStart,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
+  editTitle,
+  editSubtitle,
 }: {
   columns: string[];
   rows: Row[];
-  onChange: (rowIndex: number, column: string, value: string) => void;
   onAdd: () => void;
   onRemove: (rowIndex: number) => void;
   minWidth?: number;
   columnWidths?: string[];
+  showAddButton?: boolean;
+  editingRowIndex?: number | null;
+  editingRow?: Row | null;
+  onEditStart?: (rowIndex: number) => void;
+  onEditChange?: (column: string, value: string) => void;
+  onEditSave?: () => void;
+  onEditCancel?: () => void;
+  editTitle?: string;
+  editSubtitle?: string;
 }) {
   const stretchToFill = (minWidth ?? 1100) <= 1200 || columns.length <= 4;
   const tableStyle = stretchToFill
@@ -1095,37 +1129,71 @@ function EditableTable({
                   {column}
                 </th>
               ))}
-              <th className="w-[112px] px-3 py-2">Aksi</th>
+              <th className="w-[92px] whitespace-nowrap px-3 py-2 sm:w-[176px]">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr key={`${columns[0]}-${rowIndex}`} className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
-                <td className="px-3 py-2 font-medium text-neutral-600">{rowIndex + 1}</td>
-                {columns.map((column, index) => (
-                  <td key={column} className="px-3 py-2" style={{ width: columnWidths?.[index] ?? (stretchToFill ? `${100 / columns.length}%` : undefined) }}>
-                    <input
-                      value={row[column] ?? ""}
-                      onChange={(event) => onChange(rowIndex, column, event.target.value)}
-                      className="h-9 w-full rounded-md border border-border-primary bg-white px-2 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
-                    />
-                  </td>
-                ))}
-                <td className="px-3 py-2">
-                  <Button variant="error" size="sm" onClick={() => onRemove(rowIndex)} startIcon={<TrashIcon />}>
-                    Hapus
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {rows.map((row, rowIndex) => {
+              const isEditing = editingRowIndex === rowIndex && Boolean(editingRow);
+              return (
+                <Fragment key={`${columns[0]}-${rowIndex}`}>
+                  <tr className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
+                    <td className="px-3 py-3 font-medium text-neutral-600">{rowIndex + 1}</td>
+                    {columns.map((column, index) => (
+                      <td key={column} className="px-3 py-3 text-neutral-700" style={{ width: columnWidths?.[index] ?? (stretchToFill ? `${100 / columns.length}%` : undefined) }}>
+                        {row[column] || <span className="text-neutral-400">-</span>}
+                      </td>
+                    ))}
+                    <td className="px-3 py-3">
+                      <div className="flex flex-nowrap items-center justify-end gap-2">
+                        <div className="flex items-center gap-2 sm:hidden">
+                          <IconButton aria-label={`Edit baris ${rowIndex + 1}`} size="sm" variant="warning" onClick={() => onEditStart?.(rowIndex)}>
+                            <PencilIcon className="h-4 w-4" />
+                          </IconButton>
+                          <IconButton aria-label={`Hapus baris ${rowIndex + 1}`} size="sm" variant="error" onClick={() => onRemove(rowIndex)}>
+                            <TrashBinTrashIcon className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                        <div className="hidden items-center gap-2 sm:flex">
+                          <Button variant="warning" size="sm" startIcon={<PencilIcon className="h-3.5 w-3.5" />} onClick={() => onEditStart?.(rowIndex)}>
+                            Edit
+                          </Button>
+                          <Button variant="error" size="sm" onClick={() => onRemove(rowIndex)} startIcon={<TrashIcon />}>
+                            Hapus
+                          </Button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {isEditing && editingRow && onEditChange && onEditSave && onEditCancel ? (
+                    <tr>
+                      <td colSpan={columns.length + 2} className="border-t border-border-primary bg-background-primary/30 px-3 py-3">
+                        <CompactSectionRowEditor
+                          title={editTitle ?? "Edit Record"}
+                          subtitle={editSubtitle}
+                          columns={columns}
+                          value={editingRow}
+                          onChange={onEditChange}
+                          onSave={onEditSave}
+                          onCancel={onEditCancel}
+                          saveLabel="Simpan Perubahan"
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <div className="flex justify-end">
-        <Button variant="primary" size="sm" onClick={onAdd} startIcon={<PlusIcon />}>
-          Tambah Baris
-        </Button>
-      </div>
+      {showAddButton ? (
+        <div className="flex justify-end">
+          <Button variant="primary" size="sm" onClick={onAdd} startIcon={<PlusIcon />}>
+            Tambah Baris
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1150,22 +1218,69 @@ function MiniStatusPill({ value }: { value: string }) {
 function CompactEditableTable({
   columns,
   rows,
-  onChange,
   onAdd,
   onRemove,
   emptyState,
   addLabel = "Tambah Baris",
+  addFormOpen,
+  addFormRow,
+  onAddStart,
+  onAddChange,
+  onAddSave,
+  onAddCancel,
+  addFormTitle,
+  addFormSubtitle,
+  editingRowIndex,
+  editingRow,
+  onEditStart,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
+  editTitle,
+  editSubtitle,
 }: {
   columns: string[];
   rows: BarangSectionRow[];
-  onChange: (rowIndex: number, column: string, value: string) => void;
   onAdd: () => void;
   onRemove: (rowIndex: number) => void;
   emptyState: string;
   addLabel?: string;
+  addFormOpen?: boolean;
+  addFormRow?: Row | null;
+  onAddStart?: () => void;
+  onAddChange?: (column: string, value: string) => void;
+  onAddSave?: () => void;
+  onAddCancel?: () => void;
+  addFormTitle?: string;
+  addFormSubtitle?: string;
+  editingRowIndex?: number | null;
+  editingRow?: Row | null;
+  onEditStart?: (rowIndex: number) => void;
+  onEditChange?: (column: string, value: string) => void;
+  onEditSave?: () => void;
+  onEditCancel?: () => void;
+  editTitle?: string;
+  editSubtitle?: string;
 }) {
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button variant="primary" size="sm" onClick={onAddStart ?? onAdd} startIcon={<PlusIcon />}>
+          {addLabel}
+        </Button>
+      </div>
+      {addFormOpen && addFormRow && onAddChange && onAddSave && onAddCancel ? (
+        <CompactSectionRowEditor
+          title={addFormTitle ?? `Tambah ${addLabel}`}
+          subtitle={addFormSubtitle}
+          columns={columns}
+          value={addFormRow}
+          onChange={onAddChange}
+          onSave={onAddSave}
+          onCancel={onAddCancel}
+          saveLabel="Simpan"
+        />
+      ) : null}
       {rows.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-border-primary">
           <table className="min-w-full table-fixed border-collapse text-left text-[12px]">
@@ -1177,29 +1292,61 @@ function CompactEditableTable({
                     {column}
                   </th>
                 ))}
-                <th className="w-[90px] px-3 py-2">Aksi</th>
+                <th className="w-[92px] whitespace-nowrap px-3 py-2 sm:w-[176px]">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ row, index }) => (
-                <tr key={`${index}-${columns[0]}`} className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
-                  <td className="px-3 py-2 font-medium text-neutral-600">{index + 1}</td>
-                  {columns.map((column) => (
-                    <td key={column} className="px-3 py-2">
-                      <input
-                        value={row[column] ?? ""}
-                        onChange={(event) => onChange(index, column, event.target.value)}
-                        className="h-9 w-full rounded-md border border-border-primary bg-white px-2 text-[12px] outline-none transition-colors focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100"
-                      />
-                    </td>
-                  ))}
-                  <td className="px-3 py-2">
-                    <IconButton aria-label={`Hapus baris ${index + 1}`} size="sm" variant="error" onClick={() => onRemove(index)}>
-                      <TrashBinTrashIcon className="h-4 w-4" />
-                    </IconButton>
-                  </td>
-                </tr>
-              ))}
+              {rows.map(({ row, index }) => {
+                const isEditing = editingRowIndex === index && Boolean(editingRow);
+                return (
+                  <Fragment key={`${index}-${columns[0]}`}>
+                    <tr className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
+                      <td className="px-3 py-2 font-medium text-neutral-600">{index + 1}</td>
+                      {columns.map((column) => (
+                        <td key={column} className="px-3 py-2 text-neutral-700">
+                          {row[column] || <span className="text-neutral-400">-</span>}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2">
+                        <div className="flex flex-nowrap items-center justify-end gap-2">
+                          <div className="flex items-center gap-2 sm:hidden">
+                          <IconButton aria-label={`Edit baris ${index + 1}`} size="sm" variant="warning" onClick={() => onEditStart?.(index)}>
+                              <PencilIcon className="h-4 w-4" />
+                            </IconButton>
+                            <IconButton aria-label={`Hapus baris ${index + 1}`} size="sm" variant="error" onClick={() => onRemove(index)}>
+                              <TrashBinTrashIcon className="h-4 w-4" />
+                            </IconButton>
+                          </div>
+                          <div className="hidden items-center gap-2 sm:flex">
+                            <Button variant="warning" size="sm" startIcon={<PencilIcon className="h-3.5 w-3.5" />} onClick={() => onEditStart?.(index)}>
+                              Edit
+                            </Button>
+                            <IconButton aria-label={`Hapus baris ${index + 1}`} size="sm" variant="error" onClick={() => onRemove(index)}>
+                              <TrashBinTrashIcon className="h-4 w-4" />
+                            </IconButton>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {isEditing && editingRow && onEditChange && onEditSave && onEditCancel ? (
+                      <tr>
+                        <td colSpan={columns.length + 2} className="border-t border-border-primary bg-background-primary/30 px-3 py-3">
+                          <CompactSectionRowEditor
+                            title={editTitle ?? "Edit Record"}
+                            subtitle={editSubtitle}
+                            columns={columns}
+                            value={editingRow}
+                            onChange={onEditChange}
+                            onSave={onEditSave}
+                            onCancel={onEditCancel}
+                            saveLabel="Simpan Perubahan"
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1208,10 +1355,185 @@ function CompactEditableTable({
           {emptyState}
         </div>
       )}
+    </div>
+  );
+}
 
-      <div className="flex justify-end">
-        <Button variant="primary" size="sm" onClick={onAdd} startIcon={<PlusIcon />}>
-          {addLabel}
+function DokumenLampiranEditor({
+  title,
+  subtitle,
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  saveLabel = "Simpan",
+  codeLocked = false,
+  compact = false,
+}: {
+  title: string;
+  subtitle?: string;
+  value: Row;
+  onChange: (column: string, value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saveLabel?: string;
+  codeLocked?: boolean;
+  compact?: boolean;
+}) {
+  const [selectedFileName, setSelectedFileName] = useState(value["Nomor Dokumen"] ?? "");
+
+  useEffect(() => {
+    setSelectedFileName(value["Nomor Dokumen"] ?? "");
+  }, [value]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const fileName = file?.name ?? "";
+    setSelectedFileName(fileName);
+    onChange("Nomor Dokumen", fileName);
+  };
+
+  return (
+    <div className={compact ? "rounded-xl border border-border-primary bg-background-primary/25 p-3" : "rounded-2xl border border-brand-primary-100 bg-brand-primary-50/30 p-4 shadow-sm"}>
+      <div className={compact ? "flex flex-wrap items-start justify-between gap-2" : "flex flex-wrap items-start justify-between gap-3"}>
+        <div className="min-w-0">
+          <div className={compact ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600" : "text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600"}>{title}</div>
+          {subtitle ? (
+            <p className={compact ? "mt-1 max-w-3xl text-[11px] leading-5 text-neutral-600" : "mt-1 max-w-3xl text-[12px] leading-6 text-neutral-600"}>
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+        {!compact ? (
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-neutral-600 shadow-sm">
+            <DocumentsIcon className="h-3.5 w-3.5" />
+            Form
+          </span>
+        ) : null}
+      </div>
+
+      <div className={compact ? "mt-3 rounded-xl border border-dashed border-border-primary bg-white/80 p-3" : "mt-4 rounded-2xl border border-dashed border-border-primary bg-white/80 p-4"}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Input File</div>
+            <div className="mt-1 text-[12px] leading-5 text-neutral-600">Pilih file lampiran, lalu nama file akan otomatis masuk ke kolom Nomor Dokumen.</div>
+          </div>
+          <span className="rounded-full bg-background-primary px-3 py-1 text-[11px] font-semibold text-neutral-600">
+            {selectedFileName ? "File terpilih" : "Belum ada file"}
+          </span>
+        </div>
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          onChange={handleFileChange}
+          className="mt-3 block w-full text-[12px] text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:text-[12px] file:font-semibold file:text-white"
+        />
+        <div className="mt-2 text-[11px] text-neutral-500">{selectedFileName || "Nama file yang dipilih akan otomatis mengisi Nomor Dokumen."}</div>
+      </div>
+
+      <div className={compact ? "mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
+        <Input
+          label="Seri"
+          value={value.Seri ?? ""}
+          onChange={(event) => onChange("Seri", event.target.value)}
+          placeholder="1"
+          requiredMark
+        />
+        <Input
+          label="Kode Dokumen"
+          value={value["Kode Dokumen"] ?? ""}
+          onChange={(event) => onChange("Kode Dokumen", event.target.value)}
+          placeholder={codeLocked ? "INV" : "INV / PL / BL"}
+          disabled={codeLocked}
+          requiredMark
+        />
+        <Input
+          label="Nomor Dokumen"
+          value={value["Nomor Dokumen"] ?? selectedFileName ?? ""}
+          onChange={() => void 0}
+          placeholder="Nama file akan terisi otomatis"
+          readOnly
+          requiredMark
+        />
+        <Input
+          label="Tanggal"
+          value={value.Tanggal ?? ""}
+          onChange={(event) => onChange("Tanggal", event.target.value)}
+          type="date"
+          requiredMark
+        />
+        <Input
+          label="Kode Fasilitas"
+          value={value["Kode Fasilitas"] ?? ""}
+          onChange={(event) => onChange("Kode Fasilitas", event.target.value)}
+          placeholder="-"
+        />
+        <Input
+          label="Kode Ijin"
+          value={value["Kode Ijin"] ?? ""}
+          onChange={(event) => onChange("Kode Ijin", event.target.value)}
+          placeholder="-"
+        />
+      </div>
+
+      <div className={compact ? "mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-3" : "mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-4"}>
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          Batal
+        </Button>
+        <Button variant="primary" size="sm" onClick={onSave} startIcon={<CheckReadIcon className="h-3.5 w-3.5" />}>
+          {saveLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CompactSectionRowEditor({
+  title,
+  subtitle,
+  columns,
+  value,
+  onChange,
+  onSave,
+  onCancel,
+  saveLabel = "Simpan",
+}: {
+  title: string;
+  subtitle?: string;
+  columns: string[];
+  value: Row;
+  onChange: (column: string, value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saveLabel?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border-primary bg-background-primary/25 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">{title}</div>
+          {subtitle ? <p className="mt-1 text-[11px] leading-5 text-neutral-600">{subtitle}</p> : null}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {columns.map((column) => (
+          <Input
+            key={column}
+            label={column}
+            value={value[column] ?? ""}
+            onChange={(event) => onChange(column, event.target.value)}
+            placeholder={column}
+          />
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-3">
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          Batal
+        </Button>
+        <Button variant="primary" size="sm" onClick={onSave} startIcon={<CheckReadIcon className="h-3.5 w-3.5" />}>
+          {saveLabel}
         </Button>
       </div>
     </div>
@@ -1231,6 +1553,11 @@ function BarangWorkspaceDrawer({
   onAddDetailRow,
   onRemoveDetailRow,
   onUpdateDetailRow,
+  detailEditState,
+  onStartDetailEdit,
+  onUpdateDetailEdit,
+  onSaveDetailEdit,
+  onCancelDetailEdit,
 }: {
   open: boolean;
   item: Row | null;
@@ -1244,6 +1571,11 @@ function BarangWorkspaceDrawer({
   onAddDetailRow: (section: BarangDetailSection, template?: Row) => void;
   onRemoveDetailRow: (section: BarangDetailSection, rowIndex: number) => void;
   onUpdateDetailRow: (section: BarangDetailSection, rowIndex: number, column: string, value: string) => void;
+  detailEditState: { section: BarangDetailSection; rowIndex: number; row: Row } | null;
+  onStartDetailEdit: (section: BarangDetailSection, rowIndex: number, row: Row) => void;
+  onUpdateDetailEdit: (column: string, value: string) => void;
+  onSaveDetailEdit: () => void;
+  onCancelDetailEdit: () => void;
 }) {
   const [rendered, setRendered] = useState(open);
   const [animateOpen, setAnimateOpen] = useState(false);
@@ -1251,6 +1583,7 @@ function BarangWorkspaceDrawer({
   const [cooSource, setCooSource] = useState<"service" | "upload" | "none">("service");
   const [cooSearch, setCooSearch] = useState("");
   const [supportFiles, setSupportFiles] = useState<string[]>([]);
+  const [detailAddState, setDetailAddState] = useState<{ section: BarangDetailSection; row: Row } | null>(null);
   const openFrameOne = useRef(0);
   const openFrameTwo = useRef(0);
 
@@ -1276,6 +1609,8 @@ function BarangWorkspaceDrawer({
     setCooSearch("");
     setSupportFiles([]);
     setTocOpen(true);
+    setDetailAddState(null);
+    onCancelDetailEdit();
   }, [open, item?.Seri]);
 
   if (!rendered || !item) return null;
@@ -1289,6 +1624,71 @@ function BarangWorkspaceDrawer({
   const sourceItems = ["COO-001 - Certificate of Origin", "COO-002 - Preferential COO", "COO-003 - Origin Statement"];
   const filteredSourceItems = sourceItems.filter((entry) => entry.toLowerCase().includes(cooSearch.trim().toLowerCase()));
   const activeTocItems = activeTab === "data-barang" ? barangTocItems : complianceTocItems;
+  const detailDraftColumns: Record<BarangDetailSection, string[]> = {
+    spesifikasi: spesifikasiColumns.slice(1),
+    dokumen: barangDokumenColumns.slice(1),
+    vd: barangVdColumns.slice(1),
+    tarif: barangTarifColumns.slice(1),
+    karantina: karantinaColumns.slice(1),
+  };
+  const detailAddLabels: Record<BarangDetailSection, string> = {
+    spesifikasi: "Tambah Spesifikasi",
+    dokumen: "Tambah Dokumen",
+    vd: "Tambah VD",
+    tarif: "Tambah Tarif",
+    karantina: "Tambah Karantina",
+  };
+  const detailAddTitles: Record<BarangDetailSection, string> = {
+    spesifikasi: "Tambah Spesifikasi",
+    dokumen: "Tambah Dokumen Barang",
+    vd: "Tambah Barang VD",
+    tarif: "Tambah Barang Tarif",
+    karantina: "Tambah Karantina",
+  };
+  const detailAddSubtitles: Record<BarangDetailSection, string> = {
+    spesifikasi: "Isi data baru lalu simpan untuk menambah record ke tabel.",
+    dokumen: "Isi data baru lalu simpan untuk menambah record ke tabel.",
+    vd: "Isi data baru lalu simpan untuk menambah record ke tabel.",
+    tarif: "Isi data baru lalu simpan untuk menambah record ke tabel.",
+    karantina: "Isi data baru lalu simpan untuk menambah record ke tabel.",
+  };
+
+  const createDetailDraftRow = (section: BarangDetailSection, seriBarang: string) =>
+    createRow(
+      section === "spesifikasi"
+        ? spesifikasiColumns
+        : section === "dokumen"
+          ? barangDokumenColumns
+          : section === "vd"
+            ? barangVdColumns
+            : section === "tarif"
+              ? barangTarifColumns
+              : karantinaColumns,
+      { "Seri Barang": seriBarang },
+    );
+
+  const startAddDetailRow = (section: BarangDetailSection) => {
+    const seriBarang = item.Seri || "1";
+    setDetailAddState({ section, row: createDetailDraftRow(section, seriBarang) });
+    onCancelDetailEdit();
+  };
+
+  const updateAddDetailField = (column: string, value: string) => {
+    setDetailAddState((current) => {
+      if (!current) return current;
+      return { ...current, row: { ...current.row, [column]: value } };
+    });
+  };
+
+  const cancelAddDetailRow = () => {
+    setDetailAddState(null);
+  };
+
+  const saveAddDetailRow = () => {
+    if (!detailAddState) return;
+    onAddDetailRow(detailAddState.section, detailAddState.row);
+    setDetailAddState(null);
+  };
 
   const jumpToSection = (id: string) => {
     const target = document.getElementById(id);
@@ -1453,11 +1853,30 @@ function BarangWorkspaceDrawer({
                         <CompactEditableTable
                           columns={spesifikasiColumns.slice(1)}
                           rows={detailRows.spesifikasi}
-                          onChange={(rowIndex, column, value) => onUpdateDetailRow("spesifikasi", rowIndex, column, value)}
-                          onAdd={() => onAddDetailRow("spesifikasi", { "Seri Barang": seri })}
+                          onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("spesifikasi", rowIndex)}
                           emptyState="Tidak ada spesifikasi wajib untuk barang ini."
-                          addLabel="Tambah Spesifikasi"
+                          addLabel={detailAddLabels.spesifikasi}
+                          addFormOpen={detailAddState?.section === "spesifikasi"}
+                          addFormRow={detailAddState?.section === "spesifikasi" ? detailAddState.row : null}
+                          onAddStart={() => startAddDetailRow("spesifikasi")}
+                          onAddChange={updateAddDetailField}
+                          onAddSave={saveAddDetailRow}
+                          onAddCancel={cancelAddDetailRow}
+                          addFormTitle={detailAddTitles.spesifikasi}
+                          addFormSubtitle={detailAddSubtitles.spesifikasi}
+                          editingRowIndex={detailEditState?.section === "spesifikasi" ? detailEditState.rowIndex : null}
+                          editingRow={detailEditState?.section === "spesifikasi" ? detailEditState.row : null}
+                          onEditStart={(rowIndex) => {
+                            setDetailAddState(null);
+                            const target = detailRows.spesifikasi.find((item) => item.index === rowIndex);
+                            if (target) onStartDetailEdit("spesifikasi", rowIndex, target.row);
+                          }}
+                          onEditChange={onUpdateDetailEdit}
+                          onEditSave={onSaveDetailEdit}
+                          onEditCancel={onCancelDetailEdit}
+                          editTitle="Edit Spesifikasi"
+                          editSubtitle="Ubah data spesifikasi lalu simpan."
                         />
                       </div>
                     </section>
@@ -1471,11 +1890,30 @@ function BarangWorkspaceDrawer({
                         <CompactEditableTable
                           columns={barangDokumenColumns.slice(1)}
                           rows={detailRows.dokumen}
-                          onChange={(rowIndex, column, value) => onUpdateDetailRow("dokumen", rowIndex, column, value)}
-                          onAdd={() => onAddDetailRow("dokumen", { "Seri Barang": seri })}
+                          onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("dokumen", rowIndex)}
                           emptyState="Belum ada dokumen barang untuk seri ini."
-                          addLabel="Tambah Dokumen"
+                          addLabel={detailAddLabels.dokumen}
+                          addFormOpen={detailAddState?.section === "dokumen"}
+                          addFormRow={detailAddState?.section === "dokumen" ? detailAddState.row : null}
+                          onAddStart={() => startAddDetailRow("dokumen")}
+                          onAddChange={updateAddDetailField}
+                          onAddSave={saveAddDetailRow}
+                          onAddCancel={cancelAddDetailRow}
+                          addFormTitle={detailAddTitles.dokumen}
+                          addFormSubtitle={detailAddSubtitles.dokumen}
+                          editingRowIndex={detailEditState?.section === "dokumen" ? detailEditState.rowIndex : null}
+                          editingRow={detailEditState?.section === "dokumen" ? detailEditState.row : null}
+                          onEditStart={(rowIndex) => {
+                            setDetailAddState(null);
+                            const target = detailRows.dokumen.find((item) => item.index === rowIndex);
+                            if (target) onStartDetailEdit("dokumen", rowIndex, target.row);
+                          }}
+                          onEditChange={onUpdateDetailEdit}
+                          onEditSave={onSaveDetailEdit}
+                          onEditCancel={onCancelDetailEdit}
+                          editTitle="Edit Dokumen Barang"
+                          editSubtitle="Ubah data dokumen lalu simpan."
                         />
                       </div>
                     </section>
@@ -1489,11 +1927,30 @@ function BarangWorkspaceDrawer({
                         <CompactEditableTable
                           columns={barangVdColumns.slice(1)}
                           rows={detailRows.vd}
-                          onChange={(rowIndex, column, value) => onUpdateDetailRow("vd", rowIndex, column, value)}
-                          onAdd={() => onAddDetailRow("vd", { "Seri Barang": seri })}
+                          onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("vd", rowIndex)}
                           emptyState="Belum ada data barang VD untuk seri ini."
-                          addLabel="Tambah VD"
+                          addLabel={detailAddLabels.vd}
+                          addFormOpen={detailAddState?.section === "vd"}
+                          addFormRow={detailAddState?.section === "vd" ? detailAddState.row : null}
+                          onAddStart={() => startAddDetailRow("vd")}
+                          onAddChange={updateAddDetailField}
+                          onAddSave={saveAddDetailRow}
+                          onAddCancel={cancelAddDetailRow}
+                          addFormTitle={detailAddTitles.vd}
+                          addFormSubtitle={detailAddSubtitles.vd}
+                          editingRowIndex={detailEditState?.section === "vd" ? detailEditState.rowIndex : null}
+                          editingRow={detailEditState?.section === "vd" ? detailEditState.row : null}
+                          onEditStart={(rowIndex) => {
+                            setDetailAddState(null);
+                            const target = detailRows.vd.find((item) => item.index === rowIndex);
+                            if (target) onStartDetailEdit("vd", rowIndex, target.row);
+                          }}
+                          onEditChange={onUpdateDetailEdit}
+                          onEditSave={onSaveDetailEdit}
+                          onEditCancel={onCancelDetailEdit}
+                          editTitle="Edit Barang VD"
+                          editSubtitle="Ubah data VD lalu simpan."
                         />
                       </div>
                     </section>
@@ -1507,11 +1964,30 @@ function BarangWorkspaceDrawer({
                         <CompactEditableTable
                           columns={barangTarifColumns.slice(1)}
                           rows={detailRows.tarif}
-                          onChange={(rowIndex, column, value) => onUpdateDetailRow("tarif", rowIndex, column, value)}
-                          onAdd={() => onAddDetailRow("tarif", { "Seri Barang": seri })}
+                          onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("tarif", rowIndex)}
                           emptyState="Belum ada data tarif untuk barang ini."
-                          addLabel="Tambah Tarif"
+                          addLabel={detailAddLabels.tarif}
+                          addFormOpen={detailAddState?.section === "tarif"}
+                          addFormRow={detailAddState?.section === "tarif" ? detailAddState.row : null}
+                          onAddStart={() => startAddDetailRow("tarif")}
+                          onAddChange={updateAddDetailField}
+                          onAddSave={saveAddDetailRow}
+                          onAddCancel={cancelAddDetailRow}
+                          addFormTitle={detailAddTitles.tarif}
+                          addFormSubtitle={detailAddSubtitles.tarif}
+                          editingRowIndex={detailEditState?.section === "tarif" ? detailEditState.rowIndex : null}
+                          editingRow={detailEditState?.section === "tarif" ? detailEditState.row : null}
+                          onEditStart={(rowIndex) => {
+                            setDetailAddState(null);
+                            const target = detailRows.tarif.find((item) => item.index === rowIndex);
+                            if (target) onStartDetailEdit("tarif", rowIndex, target.row);
+                          }}
+                          onEditChange={onUpdateDetailEdit}
+                          onEditSave={onSaveDetailEdit}
+                          onEditCancel={onCancelDetailEdit}
+                          editTitle="Edit Barang Tarif"
+                          editSubtitle="Ubah data tarif lalu simpan."
                         />
                       </div>
                     </section>
@@ -1604,10 +2080,10 @@ function BarangWorkspaceDrawer({
                       </div>
                     </section>
 
-                    <section id="compliance-tkq" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">TKQ</div>
+                    <section id="compliance-trq" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">TRQ</div>
                       <div className="mt-4 grid gap-4 md:grid-cols-3">
-                        <Input label="Nomor TKQ" value="TKQ-001" onChange={() => void 0} />
+                        <Input label="Nomor TRQ" value="TRQ-001" onChange={() => void 0} />
                         <Input label="Tanggal" value="2026-07-04" onChange={() => void 0} />
                         <Input label="Status" value="Belum Dicek" onChange={() => void 0} />
                       </div>
@@ -1713,7 +2189,7 @@ function StepFooterActions({
   const stepLabelMap: Record<WizardStepId, string> = {
     pengajuan: "Pengajuan",
     entitas: "Entitas",
-    dokumen: "Dokumen",
+    dokumen: "Dokumen Lampiran",
     kemasan: "Kemasan",
     barang: "Barang",
     review: "Review",
@@ -1753,17 +2229,54 @@ export function FormPage() {
   const [source, setSource] = useState<FormSource | null>(null);
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Data bisa dikoreksi sebelum submit.");
+  const [statusToastVisible, setStatusToastVisible] = useState(true);
   const [barangWorkspaceOpen, setBarangWorkspaceOpen] = useState(false);
   const [barangWorkspaceMode, setBarangWorkspaceMode] = useState<BarangWorkspaceMode>("edit");
   const [barangWorkspaceTab, setBarangWorkspaceTab] = useState<BarangWorkspaceTab>("data-barang");
   const [selectedBarangSeri, setSelectedBarangSeri] = useState<string>("1");
   const [barangDraftRow, setBarangDraftRow] = useState<Row | null>(null);
+  const [dokumenAddOpen, setDokumenAddOpen] = useState(false);
+  const [dokumenDraftRow, setDokumenDraftRow] = useState<Row | null>(null);
+  const [dokumenEditIndex, setDokumenEditIndex] = useState<number | null>(null);
+  const [dokumenEditRow, setDokumenEditRow] = useState<Row | null>(null);
+  const [kemasanAddOpen, setKemasanAddOpen] = useState(false);
+  const [kemasanDraftRow, setKemasanDraftRow] = useState<Row | null>(null);
+  const [kemasanEditIndex, setKemasanEditIndex] = useState<number | null>(null);
+  const [kemasanEditRow, setKemasanEditRow] = useState<Row | null>(null);
+  const [kontainerAddOpen, setKontainerAddOpen] = useState(false);
+  const [kontainerDraftRow, setKontainerDraftRow] = useState<Row | null>(null);
+  const [kontainerEditIndex, setKontainerEditIndex] = useState<number | null>(null);
+  const [kontainerEditRow, setKontainerEditRow] = useState<Row | null>(null);
+  const [barangDetailEditState, setBarangDetailEditState] = useState<{
+    section: BarangDetailSection;
+    rowIndex: number;
+    row: Row;
+  } | null>(null);
   const [importExcelOpen, setImportExcelOpen] = useState(false);
   const [importExcelFileName, setImportExcelFileName] = useState("");
   const [importExcelStage, setImportExcelStage] = useState<BarangImportStage>("upload");
   const [clearBarangOpen, setClearBarangOpen] = useState(false);
+  const [activePengajuanSection, setActivePengajuanSection] = useState<string>(stepFieldGroups[0]?.id ?? "header-pengajuan");
+  const [isPengajuanTocExpanded, setIsPengajuanTocExpanded] = useState(true);
   const [activeEntitasSection, setActiveEntitasSection] = useState<EntityKind>(entityDefinitions[0]?.kind ?? "pengusahaImportir");
+  const [isEntitasTocExpanded, setIsEntitasTocExpanded] = useState(true);
+  const pengajuanSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pengajuanScrollLockRef = useRef(false);
+  const pengajuanScrollUnlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const entitasSectionRefs = useRef<Partial<Record<EntityKind, HTMLDivElement | null>>>({});
+  const entitasScrollLockRef = useRef(false);
+  const entitasScrollUnlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!statusMessage) return;
+    setStatusToastVisible(true);
+
+    const timer = window.setTimeout(() => {
+      setStatusToastVisible(false);
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [statusMessage]);
 
   useEffect(() => {
     const savedForm = sessionStorage.getItem(BC20_FORM_STORAGE_KEY);
@@ -1771,7 +2284,7 @@ export function FormPage() {
       try {
         const parsed = JSON.parse(savedForm) as StoredFormState;
         setDraft(parsed.draft ?? null);
-        setFormState(parsed.formState ?? createInitialFormState(parsed.draft ?? null));
+        setFormState(normalizeFormState(parsed.formState ?? createInitialFormState(parsed.draft ?? null)));
         setSource((sessionStorage.getItem(FORM_SOURCE_STORAGE_KEY) as FormSource | null) ?? null);
         setSourceNotice(sessionStorage.getItem(FORM_NOTICE_STORAGE_KEY));
         setStatusMessage("Draft form terakhir berhasil dimuat.");
@@ -1792,7 +2305,7 @@ export function FormPage() {
     try {
       const parsed = JSON.parse(raw) as AiSubmissionDraft;
       setDraft(parsed);
-      setFormState(createInitialFormState(parsed));
+      setFormState(normalizeFormState(createInitialFormState(parsed)));
       setSource((sessionStorage.getItem(FORM_SOURCE_STORAGE_KEY) as FormSource | null) ?? "assistant");
       setSourceNotice(sessionStorage.getItem(FORM_NOTICE_STORAGE_KEY));
       setStatusMessage("Data terisi dari Smart Submission Assistant.");
@@ -1805,6 +2318,39 @@ export function FormPage() {
   }, []);
 
   useEffect(() => {
+    if (activeStep !== "pengajuan") return;
+    const observedSections = stepFieldGroups
+      .map((group) => ({ group, element: pengajuanSectionRefs.current[group.id] }))
+      .filter((item): item is { group: (typeof stepFieldGroups)[number]; element: HTMLDivElement } => Boolean(item.element));
+
+    if (!observedSections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (pengajuanScrollLockRef.current) return;
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        if (!visibleEntries.length) return;
+
+        const nextEntry =
+          visibleEntries.find((entry) => entry.target.id === activePengajuanSection) ??
+          visibleEntries.sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
+
+        if (nextEntry) {
+          setActivePengajuanSection(nextEntry.target.id);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-22% 0px -62% 0px",
+        threshold: 0.01,
+      },
+    );
+
+    observedSections.forEach(({ element }) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [activePengajuanSection, activeStep]);
+
+  useEffect(() => {
     if (activeStep !== "entitas") return;
     const observedSections = entityDefinitions
       .map((definition) => ({ definition, element: entitasSectionRefs.current[definition.kind] }))
@@ -1814,6 +2360,7 @@ export function FormPage() {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        if (entitasScrollLockRef.current) return;
         const visibleEntries = entries.filter((entry) => entry.isIntersecting);
         if (!visibleEntries.length) return;
 
@@ -1875,7 +2422,13 @@ export function FormPage() {
       entitas: entityDefinitions
         .filter((definition) => !definition.toggle || isTruthyValue(entitasRowsByKind[definition.kind]?.[definition.toggle.key]))
         .every((definition) => isSectionComplete(definition, entitasRowsByKind[definition.kind], formState.entitas)),
-      dokumen: hasAnyRows(formState.dokumen) && ["Seri", "Kode Dokumen", "Nomor Dokumen"].every((column) => isMandatoryFilled(formState.dokumen[0]?.[column] ?? "")),
+      dokumen:
+        formState.dokumen.length >= mandatoryDokumenDefinitions.length &&
+        mandatoryDokumenDefinitions.every(
+          (definition, index) =>
+            formState.dokumen[index]?.["Kode Dokumen"] === definition.kode &&
+            dokumenColumns.every((column) => isMandatoryFilled(formState.dokumen[index]?.[column] ?? "")),
+        ),
       kemasan:
         hasAnyRows(formState.kemasan) &&
         hasAnyRows(formState.kontainer) &&
@@ -1897,10 +2450,10 @@ export function FormPage() {
 
   const summaryCounts = useMemo(
     () => ({
-      entitas: countFilledRows(formState.entitas),
       dokumen: countFilledRows(formState.dokumen),
-      barang: countFilledRows(formState.barang),
+      kemasan: countFilledRows(formState.kemasan),
       kontainer: countFilledRows(formState.kontainer),
+      barang: countFilledRows(formState.barang),
     }),
     [formState],
   );
@@ -2052,6 +2605,7 @@ export function FormPage() {
     setBarangWorkspaceMode("add");
     setSelectedBarangSeri(draftRow.Seri || nextBarangSeri);
     setBarangWorkspaceTab("data-barang");
+    setBarangDetailEditState(null);
     setBarangWorkspaceOpen(true);
   };
 
@@ -2060,6 +2614,7 @@ export function FormPage() {
     setBarangDraftRow(null);
     setSelectedBarangSeri(row.Seri || "1");
     setBarangWorkspaceTab("data-barang");
+    setBarangDetailEditState(null);
     setBarangWorkspaceOpen(true);
   };
 
@@ -2144,6 +2699,267 @@ export function FormPage() {
     { no: 3, hsCode: "8473.30.99", nama: "Docking Station", jumlah: "5", negara: "MY", berat: "45", status: "Selesai" },
   ];
 
+  const createDokumenDraftRow = (seri = String(formState.dokumen.length + 1), base?: Row) =>
+    createRow(dokumenColumns, {
+      Seri: seri,
+      "Kode Dokumen": "",
+      "Nomor Dokumen": "",
+      Tanggal: "2026-06-30",
+      "Kode Fasilitas": "-",
+      "Kode Ijin": "-",
+      ...base,
+    });
+
+  const openDokumenAddForm = () => {
+    setDokumenDraftRow(createDokumenDraftRow());
+    setDokumenAddOpen(true);
+  };
+
+  const closeDokumenAddForm = () => {
+    setDokumenAddOpen(false);
+    setDokumenDraftRow(null);
+  };
+
+  const updateDokumenDraftField = (column: string, value: string) => {
+    setDokumenDraftRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const saveDokumenDraftRow = () => {
+    if (!dokumenDraftRow) return;
+    if (!dokumenDraftRow["Nomor Dokumen"]) {
+      setStatusMessage("Pilih file dokumen dulu sebelum menyimpan.");
+      return;
+    }
+    setFormState((current) => ({
+      ...current,
+      dokumen: [...current.dokumen, createRow(dokumenColumns, dokumenDraftRow)],
+    }));
+    closeDokumenAddForm();
+    setStatusMessage("Dokumen lampiran baru ditambahkan.");
+  };
+
+  const startEditDokumenRow = (rowIndex: number) => {
+    setDokumenEditIndex(rowIndex);
+    setDokumenEditRow(createRow(dokumenColumns, formState.dokumen[rowIndex] ?? createDokumenDraftRow(String(rowIndex + 1))));
+    setDokumenAddOpen(false);
+    setDokumenDraftRow(null);
+  };
+
+  const cancelEditDokumenRow = () => {
+    setDokumenEditIndex(null);
+    setDokumenEditRow(null);
+  };
+
+  const updateDokumenEditField = (column: string, value: string) => {
+    setDokumenEditRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const saveDokumenEditRow = () => {
+    if (dokumenEditIndex === null || !dokumenEditRow) return;
+    setFormState((current) => {
+      const rows = [...current.dokumen];
+      rows[dokumenEditIndex] = createRow(dokumenColumns, dokumenEditRow);
+      return { ...current, dokumen: rows };
+    });
+    cancelEditDokumenRow();
+    setStatusMessage("Perubahan dokumen lampiran sudah disimpan.");
+  };
+
+  const removeDokumenRow = (rowIndex: number) => {
+    if (rowIndex < mandatoryDokumenDefinitions.length) return;
+    setFormState((current) => {
+      const rows = [...current.dokumen];
+      rows.splice(rowIndex, 1);
+      return { ...current, dokumen: rows };
+    });
+    if (dokumenEditIndex === rowIndex) {
+      cancelEditDokumenRow();
+    } else if (dokumenEditIndex !== null && rowIndex < dokumenEditIndex) {
+      setDokumenEditIndex((current) => (current === null ? current : current - 1));
+    }
+    setStatusMessage("Dokumen lampiran berhasil dihapus.");
+  };
+
+  const createCompactDraftRow = (section: "kemasan" | "kontainer", base?: Row) =>
+    section === "kemasan"
+      ? createRow(kemasanColumns, { Seri: String(formState.kemasan.length + 1), "Jenis Kemasan": "", Merek: "", ...base })
+      : createRow(kontainerColumns, { Seri: String(formState.kontainer.length + 1), "Nomor Kontainer": "", Ukuran: "", "Jenis Muatan": "", Tipe: "", ...base });
+
+  const openKemasanAddForm = () => {
+    setKontainerAddOpen(false);
+    setKontainerDraftRow(null);
+    cancelEditKontainerRow();
+    setKemasanDraftRow(createCompactDraftRow("kemasan"));
+    setKemasanAddOpen(true);
+  };
+
+  const closeKemasanAddForm = () => {
+    setKemasanAddOpen(false);
+    setKemasanDraftRow(null);
+  };
+
+  const saveKemasanDraftRow = () => {
+    if (!kemasanDraftRow) return;
+    setFormState((current) => ({
+      ...current,
+      kemasan: [...current.kemasan, createRow(kemasanColumns, kemasanDraftRow)],
+    }));
+    closeKemasanAddForm();
+    setStatusMessage("Record kemasan baru ditambahkan.");
+  };
+
+  const updateKemasanDraftField = (column: string, value: string) => {
+    setKemasanDraftRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const startEditKemasanRow = (rowIndex: number) => {
+    setKemasanEditIndex(rowIndex);
+    setKemasanEditRow(createRow(kemasanColumns, formState.kemasan[rowIndex] ?? createCompactDraftRow("kemasan")));
+    setKemasanAddOpen(false);
+    setKemasanDraftRow(null);
+  };
+
+  const cancelEditKemasanRow = () => {
+    setKemasanEditIndex(null);
+    setKemasanEditRow(null);
+  };
+
+  const updateKemasanEditField = (column: string, value: string) => {
+    setKemasanEditRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const saveKemasanEditRow = () => {
+    if (kemasanEditIndex === null || !kemasanEditRow) return;
+    setFormState((current) => {
+      const rows = [...current.kemasan];
+      rows[kemasanEditIndex] = createRow(kemasanColumns, kemasanEditRow);
+      return { ...current, kemasan: rows };
+    });
+    cancelEditKemasanRow();
+    setStatusMessage("Perubahan kemasan sudah disimpan.");
+  };
+
+  const openKontainerAddForm = () => {
+    setKemasanAddOpen(false);
+    setKemasanDraftRow(null);
+    cancelEditKemasanRow();
+    setKontainerDraftRow(createCompactDraftRow("kontainer"));
+    setKontainerAddOpen(true);
+  };
+
+  const closeKontainerAddForm = () => {
+    setKontainerAddOpen(false);
+    setKontainerDraftRow(null);
+  };
+
+  const saveKontainerDraftRow = () => {
+    if (!kontainerDraftRow) return;
+    setFormState((current) => ({
+      ...current,
+      kontainer: [...current.kontainer, createRow(kontainerColumns, kontainerDraftRow)],
+    }));
+    closeKontainerAddForm();
+    setStatusMessage("Record kontainer baru ditambahkan.");
+  };
+
+  const updateKontainerDraftField = (column: string, value: string) => {
+    setKontainerDraftRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const startEditKontainerRow = (rowIndex: number) => {
+    setKontainerEditIndex(rowIndex);
+    setKontainerEditRow(createRow(kontainerColumns, formState.kontainer[rowIndex] ?? createCompactDraftRow("kontainer")));
+    setKontainerAddOpen(false);
+    setKontainerDraftRow(null);
+  };
+
+  const cancelEditKontainerRow = () => {
+    setKontainerEditIndex(null);
+    setKontainerEditRow(null);
+  };
+
+  const updateKontainerEditField = (column: string, value: string) => {
+    setKontainerEditRow((current) => {
+      if (!current) return current;
+      return { ...current, [column]: value };
+    });
+  };
+
+  const saveKontainerEditRow = () => {
+    if (kontainerEditIndex === null || !kontainerEditRow) return;
+    setFormState((current) => {
+      const rows = [...current.kontainer];
+      rows[kontainerEditIndex] = createRow(kontainerColumns, kontainerEditRow);
+      return { ...current, kontainer: rows };
+    });
+    cancelEditKontainerRow();
+    setStatusMessage("Perubahan kontainer sudah disimpan.");
+  };
+
+  const startEditBarangDetailRow = (section: BarangDetailSection, rowIndex: number, row: Row) => {
+    const columnMap: Record<BarangDetailSection, string[]> = {
+      spesifikasi: spesifikasiColumns.slice(1),
+      dokumen: barangDokumenColumns.slice(1),
+      vd: barangVdColumns.slice(1),
+      tarif: barangTarifColumns.slice(1),
+      karantina: karantinaColumns.slice(1),
+    };
+    setBarangDetailEditState({ section, rowIndex, row: createRow(columnMap[section], row) });
+  };
+
+  const cancelEditBarangDetailRow = () => {
+    setBarangDetailEditState(null);
+  };
+
+  const updateBarangDetailEditField = (column: string, value: string) => {
+    setBarangDetailEditState((current) => {
+      if (!current) return current;
+      return { ...current, row: { ...current.row, [column]: value } };
+    });
+  };
+
+  const saveBarangDetailEditRow = () => {
+    if (!barangDetailEditState) return;
+    const { section, rowIndex, row } = barangDetailEditState;
+    const map: Record<BarangDetailSection, keyof Pick<FormState, "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+      spesifikasi: "spesifikasi",
+      dokumen: "barangDokumen",
+      vd: "barangVd",
+      tarif: "barangTarif",
+      karantina: "karantina",
+    };
+    const columnsMap: Record<BarangDetailSection, string[]> = {
+      spesifikasi: spesifikasiColumns,
+      dokumen: barangDokumenColumns,
+      vd: barangVdColumns,
+      tarif: barangTarifColumns,
+      karantina: karantinaColumns,
+    };
+    setFormState((current) => {
+      const key = map[section];
+      const rows = [...current[key]];
+      rows[rowIndex] = createRow(columnsMap[section], row);
+      return { ...current, [key]: rows };
+    });
+    setBarangDetailEditState(null);
+    setStatusMessage("Perubahan detail barang sudah disimpan.");
+  };
+
   const removeRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, columns: string[]) => {
     setFormState((current) => {
       const rows = current[section].length > 1 ? current[section].slice(0, -1) : [createRow(columns)];
@@ -2219,8 +3035,33 @@ export function FormPage() {
   const scrollToEntitasSection = (kind: EntityKind) => {
     const target = entitasSectionRefs.current[kind];
     if (!target) return;
+
+    entitasScrollLockRef.current = true;
+    if (entitasScrollUnlockTimerRef.current) {
+      window.clearTimeout(entitasScrollUnlockTimerRef.current);
+    }
     setActiveEntitasSection(kind);
     target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    entitasScrollUnlockTimerRef.current = window.setTimeout(() => {
+      entitasScrollLockRef.current = false;
+    }, 650);
+  };
+
+  const scrollToPengajuanSection = (id: string) => {
+    const target = pengajuanSectionRefs.current[id];
+    if (!target) return;
+
+    pengajuanScrollLockRef.current = true;
+    if (pengajuanScrollUnlockTimerRef.current) {
+      window.clearTimeout(pengajuanScrollUnlockTimerRef.current);
+    }
+    setActivePengajuanSection(id);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    pengajuanScrollUnlockTimerRef.current = window.setTimeout(() => {
+      pengajuanScrollLockRef.current = false;
+    }, 650);
   };
 
   return (
@@ -2308,30 +3149,157 @@ export function FormPage() {
         </div>
       </div>
 
-        <div className="mt-4 rounded-2xl border border-border-primary bg-background-primary/30 px-4 py-3 text-[12px] text-neutral-700">
-          {statusMessage}
-        </div>
+        {statusToastVisible ? (
+          <div className="mt-4 rounded-2xl border border-brand-primary-100 bg-brand-primary-50/70 px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[12px] text-brand-primary-800">{statusMessage}</div>
+              <Button variant="ghost" size="sm" onClick={() => setStatusToastVisible(false)} className="shrink-0 whitespace-nowrap">
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="my-5 border-t border-border-primary" />
 
         {activeStep === "pengajuan" && (
         <div className="flex flex-col gap-4">
-          {stepFieldGroups.map((group) => (
-            <AccordionCard key={group.id} title={group.title} subtitle="Edit field secara langsung di bawah ini." defaultOpen>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {group.fields.map((field) => (
-                  <FormField
-                    key={field.key}
-                    label={field.label}
-                    value={formState.pengajuan[field.key] ?? ""}
-                    onChange={(value) => updatePengajuanField(field.key, value)}
-                    placeholder={field.label}
-                    type={field.key === "perkiraanTanggalTiba" ? "date" : "text"}
-                    mandatory={"mandatory" in field ? Boolean(field.mandatory) : false}
-                  />
-                ))}
+          <div
+            className={[
+              "grid gap-4",
+              isPengajuanTocExpanded ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[84px_minmax(0,1fr)]",
+            ].join(" ")}
+          >
+            <aside className={tocStickyClass}>
+              <div className={[tocShellClass, isPengajuanTocExpanded ? "p-4" : "p-2"].join(" ")}>
+                <div className={["flex items-start gap-3", isPengajuanTocExpanded ? "justify-between" : "justify-center"].join(" ")}>
+                  {isPengajuanTocExpanded ? (
+                    <div className="min-w-0">
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Table of Content</div>
+                      <div className="mt-1 text-[12px] leading-5 text-neutral-600">Lompat ke section pengajuan yang ingin ditinjau.</div>
+                    </div>
+                  ) : (
+                    <div className="sr-only">
+                      <div>Table of Content</div>
+                      <div>Lompat ke section pengajuan yang ingin ditinjau.</div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsPengajuanTocExpanded((value) => !value)}
+                    aria-expanded={isPengajuanTocExpanded}
+                    aria-label={isPengajuanTocExpanded ? "Ciutkan TOC pengajuan" : "Buka TOC pengajuan"}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-white text-brand-primary-700 transition hover:border-brand-primary-200 hover:bg-brand-primary-50"
+                    title={isPengajuanTocExpanded ? "Ciutkan TOC" : "Buka TOC"}
+                  >
+                    {isPengajuanTocExpanded ? <ArrowLeftIcon className="h-4 w-4" /> : <ArrowRightIcon className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                <div className={[tocScrollClass, "mt-4 flex flex-col gap-2", isPengajuanTocExpanded ? "" : "mt-3"].join(" ")}>
+                  {stepFieldGroups.map((group) => {
+                    const active = activePengajuanSection === group.id;
+                    const Icon = group.icon;
+                    if (isPengajuanTocExpanded) {
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => scrollToPengajuanSection(group.id)}
+                          aria-label={group.title}
+                          className={[
+                            "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                            "gap-3 px-3 py-3",
+                            active
+                              ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                              : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                          ].join(" ")}
+                        >
+                          <span
+                            className={[
+                              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                            ].join(" ")}
+                          >
+                            <Icon className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[12px] font-semibold text-neutral-800">{group.title}</span>
+                            <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{group.fields.length} field</span>
+                          </span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <Tooltip
+                        key={group.id}
+                        placement="right"
+                        offset={14}
+                        className="block w-full"
+                        content={
+                          <div>
+                            <div className="text-[12px] font-semibold text-neutral-800">{group.title}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-neutral-600">{group.fields.length} field pada section ini.</div>
+                          </div>
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => scrollToPengajuanSection(group.id)}
+                          aria-label={group.title}
+                          className={[
+                            "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                            "justify-center px-2 py-3",
+                            active
+                              ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                              : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                          ].join(" ")}
+                        >
+                          <span
+                            className={[
+                              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                            ].join(" ")}
+                          >
+                            <Icon className="h-4.5 w-4.5" />
+                          </span>
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
               </div>
-            </AccordionCard>
-          ))}
+            </aside>
+
+            <div className="flex flex-col gap-4">
+              {stepFieldGroups.map((group) => (
+                <div
+                  key={group.id}
+                  ref={(node) => {
+                    pengajuanSectionRefs.current[group.id] = node;
+                  }}
+                  id={group.id}
+                  className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
+                >
+                  <AccordionCard title={group.title} subtitle="Edit field secara langsung di bawah ini." defaultOpen>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {group.fields.map((field) => (
+                        <FormField
+                          key={field.key}
+                          label={field.label}
+                          value={formState.pengajuan[field.key] ?? ""}
+                          onChange={(value) => updatePengajuanField(field.key, value)}
+                          placeholder={field.label}
+                          type={field.key === "perkiraanTanggalTiba" ? "date" : "text"}
+                          mandatory={"mandatory" in field ? Boolean(field.mandatory) : false}
+                        />
+                      ))}
+                    </div>
+                  </AccordionCard>
+                </div>
+              ))}
+            </div>
+          </div>
           <StepFooterActions
             step="pengajuan"
             onCheck={handleCheckCompleteness}
@@ -2344,50 +3312,134 @@ export function FormPage() {
 
       {activeStep === "entitas" && (
         <div className="flex flex-col gap-4">
-          <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <aside className="lg:sticky lg:top-[var(--shell-sticky-top)] lg:self-start">
-              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Table of Content</div>
-                <div className="mt-1 text-[12px] leading-5 text-neutral-600">Lompat ke section entitas yang ingin ditinjau.</div>
-                <div className="mt-4 flex flex-col gap-2">
+          <div
+            className={[
+              "grid gap-4",
+              isEntitasTocExpanded ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[84px_minmax(0,1fr)]",
+            ].join(" ")}
+          >
+            <aside className={tocStickyClass}>
+              <div className={[tocShellClass, isEntitasTocExpanded ? "p-4" : "p-2"].join(" ")}>
+                <div className={["flex items-start gap-3", isEntitasTocExpanded ? "justify-between" : "justify-center"].join(" ")}>
+                  {isEntitasTocExpanded ? (
+                    <div className="min-w-0">
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Table of Content</div>
+                      <div className="mt-1 text-[12px] leading-5 text-neutral-600">Lompat ke section entitas yang ingin ditinjau.</div>
+                    </div>
+                  ) : (
+                    <div className="sr-only">
+                      <div>Table of Content</div>
+                      <div>Lompat ke section entitas yang ingin ditinjau.</div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsEntitasTocExpanded((value) => !value)}
+                    aria-expanded={isEntitasTocExpanded}
+                    aria-label={isEntitasTocExpanded ? "Ciutkan TOC entitas" : "Buka TOC entitas"}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-white text-brand-primary-700 transition hover:border-brand-primary-200 hover:bg-brand-primary-50"
+                    title={isEntitasTocExpanded ? "Ciutkan TOC" : "Buka TOC"}
+                  >
+                    {isEntitasTocExpanded ? <ArrowLeftIcon className="h-4 w-4" /> : <ArrowRightIcon className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                <div className={[tocScrollClass, "mt-4 flex flex-col gap-2", isEntitasTocExpanded ? "" : "mt-3"].join(" ")}>
                   {entityDefinitions.map((definition) => {
                     const status = entitasSectionStatus[definition.kind];
                     const active = activeEntitasSection === definition.kind;
                     const Icon = definition.icon;
 
-                    return (
-                      <button
-                        key={definition.kind}
-                        type="button"
-                        onClick={() => scrollToEntitasSection(definition.kind)}
-                        className={[
-                          "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
-                          active
-                            ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
-                            : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
-                        ].join(" ")}
-                      >
-                        <span
+                    if (isEntitasTocExpanded) {
+                      return (
+                        <button
+                          key={definition.kind}
+                          type="button"
+                          onClick={() => scrollToEntitasSection(definition.kind)}
+                          aria-label={definition.title}
                           className={[
-                            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                            active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                            "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                            "gap-3 px-3 py-3",
+                            active
+                              ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                              : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
                           ].join(" ")}
                         >
-                          <Icon className="h-4.5 w-4.5" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-[12px] font-semibold text-neutral-800">{definition.title}</span>
-                            <Badge
-                              variant={status.tone === "neutral" ? "secondary" : status.tone === "brand" ? "brand" : status.tone}
-                              className="px-2 py-0.5 text-[10px] font-semibold"
+                          <span
+                            className={[
+                              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                            ].join(" ")}
+                          >
+                            <Icon className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="text-[12px] font-semibold text-neutral-800">{definition.title}</span>
+                              <Badge
+                                variant={status.tone === "neutral" ? "secondary" : status.tone === "brand" ? "brand" : status.tone}
+                                className="px-2 py-0.5 text-[10px] font-semibold"
+                              >
+                                {status.label}
+                              </Badge>
+                            </span>
+                            <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{definition.description}</span>
+                          </span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <Tooltip
+                        key={definition.kind}
+                        placement="right"
+                        offset={14}
+                        className="block w-full"
+                        content={
+                          <div>
+                            <div className="text-[12px] font-semibold text-neutral-800">{definition.title}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-neutral-600">{definition.description}</div>
+                            <div
+                              className={[
+                                "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                status.tone === "brand"
+                                  ? "bg-brand-primary-50 text-brand-primary-700"
+                                  : status.tone === "success"
+                                    ? "bg-success-50 text-success-700"
+                                    : status.tone === "warning"
+                                      ? "bg-warning-50 text-warning-700"
+                                      : status.tone === "error"
+                                        ? "bg-error-50 text-error-700"
+                                        : "bg-neutral-100 text-neutral-700",
+                              ].join(" ")}
                             >
                               {status.label}
-                            </Badge>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => scrollToEntitasSection(definition.kind)}
+                          aria-label={definition.title}
+                          className={[
+                            "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                            "justify-center px-2 py-3",
+                            active
+                              ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                              : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                          ].join(" ")}
+                        >
+                          <span
+                            className={[
+                              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                              active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                            ].join(" ")}
+                          >
+                            <Icon className="h-4.5 w-4.5" />
                           </span>
-                          <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{definition.description}</span>
-                        </span>
-                      </button>
+                        </button>
+                      </Tooltip>
                     );
                   })}
                 </div>
@@ -2502,47 +3554,219 @@ export function FormPage() {
 
       {activeStep === "dokumen" && (
         <div className="flex flex-col gap-4">
-        <AccordionCard title="Dokumen Pengajuan" subtitle="Daftar dokumen yang dilampirkan pada BC 2.0." defaultOpen>
-          <EditableTable
-            columns={dokumenColumns}
-            rows={formState.dokumen}
-            onChange={(rowIndex, column, value) => updateRow("dokumen", rowIndex, column, value)}
-            onAdd={() => addRow("dokumen", dokumenColumns)}
-            onRemove={() => removeRow("dokumen", dokumenColumns)}
-            minWidth={1100}
+          <AccordionCard
+            title="Dokumen Lampiran"
+            subtitle="Tiga dokumen awal INV, PL, dan BL wajib tersedia. Record tambahan boleh ditambah dan dihapus."
+            defaultOpen
+            headerActions={
+              <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
+                {formState.dokumen.length} record
+              </span>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openDokumenAddForm}>
+                  Tambah
+                </Button>
+              </div>
+
+              {dokumenAddOpen && dokumenDraftRow ? (
+                <DokumenLampiranEditor
+                  title="Tambah Dokumen Lampiran"
+                  subtitle="Record baru akan muncul di bagian bawah tabel setelah disimpan."
+                  value={dokumenDraftRow}
+                  onChange={updateDokumenDraftField}
+                  onSave={saveDokumenDraftRow}
+                  onCancel={closeDokumenAddForm}
+                  saveLabel="Simpan"
+                  compact
+                />
+              ) : null}
+
+              <div className="overflow-x-auto rounded-xl border border-border-primary">
+                <table className="min-w-full table-fixed border-collapse text-left text-[12px]">
+                  <thead className="bg-brand-primary-500 text-white">
+                    <tr>
+                      <th className="w-[56px] px-3 py-2">#</th>
+                      {dokumenColumns.map((column) => (
+                        <th key={column} className="px-3 py-2 font-semibold whitespace-nowrap">
+                          {column}
+                        </th>
+                      ))}
+                      <th className="w-px whitespace-nowrap px-3 py-2">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formState.dokumen.map((row, rowIndex) => {
+                      const isMandatoryRow = rowIndex < mandatoryDokumenDefinitions.length;
+                      const isEditing = dokumenEditIndex === rowIndex && Boolean(dokumenEditRow);
+
+                      return (
+                        <Fragment key={`${row.Seri ?? rowIndex}-${row["Kode Dokumen"] ?? rowIndex}`}>
+                          <tr
+                            className={[
+                              "border-t border-border-primary align-top",
+                              isMandatoryRow ? "bg-brand-primary-50/10" : "hover:bg-brand-primary-50/20",
+                            ].join(" ")}
+                          >
+                            <td className="px-3 py-3 font-medium text-neutral-600">{rowIndex + 1}</td>
+                            {dokumenColumns.map((column) => (
+                              <td key={column} className="px-3 py-3 align-top text-neutral-700">
+                                <div className={column === "Kode Dokumen" && isMandatoryRow ? "inline-flex rounded-full bg-brand-primary-50 px-2.5 py-1 text-[11px] font-semibold text-brand-primary-700" : ""}>
+                                  {row[column] || <span className="text-neutral-400">-</span>}
+                                </div>
+                              </td>
+                            ))}
+                            <td className="w-px whitespace-nowrap px-3 py-3">
+                              <div className="flex flex-nowrap items-center justify-end gap-2">
+                                <Button variant="warning" size="sm" startIcon={<PencilIcon className="h-3.5 w-3.5" />} onClick={() => startEditDokumenRow(rowIndex)}>
+                                  Edit
+                                </Button>
+                                {!isMandatoryRow ? (
+                                  <Button variant="error" size="sm" startIcon={<TrashBinTrashIcon className="h-3.5 w-3.5" />} onClick={() => removeDokumenRow(rowIndex)}>
+                                    Hapus
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                          {isEditing && dokumenEditRow ? (
+                            <tr>
+                              <td colSpan={dokumenColumns.length + 2} className="border-t border-border-primary bg-background-primary/30 px-3 py-3">
+                                <DokumenLampiranEditor
+                                  title={`Edit Dokumen ${row["Kode Dokumen"] || rowIndex + 1}`}
+                                  subtitle={
+                                    isMandatoryRow
+                                      ? "Dokumen wajib tidak bisa dihapus, tapi detailnya tetap bisa diperbarui."
+                                      : "Perubahan akan langsung menggantikan record yang dipilih."
+                                  }
+                                  value={dokumenEditRow}
+                                  onChange={updateDokumenEditField}
+                                  onSave={saveDokumenEditRow}
+                                  onCancel={cancelEditDokumenRow}
+                                  saveLabel="Simpan Perubahan"
+                                  codeLocked={isMandatoryRow}
+                                  compact
+                                />
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </AccordionCard>
+          <StepFooterActions
+            step="dokumen"
+            onPrevious={() => setActiveStep(goToStep("dokumen", -1))}
+            onCheck={handleCheckCompleteness}
+            onSaveDraft={saveSnapshot}
+            onNext={() => setActiveStep(goToStep("dokumen", 1))}
           />
-        </AccordionCard>
-        <StepFooterActions
-          step="dokumen"
-          onPrevious={() => setActiveStep(goToStep("dokumen", -1))}
-          onCheck={handleCheckCompleteness}
-          onSaveDraft={saveSnapshot}
-          onNext={() => setActiveStep(goToStep("dokumen", 1))}
-        />
         </div>
       )}
 
       {activeStep === "kemasan" && (
         <div className="flex flex-col gap-4">
-          <AccordionCard title="Kemasan" subtitle="Editable table data kemasan." defaultOpen>
-            <EditableTable
-              columns={kemasanColumns}
-              rows={formState.kemasan}
-              onChange={(rowIndex, column, value) => updateRow("kemasan", rowIndex, column, value)}
-              onAdd={() => addRow("kemasan", kemasanColumns)}
-              onRemove={() => removeRow("kemasan", kemasanColumns)}
-              minWidth={900}
-            />
+          <AccordionCard
+            title="Kemasan"
+            subtitle="Data kemasan bisa ditambah lewat form collapsible agar area tabel tetap rapi."
+            defaultOpen
+            headerActions={
+              <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
+                {formState.kemasan.length} record
+              </span>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openKemasanAddForm}>
+                  Tambah
+                </Button>
+              </div>
+
+              {kemasanAddOpen && kemasanDraftRow ? (
+                <CompactSectionRowEditor
+                  title="Tambah Kemasan"
+                  subtitle="Isi field lalu simpan untuk menambah record baru."
+                  columns={kemasanColumns}
+                  value={kemasanDraftRow}
+                  onChange={updateKemasanDraftField}
+                  onSave={saveKemasanDraftRow}
+                  onCancel={closeKemasanAddForm}
+                  saveLabel="Simpan"
+                />
+              ) : null}
+
+              <EditableTable
+                columns={kemasanColumns}
+                rows={formState.kemasan}
+                onAdd={() => openKemasanAddForm()}
+                onRemove={() => removeRow("kemasan", kemasanColumns)}
+                minWidth={900}
+                showAddButton={false}
+                editingRowIndex={kemasanEditIndex}
+                editingRow={kemasanEditRow}
+                onEditStart={startEditKemasanRow}
+                onEditChange={updateKemasanEditField}
+                onEditSave={saveKemasanEditRow}
+                onEditCancel={cancelEditKemasanRow}
+                editTitle="Edit Kemasan"
+                editSubtitle="Ubah data kemasan lalu simpan perubahan."
+              />
+            </div>
           </AccordionCard>
-          <AccordionCard title="Kontainer" subtitle="Editable table data kontainer." defaultOpen>
-            <EditableTable
-              columns={kontainerColumns}
-              rows={formState.kontainer}
-              onChange={(rowIndex, column, value) => updateRow("kontainer", rowIndex, column, value)}
-              onAdd={() => addRow("kontainer", kontainerColumns)}
-              onRemove={() => removeRow("kontainer", kontainerColumns)}
-              minWidth={1100}
-            />
+          <AccordionCard
+            title="Kontainer"
+            subtitle="Tambah record kontainer lewat toolbar, record lama tetap bisa diedit inline."
+            defaultOpen
+            headerActions={
+              <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
+                {formState.kontainer.length} record
+              </span>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openKontainerAddForm}>
+                  Tambah
+                </Button>
+              </div>
+
+              {kontainerAddOpen && kontainerDraftRow ? (
+                <CompactSectionRowEditor
+                  title="Tambah Kontainer"
+                  subtitle="Isi field lalu simpan untuk menambah record baru."
+                  columns={kontainerColumns}
+                  value={kontainerDraftRow}
+                  onChange={updateKontainerDraftField}
+                  onSave={saveKontainerDraftRow}
+                  onCancel={closeKontainerAddForm}
+                  saveLabel="Simpan"
+                />
+              ) : null}
+
+              <EditableTable
+                columns={kontainerColumns}
+                rows={formState.kontainer}
+                onAdd={() => openKontainerAddForm()}
+                onRemove={() => removeRow("kontainer", kontainerColumns)}
+                minWidth={1100}
+                showAddButton={false}
+                editingRowIndex={kontainerEditIndex}
+                editingRow={kontainerEditRow}
+                onEditStart={startEditKontainerRow}
+                onEditChange={updateKontainerEditField}
+                onEditSave={saveKontainerEditRow}
+                onEditCancel={cancelEditKontainerRow}
+                editTitle="Edit Kontainer"
+                editSubtitle="Ubah data kontainer lalu simpan perubahan."
+              />
+            </div>
           </AccordionCard>
           <StepFooterActions
             step="kemasan"
@@ -2656,6 +3880,7 @@ export function FormPage() {
               setBarangWorkspaceOpen(false);
               setBarangWorkspaceMode("edit");
               setBarangDraftRow(null);
+              setBarangDetailEditState(null);
             }}
             onSave={saveBarangWorkspace}
             onUpdateMasterField={updateBarangField}
@@ -2663,20 +3888,17 @@ export function FormPage() {
             onAddDetailRow={addBarangDetailRow}
             onRemoveDetailRow={removeBarangDetailRow}
             onUpdateDetailRow={updateBarangDetailRow}
+            detailEditState={barangDetailEditState}
+            onStartDetailEdit={startEditBarangDetailRow}
+            onUpdateDetailEdit={updateBarangDetailEditField}
+            onSaveDetailEdit={saveBarangDetailEditRow}
+            onCancelDetailEdit={cancelEditBarangDetailRow}
           />
         </div>
       )}
 
       {activeStep === "review" && (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <SummaryCard label="Status Kelengkapan" value={reviewStatus ? "Lengkap" : "Perlu Koreksi"} />
-            <SummaryCard label="Jumlah Entitas" value={summaryCounts.entitas} />
-            <SummaryCard label="Jumlah Dokumen" value={summaryCounts.dokumen} />
-            <SummaryCard label="Jumlah Barang" value={summaryCounts.barang} />
-            <SummaryCard label="Jumlah Kontainer" value={summaryCounts.kontainer} />
-          </div>
-
           <div className={`${sectionTone} p-4 sm:p-5`}>
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -2686,8 +3908,40 @@ export function FormPage() {
                   Cek kembali ringkasan data utama sebelum menyimpan draft atau mengirim pengajuan mock.
                 </p>
               </div>
-              <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
-                {reviewStatus ? "Siap submit" : "Ada data yang perlu dilengkapi"}
+              <div
+                className="inline-flex"
+              >
+                <Badge
+                  variant={reviewStatus ? "success" : "warning"}
+                  startIcon={
+                    reviewStatus ? (
+                      <CheckReadIcon className="h-4 w-4" />
+                    ) : (
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+                        <path d="M12 3 1.75 20h20.5L12 3Zm0 5.5 1 6h-2l1-6Zm0 10.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z" />
+                      </svg>
+                    )
+                  }
+                  className="px-4 py-2 text-base font-semibold shadow-sm"
+                >
+                  {reviewStatus ? "Siap submit" : "Ada data yang perlu dilengkapi"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-border-primary bg-background-primary/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-brand-primary-600">Statistik Ringkas</div>
+                  <div className="mt-1 text-[14px] font-semibold text-neutral-800">Jumlah data per alur utama</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <SummaryCard label="Dokumen Lampiran" value={summaryCounts.dokumen} />
+                <SummaryCard label="Kemasan" value={summaryCounts.kemasan} />
+                <SummaryCard label="Kontainer" value={summaryCounts.kontainer} />
+                <SummaryCard label="Barang" value={summaryCounts.barang} />
               </div>
             </div>
 
@@ -2704,7 +3958,7 @@ export function FormPage() {
                     <span className={stepComplete.entitas ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.entitas ? "Lengkap" : "Belum lengkap"}</span>
                   </li>
                   <li className="flex items-center justify-between gap-3">
-                    <span>Dokumen</span>
+                    <span>Dokumen Lampiran</span>
                     <span className={stepComplete.dokumen ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.dokumen ? "Lengkap" : "Belum lengkap"}</span>
                   </li>
                   <li className="flex items-center justify-between gap-3">

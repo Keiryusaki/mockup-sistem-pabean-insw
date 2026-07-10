@@ -4,10 +4,13 @@ import { Badge } from "../components/Badge";
 import { Button, IconButton } from "../components/Button";
 import { Checkbox, Input, Select, Switch, Textarea } from "../components/FormControls";
 import { Card, CardBody, CardFooter, CardHeader, Modal } from "../components/Surface";
+import { Tooltip } from "../components/Tooltip";
 import {
   ArrowRightIcon,
+  DownloadIcon,
   DocumentsIcon,
   HamburgerMenuIcon,
+  EyeIcon,
   MagniferIcon,
 } from "../components/Icons";
 
@@ -40,6 +43,20 @@ const sections: TocSection[] = [
     description: "Input, textarea, select, checkbox, switch, card, dan modal lokal yang bisa dipakai ulang.",
     badge: "foundation",
     icon: <DocumentsIcon className="h-4 w-4" />,
+  },
+  {
+    id: "badge",
+    title: "Badge System",
+    description: "Label kecil buat status, kategori, dan penanda prioritas di tabel atau card.",
+    badge: "foundation",
+    icon: <Badge variant="secondary" className="px-1.5 py-0.5 text-[9px] font-semibold">B</Badge>,
+  },
+  {
+    id: "tooltip",
+    title: "Tooltip",
+    description: "Tooltip lokal berbasis portal yang aman dipakai di area scroll atau card yang sempit.",
+    badge: "reusable",
+    icon: <EyeIcon className="h-4 w-4" />,
   },
   {
     id: "icons",
@@ -1021,34 +1038,96 @@ export function ComponentDocsPage() {
           </Section>
 
           <Section
-            id="loading"
-            title="Loading State"
-            badge="foundation"
-            description="Skeleton lokal untuk nunggu data tanpa bikin layout lompat."
+            id="tooltip"
+            title="Tooltip"
+            badge="reusable"
+            description="Komponen tooltip lokal dipakai buat help text singkat, hint action, dan label tambahan tanpa ganggu layout utama."
           >
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Company profile</div>
-                <div className="mt-4 flex items-center gap-4">
-                  <div className="h-14 w-14 animate-pulse rounded-full bg-neutral-100" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="h-4 w-2/3 animate-pulse rounded-full bg-neutral-100" />
-                    <div className="h-3 w-full animate-pulse rounded-full bg-neutral-100" />
-                    <div className="h-3 w-5/6 animate-pulse rounded-full bg-neutral-100" />
-                  </div>
+            <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Live preview</div>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <Tooltip
+                    placement="top"
+                    content={
+                      <div>
+                        <div className="text-[12px] font-semibold text-neutral-800">Preview detail</div>
+                        <div className="mt-1 text-[11px] leading-5 text-neutral-600">Tooltip di atas trigger.</div>
+                      </div>
+                    }
+                  >
+                    <Button variant="outline" size="sm">
+                      Hover top
+                    </Button>
+                  </Tooltip>
+
+                  <Tooltip
+                    placement="right"
+                    content={
+                      <div>
+                        <div className="text-[12px] font-semibold text-neutral-800">Info cepat</div>
+                        <div className="mt-1 text-[11px] leading-5 text-neutral-600">Cocok untuk ikon kecil di toolbar.</div>
+                      </div>
+                    }
+                  >
+                    <IconButton aria-label="Preview tooltip kanan" variant="outline" size="sm">
+                      <EyeIcon className="h-4 w-4" />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip
+                    placement="bottom"
+                    content={
+                      <div>
+                        <div className="text-[12px] font-semibold text-neutral-800">Aksi ini tersimpan</div>
+                        <div className="mt-1 text-[11px] leading-5 text-neutral-600">Contoh tooltip di bawah trigger.</div>
+                      </div>
+                    }
+                  >
+                    <Button variant="secondary" size="sm" startIcon={<DownloadIcon className="h-4 w-4" />}>
+                      Hover bottom
+                    </Button>
+                  </Tooltip>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-dashed border-border-primary bg-background-primary/35 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Pola pakai</div>
+                  <p className="mt-2 text-[12px] leading-6 text-neutral-700">
+                    Tooltip ini dirancang untuk dipasang di elemen kecil tanpa kena masalah clipping dari `overflow-hidden`.
+                    Karena render-nya lewat portal, dia aman dipakai di TOC collapse, table action, atau button group yang rapat.
+                  </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">List skeleton</div>
-                <div className="mt-4 space-y-3">
-                  {[1, 2, 3].map((item) => (
-                    <div key={item} className="rounded-xl border border-border-primary bg-neutral-50 p-3">
-                      <div className="h-3 w-20 animate-pulse rounded-full bg-neutral-100" />
-                      <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-neutral-100" />
-                      <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-100" />
-                    </div>
-                  ))}
+              <div className="rounded-2xl border border-border-primary bg-brand-primary-50/60 p-4 shadow-sm sm:p-5">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-brand-primary-600">API singkat</div>
+                <div className="mt-3 space-y-3 text-[12px] leading-6 text-neutral-700">
+                  <div>
+                    <span className="font-semibold text-neutral-800">`content`</span>
+                    <span className="ml-2">Isi tooltip, boleh teks atau markup kecil.</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-800">`placement`</span>
+                    <span className="ml-2">`top`, `right`, `bottom`, atau `left`.</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-800">`offset`</span>
+                    <span className="ml-2">Jarak tooltip dari trigger, default aman buat layout padat.</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-neutral-800">`disabled`</span>
+                    <span className="ml-2">Kalau true, children dirender apa adanya tanpa tooltip.</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Contoh JSX</div>
+                  <pre className="mt-2 overflow-x-auto text-[11px] leading-6 text-neutral-700">{`<Tooltip
+  placement="right"
+  content={<div>Hint kecil di sisi kanan</div>}
+>
+  <Button variant="outline">Hover me</Button>
+</Tooltip>`}</pre>
                 </div>
               </div>
             </div>
@@ -1095,6 +1174,40 @@ export function ComponentDocsPage() {
                     Ke depan, icon sebaiknya dipakai sebagai komponen lokal juga, jadi halaman lain tinggal pilih nama
                     ikon tanpa nulis path SVG manual.
                   </p>
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            id="loading"
+            title="Loading State"
+            badge="foundation"
+            description="Skeleton lokal untuk nunggu data tanpa bikin layout lompat."
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Company profile</div>
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="h-14 w-14 animate-pulse rounded-full bg-neutral-100" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-4 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-3 w-full animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-3 w-5/6 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">List skeleton</div>
+                <div className="mt-4 space-y-3">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="rounded-xl border border-border-primary bg-neutral-50 p-3">
+                      <div className="h-3 w-20 animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-100" />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

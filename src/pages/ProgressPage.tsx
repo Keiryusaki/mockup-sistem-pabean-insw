@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Badge, type BadgeVariant } from "../components/Badge";
 import { Button } from "../components/Button";
-import { Card, CardBody, CardHeader } from "../components/Surface";
+import { Card, CardBody, CardHeader, Modal } from "../components/Surface";
 import {
   ArrowLeftIcon,
   CheckReadIcon,
@@ -10,13 +10,12 @@ import {
   DocumentsIcon,
   DownloadIcon,
   EyeIcon,
+  FileTextIcon,
   ProgressIcon,
   SparklesIcon,
   UserIcon,
 } from "../components/Icons";
-import { proposalRows } from "./Dashboard";
-
-type ProposalRow = (typeof proposalRows)[number];
+import { proposalRows, type ProposalRow } from "./dashboard/dashboardData";
 
 type TimelineKind = "activity" | "response" | "note" | "upload" | "forward" | "status";
 
@@ -29,6 +28,8 @@ type TimelineEvent = {
   source: string;
   meta?: string;
   responseFileId?: string;
+  noteSummary?: string;
+  noteBody?: string;
 };
 
 type ResponseFile = {
@@ -43,7 +44,7 @@ type ResponseFile = {
 const timelineEvents: TimelineEvent[] = [
   {
     id: "evt-response-karantina",
-    time: "10:05",
+    time: "10:05:56",
     date: "07 Jul 2026",
     title: "Respon Karantina diterbitkan",
     kind: "response",
@@ -53,7 +54,7 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-reviewer-open",
-    time: "09:55",
+    time: "09:55:12",
     date: "07 Jul 2026",
     title: "Reviewer membuka berkas",
     kind: "activity",
@@ -61,7 +62,7 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-response-bea",
-    time: "09:50",
+    time: "09:50:44",
     date: "07 Jul 2026",
     title: "Respon Bea Cukai diterbitkan",
     kind: "response",
@@ -71,7 +72,7 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-forward",
-    time: "09:30",
+    time: "09:30:18",
     date: "07 Jul 2026",
     title: "Pengajuan diteruskan ke Bea Cukai",
     kind: "forward",
@@ -80,16 +81,19 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-note",
-    time: "09:20",
+    time: "09:20:33",
     date: "07 Jul 2026",
     title: "Catatan reviewer ditambahkan",
     kind: "note",
     source: "Reviewer",
     meta: "Catatan",
+    noteSummary: "Catatan dipakai untuk menandai penyesuaian yang perlu ditinjau ulang sebelum respon berikutnya diterbitkan.",
+    noteBody:
+      "Jarak antar section diperlebar supaya filter, summary, dan tabel lebih mudah dibaca.\nFilter status tetap menjadi pintu masuk utama untuk menyaring progres pengajuan.\nTombol aksi di area filter diseragamkan tingginya agar sejajar dan lebih rapi.\nPemisahan visual antar blok dipertahankan tapi dibuat lebih ringan agar halaman tidak terasa terlalu renggang.",
   },
   {
     id: "evt-upload",
-    time: "09:10",
+    time: "09:10:05",
     date: "07 Jul 2026",
     title: "Invoice.pdf diupload",
     kind: "upload",
@@ -98,7 +102,7 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-response-insw",
-    time: "08:55",
+    time: "08:55:27",
     date: "07 Jul 2026",
     title: "Respon INSW diterbitkan",
     kind: "response",
@@ -108,7 +112,7 @@ const timelineEvents: TimelineEvent[] = [
   },
   {
     id: "evt-draft",
-    time: "08:50",
+    time: "08:50:03",
     date: "07 Jul 2026",
     title: "Draft dibuat",
     kind: "status",
@@ -200,6 +204,23 @@ function formatTimelineMeta(event: TimelineEvent) {
   return event.meta ? `${event.source} • ${event.date} • ${event.meta}` : `${event.source} • ${event.date}`;
 }
 
+function downloadJsonFile(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function toSafeFileName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-xl border border-dashed border-border-secondary bg-neutral-50 px-4 py-5 text-[13px] text-neutral-500">{text}</div>;
 }
@@ -216,6 +237,7 @@ export function ProgressPage() {
   const [activeResponseId, setActiveResponseId] = useState(responseFiles[0]?.id ?? "");
   const [flashTimelineEventId, setFlashTimelineEventId] = useState<string | null>(null);
   const [flashResponseId, setFlashResponseId] = useState<string | null>(null);
+  const [noteDetailId, setNoteDetailId] = useState<string | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const timelineRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const responseRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -276,6 +298,26 @@ export function ProgressPage() {
   };
 
   const latestResponse = responseFiles[0];
+  const selectedNote = useMemo(
+    () => timelineEvents.find((event) => event.id === noteDetailId && event.kind === "note") ?? null,
+    [noteDetailId],
+  );
+
+  const downloadAllResponses = () => {
+    downloadJsonFile(`respon-instansi-${selectedProposal.pengajuan}.json`, {
+      proposal: {
+        pengajuan: selectedProposal.pengajuan,
+        dokumen: selectedProposal.dokumen,
+        status: selectedProposal.status,
+      },
+      generatedAt: new Date().toISOString(),
+      responses: responseFiles,
+    });
+  };
+
+  const downloadResponseFile = (file: ResponseFile) => {
+    downloadJsonFile(`response-${toSafeFileName(file.fileName)}.json`, file);
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-3 py-4 sm:px-4 sm:py-5">
@@ -345,15 +387,10 @@ export function ProgressPage() {
                 const isFirst = index === 0;
                 const isLast = index === timelineEvents.length - 1;
                 return (
-                  <button
+                  <div
                     key={event.id}
-                    type="button"
-                    ref={(node) => {
-                      timelineRefs.current[event.id] = node;
-                    }}
-                    onClick={() => focusTimelineEvent(event)}
                     className={[
-                      "timeline-event group relative w-full rounded-2xl px-0 py-1 text-left transition-all duration-300",
+                      "timeline-event group relative w-full rounded-2xl px-0 py-1 transition-all duration-300",
                       isActive ? "bg-brand-primary-50/70 shadow-[inset_0_0_0_1px_rgba(3,83,164,0.18)]" : "bg-white hover:bg-neutral-50",
                       isFlash ? "timeline-event--flash" : "",
                     ].join(" ")}
@@ -361,42 +398,69 @@ export function ProgressPage() {
                     <span
                       aria-hidden="true"
                       className={[
-                        "absolute left-[108px] z-0 w-[3px] bg-brand-primary-300/90",
+                        "absolute left-[104px] z-0 w-[3px] bg-brand-primary-300/90",
                         isFirst ? "top-1/2" : "-top-1",
                         isLast ? "bottom-1/2" : "-bottom-1",
                       ].join(" ")}
                     />
 
-                    <div className="relative z-10 grid min-h-[42px] grid-cols-[72px_28px_minmax(0,1fr)] items-start gap-x-2.5 gap-y-0.5 pl-3 sm:grid-cols-[72px_28px_minmax(0,1fr)]">
-                      <div className="pt-0.5 text-[12px] font-semibold leading-5 text-brand-primary-700">{formatTimeLabel(event.time)}</div>
+                    <div className="relative z-10 grid min-h-[42px] grid-cols-[72px_28px_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-0.5 pl-2 sm:grid-cols-[72px_28px_minmax(0,1fr)_auto]">
+                      <button
+                        type="button"
+                        ref={(node) => {
+                          timelineRefs.current[event.id] = node;
+                        }}
+                        onClick={() => focusTimelineEvent(event)}
+                        className="col-span-3 grid min-w-0 grid-cols-[72px_28px_minmax(0,1fr)] items-start gap-x-2.5 gap-y-0.5 text-left"
+                      >
+                        <div className="pt-0.5 pr-1 text-right text-[12px] font-semibold leading-5 text-brand-primary-700">
+                          {formatTimeLabel(event.time)}
+                        </div>
 
-                      <div className="relative row-span-2 flex h-full items-start justify-center pt-0.5">
-                        <span
-                          aria-hidden="true"
-                          className={[
-                            "relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-[2px] border-white shadow-[0_0_0_2px_rgba(3,83,164,0.72)] transition-all duration-300",
-                            isActive
-                              ? "bg-brand-primary-700 text-white shadow-[0_0_0_2px_rgba(2,50,98,0.95)]"
-                              : "bg-white text-brand-primary-700",
-                            isFlash ? "timeline-dot--flash" : "",
-                          ].join(" ")}
-                        >
-                          <span className="scale-[0.85]">{getKindIcon(event.kind)}</span>
-                        </span>
-                      </div>
+                        <div className="relative row-span-2 flex h-full items-start justify-center pt-0.5">
+                          <span
+                            aria-hidden="true"
+                            className={[
+                              "relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border-[2px] border-white shadow-[0_0_0_2px_rgba(3,83,164,0.72)] transition-all duration-300",
+                              isActive
+                                ? "bg-brand-primary-700 text-white shadow-[0_0_0_2px_rgba(2,50,98,0.95)]"
+                                : "bg-white text-brand-primary-700",
+                              isFlash ? "timeline-dot--flash" : "",
+                            ].join(" ")}
+                          >
+                            <span className="scale-[0.85]">{getKindIcon(event.kind)}</span>
+                          </span>
+                        </div>
 
-                      <div className="flex min-w-0 items-center gap-2 pt-0.5">
-                        <p className="truncate text-[13px] font-semibold leading-5 text-neutral-800">{event.title}</p>
-                        <Badge variant="secondary" className="bg-neutral-100 px-2 py-0.5 text-[10px] leading-none text-neutral-600">
-                          {eventKindLabel[event.kind]}
-                        </Badge>
-                      </div>
+                        <div className="flex min-w-0 items-center gap-2 pt-0.5">
+                          <p className="truncate text-[13px] font-semibold leading-5 text-neutral-800">{event.title}</p>
+                          <Badge variant="secondary" className="bg-neutral-100 px-2 py-0.5 text-[10px] leading-none text-neutral-600">
+                            {eventKindLabel[event.kind]}
+                          </Badge>
+                        </div>
 
-                      <div className="col-start-3 min-w-0">
-                        <div className="truncate text-[11px] leading-5 text-neutral-600">{formatTimelineMeta(event)}</div>
-                      </div>
+                        <div className="col-start-3 min-w-0">
+                          <div className="truncate text-[11px] leading-5 text-neutral-600">{formatTimelineMeta(event)}</div>
+                        </div>
+                      </button>
+
+                      {event.kind === "note" && event.noteBody ? (
+                        <div className="flex items-start justify-end pt-0.5 pr-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 whitespace-nowrap border-brand-primary-200 bg-white px-3 text-[11px] text-brand-primary-700 hover:bg-brand-primary-50"
+                            startIcon={<FileTextIcon className="h-3.5 w-3.5" />}
+                            onClick={() => setNoteDetailId(event.id)}
+                          >
+                            Detail Catatan
+                          </Button>
+                        </div>
+                      ) : (
+                        <div aria-hidden="true" />
+                      )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -411,7 +475,18 @@ export function ProgressPage() {
                 Semua respon yang pernah diterbitkan tampil di sini. Klik file untuk loncat ke event terkait di timeline.
               </p>
             </div>
-            <Badge variant="secondary">{responseFiles.length} file</Badge>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge variant="secondary">{responseFiles.length} file</Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 whitespace-nowrap border-brand-primary-200 bg-white px-3 text-[11px] text-brand-primary-700 hover:bg-brand-primary-50"
+                startIcon={<DownloadIcon className="h-3.5 w-3.5" />}
+                onClick={downloadAllResponses}
+              >
+                Download All
+              </Button>
+            </div>
           </CardHeader>
 
           <CardBody className="space-y-1.5 px-3 py-3">
@@ -445,12 +520,6 @@ export function ProgressPage() {
                           </Badge>
                         </div>
                         <p className="mt-1 line-clamp-1 text-[11px] leading-5 text-neutral-600">{file.description}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-1 font-semibold text-neutral-600 ring-1 ring-border-primary/70">
-                            <DocumentsIcon className="h-3.5 w-3.5" />
-                            {file.date}
-                          </span>
-                        </div>
                       </div>
 
                       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -460,7 +529,11 @@ export function ProgressPage() {
                       </div>
                     </button>
 
-                    <div className="mt-1.5 flex items-center justify-end">
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-1 text-[10px] font-semibold text-neutral-600 ring-1 ring-border-primary/70">
+                        <DocumentsIcon className="h-3.5 w-3.5" />
+                        {file.date}
+                      </span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -468,6 +541,7 @@ export function ProgressPage() {
                         startIcon={<DownloadIcon className="h-3.5 w-3.5" />}
                         onClick={(event) => {
                           event.stopPropagation();
+                          downloadResponseFile(file);
                         }}
                       >
                         Download
@@ -505,6 +579,51 @@ export function ProgressPage() {
           </div>
         </CardBody>
       </Card>
+
+      <Modal
+        open={Boolean(selectedNote)}
+        title="Detail Catatan"
+        description={selectedNote?.noteSummary}
+        onClose={() => setNoteDetailId(null)}
+        widthClassName="w-[min(92vw,640px)]"
+      >
+        {selectedNote ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border-primary bg-background-primary/40 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Waktu</div>
+                <div className="mt-1 text-[13px] font-semibold text-neutral-800">
+                  {selectedNote.date} {selectedNote.time}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border-primary bg-background-primary/40 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Sumber</div>
+                <div className="mt-1 text-[13px] font-semibold text-neutral-800">{selectedNote.source}</div>
+              </div>
+              <div className="rounded-2xl border border-border-primary bg-background-primary/40 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Jenis</div>
+                <div className="mt-1 text-[13px] font-semibold text-neutral-800">Catatan</div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border-primary bg-white px-4 py-4">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-brand-primary-700">Isi Catatan</div>
+              <div className="mt-3">
+                <textarea
+                  readOnly
+                  rows={6}
+                  value={selectedNote.noteBody ?? ""}
+                  placeholder="Tulis catatan proses reviewer di sini..."
+                  className="min-h-32 w-full resize-none rounded-2xl border border-border-primary bg-neutral-50 px-4 py-3 text-[13px] leading-6 text-neutral-700 outline-none"
+                />
+                <div className="mt-2 text-[11px] leading-5 text-neutral-500">
+                  Isi catatan cukup berupa teks bebas, tanpa penomoran.
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
     </div>
   );

@@ -23,7 +23,7 @@ type FieldProps = {
 };
 
 const inputBase =
-  "h-10 w-full rounded-md border bg-white px-3 text-[12px] text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500";
+  "h-11 w-full rounded-md border bg-white px-3 text-[12px] text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500";
 
 const inputStateClasses: Record<FieldState, string> = {
   default: "border-border-primary focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100",
@@ -76,35 +76,40 @@ export function Input({
   className,
   prefixIcon,
   suffixIcon,
+  compact,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> &
   FieldProps & {
     prefixIcon?: ReactNode;
     suffixIcon?: ReactNode;
+    compact?: boolean;
   }) {
   const currentState = fieldStateFromProps(error, warning, state);
   const hasPrefix = Boolean(prefixIcon);
   const hasSuffix = Boolean(suffixIcon);
+  const inputHeightClass = compact ? "h-10" : "h-11";
+  const iconWrapClass = compact ? "w-8" : "w-10";
 
   return (
     <FieldShell label={label} hint={hint} error={error} warning={warning} className={className}>
       <div className="relative">
         {hasPrefix ? (
-          <span className="pointer-events-none absolute inset-y-0 left-0 inline-flex w-10 items-center justify-center text-neutral-500">
+          <span className={`pointer-events-none absolute inset-y-0 left-0 inline-flex ${iconWrapClass} items-center justify-center text-neutral-500`}>
             {prefixIcon}
           </span>
         ) : null}
         <input
           className={cn(
             inputBase,
+            inputHeightClass,
             inputStateClasses[currentState],
-            hasPrefix && "pl-10",
-            hasSuffix && "pr-10",
+            hasPrefix && (compact ? "pl-9" : "pl-10"),
+            hasSuffix && (compact ? "pr-9" : "pr-10"),
           )}
           {...props}
         />
         {hasSuffix ? (
-          <span className="pointer-events-none absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-neutral-500">
+          <span className={`pointer-events-none absolute inset-y-0 right-0 inline-flex ${iconWrapClass} items-center justify-center text-neutral-500`}>
             {suffixIcon}
           </span>
         ) : null}
