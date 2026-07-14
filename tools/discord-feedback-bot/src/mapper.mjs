@@ -44,6 +44,19 @@ function pickAttachmentKind(attachment) {
   return "file";
 }
 
+function getDiscordAttachmentId(url) {
+  if (!url) return undefined;
+
+  try {
+    const segments = new URL(url).pathname.split("/").filter(Boolean);
+    const attachmentsIndex = segments.indexOf("attachments");
+    const attachmentId = attachmentsIndex >= 0 ? segments[attachmentsIndex + 2] : undefined;
+    return attachmentId && /^\d+$/.test(attachmentId) ? attachmentId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 const CURRENT_FEEDBACK_PHASE = "Perubahan Ketiga";
 
 function normalizeFieldName(value) {
@@ -70,6 +83,7 @@ function mapEmbedAttachments(message) {
           kind: "image",
           mimeType: "image/png",
           previewUrl: embed.image.url,
+          discordAttachmentId: getDiscordAttachmentId(embed.image.url),
         });
       }
 
@@ -79,6 +93,7 @@ function mapEmbedAttachments(message) {
           kind: "image",
           mimeType: "image/png",
           previewUrl: embed.thumbnail.url,
+          discordAttachmentId: getDiscordAttachmentId(embed.thumbnail.url),
         });
       }
 
@@ -127,6 +142,7 @@ export function createDiscordFeedbackMapper(env = process.env) {
           mimeType: attachment.contentType ?? undefined,
           size: attachment.size ?? undefined,
           previewUrl: isLikelyImageAttachment(attachment) ? (attachment.proxyURL ?? attachment.url) : undefined,
+          discordAttachmentId: attachment.id,
         })),
         ...mapEmbedAttachments(message),
       ];

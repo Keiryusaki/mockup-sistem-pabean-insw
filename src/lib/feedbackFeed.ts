@@ -6,6 +6,7 @@ export type FeedbackAttachment = {
   mimeType?: string;
   size?: number;
   previewUrl?: string;
+  discordAttachmentId?: string;
 };
 
 export type FeedbackRecord = {
@@ -247,6 +248,7 @@ export function normalizeFeedbackRecord(item: unknown): FeedbackRecord | null {
               mimeType: typeof file.mimeType === "string" ? file.mimeType : undefined,
               size: typeof file.size === "number" ? file.size : undefined,
               previewUrl: typeof file.previewUrl === "string" ? file.previewUrl : undefined,
+              discordAttachmentId: typeof file.discordAttachmentId === "string" ? file.discordAttachmentId : undefined,
             };
           })
         : [];
@@ -302,6 +304,42 @@ export async function loadFeedbackRecords(remoteUrl?: string): Promise<{ source:
     return { source: "mirror endpoint", records: remoteRecords.length > 0 ? remoteRecords : DEMO_FEEDBACK_RECORDS };
   } catch {
     return { source: "mirror unavailable", records: DEMO_FEEDBACK_RECORDS };
+  }
+}
+
+function getDiscordAttachmentId(previewUrl?: string) {
+  if (!previewUrl) return undefined;
+
+  try {
+    const segments = new URL(previewUrl).pathname.split("/").filter(Boolean);
+    const attachmentsIndex = segments.indexOf("attachments");
+    const attachmentId = attachmentsIndex >= 0 ? segments[attachmentsIndex + 2] : undefined;
+    return attachmentId && /^\d+$/.test(attachmentId) ? attachmentId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolveFeedbackAttachmentPreviewUrl(
+  record: FeedbackRecord,
+  attachment: FeedbackAttachment,
+  feedbackApiUrl?: string,
+) {
+  const fallbackUrl = attachment.previewUrl;
+  if (record.source !== "discord" || !feedbackApiUrl) return fallbackUrl;
+
+  const channelId = record.discordChannelId;
+  const messageId = record.discordMessageId;
+  const attachmentId = attachment.discordAttachmentId ?? getDiscordAttachmentId(fallbackUrl);
+  if (!channelId || !messageId || !attachmentId) return fallbackUrl;
+  if (![channelId, messageId, attachmentId].every((value) => /^\d+$/.test(value))) return fallbackUrl;
+
+  try {
+    const baseUrl = typeof window === "undefined" ? undefined : window.location.href;
+    const apiUrl = new URL(feedbackApiUrl, baseUrl);
+    return new URL(`/attachment-preview/${channelId}/${messageId}/${attachmentId}`, apiUrl.origin).toString();
+  } catch {
+    return fallbackUrl;
   }
 }
 

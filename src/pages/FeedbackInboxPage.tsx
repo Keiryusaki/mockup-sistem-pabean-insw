@@ -16,12 +16,15 @@ import { Card, CardBody, CardHeader } from "../components/Surface";
 import {
   DEMO_FEEDBACK_RECORDS,
   loadFeedbackRecords,
+  resolveFeedbackAttachmentPreviewUrl,
   type FeedbackRecord,
 } from "../lib/feedbackFeed";
 
 type FilterType = "Semua" | "Masukan" | "Perbaikan";
 type FilterStatus = "Semua" | FeedbackRecord["status"];
 const FEEDBACK_FEED_URL = (((import.meta as unknown as { env?: { VITE_FEEDBACK_FEED_URL?: string } }).env?.VITE_FEEDBACK_FEED_URL ?? "").trim());
+const FEEDBACK_API_URL = (((import.meta as unknown as { env?: { VITE_DISCORD_FEEDBACK_SUBMIT_URL?: string } }).env?.VITE_DISCORD_FEEDBACK_SUBMIT_URL ?? "").trim());
+const ATTACHMENT_PROXY_BASE_URL = FEEDBACK_API_URL || FEEDBACK_FEED_URL;
 
 const typeLabelClass: Record<FeedbackRecord["type"], string> = {
   Masukan: "bg-info-50 text-info-700 border-info-200",
@@ -96,8 +99,14 @@ function ExternalIcon({ className }: { className?: string }) {
   );
 }
 
-function AttachmentCard({ attachment }: { attachment: FeedbackRecord["attachments"][number] }) {
-  const isPreviewableImage = attachment.kind === "image" && Boolean(attachment.previewUrl);
+function AttachmentCard({
+  attachment,
+  previewUrl,
+}: {
+  attachment: FeedbackRecord["attachments"][number];
+  previewUrl?: string;
+}) {
+  const isPreviewableImage = attachment.kind === "image" && Boolean(previewUrl);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border-primary bg-white shadow-sm">
@@ -117,7 +126,7 @@ function AttachmentCard({ attachment }: { attachment: FeedbackRecord["attachment
       {isPreviewableImage ? (
         <div className="group relative overflow-hidden bg-neutral-950">
           <img
-            src={attachment.previewUrl}
+            src={previewUrl}
             alt={attachment.name}
             className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.04] group-hover:brightness-105"
           />
@@ -268,24 +277,29 @@ function ThreadMessageCard({
         <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-neutral-700">{record.message}</p>
         {record.attachments.length > 0 ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {record.attachments.map((attachment) => (
-              <div
-                key={`${record.id}-${attachment.name}`}
-                role={attachment.kind === "image" && attachment.previewUrl ? "button" : undefined}
-                tabIndex={attachment.kind === "image" && attachment.previewUrl ? 0 : undefined}
-                onClick={() => onPreviewAttachment(attachment, threadLabel)}
-                onKeyDown={(event) => {
-                  if (attachment.kind !== "image" || !attachment.previewUrl) return;
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onPreviewAttachment(attachment, threadLabel);
-                  }
-                }}
-                className={attachment.kind === "image" && attachment.previewUrl ? "cursor-zoom-in" : undefined}
-              >
-                <AttachmentCard attachment={attachment} />
-              </div>
-            ))}
+            {record.attachments.map((attachment) => {
+              const previewUrl = resolveFeedbackAttachmentPreviewUrl(record, attachment, ATTACHMENT_PROXY_BASE_URL);
+              const isPreviewableImage = attachment.kind === "image" && Boolean(previewUrl);
+
+              return (
+                <div
+                  key={`${record.id}-${attachment.name}`}
+                  role={isPreviewableImage ? "button" : undefined}
+                  tabIndex={isPreviewableImage ? 0 : undefined}
+                  onClick={() => onPreviewAttachment({ ...attachment, previewUrl }, threadLabel)}
+                  onKeyDown={(event) => {
+                    if (!isPreviewableImage) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onPreviewAttachment({ ...attachment, previewUrl }, threadLabel);
+                    }
+                  }}
+                  className={isPreviewableImage ? "cursor-zoom-in" : undefined}
+                >
+                  <AttachmentCard attachment={attachment} previewUrl={previewUrl} />
+                </div>
+              );
+            })}
           </div>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-neutral-500">
