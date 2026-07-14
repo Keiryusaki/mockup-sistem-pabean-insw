@@ -243,7 +243,10 @@ export function AiStepModal({
             </div>
           </div>
 
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-5 sm:px-8">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto bg-gradient-to-b from-brand-primary-50 to-brand-primary-100/60 px-4 py-5 sm:px-8"
+          >
             <div className="flex flex-col gap-4">
               {messages.map(renderMessage)}
 
