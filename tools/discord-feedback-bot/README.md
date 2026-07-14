@@ -8,6 +8,7 @@ This folder contains a minimal `discord.js` mirror bot template for the INSW moc
 - Mirrors root feedback and reply messages into the mockup feed format.
 - Optionally writes a JSON feed file for the local `/feedback` inbox.
 - Optionally pushes the same JSON payload to a remote endpoint.
+- Resolves Discord attachments through `GET /attachment-preview/:channelId/:messageId/:attachmentId` so old previews do not depend on expired CDN URLs.
 - Exposes a small submit API so the mockup app can create forum posts directly from the FE widget.
 
 ## Install

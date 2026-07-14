@@ -196,6 +196,50 @@ function writeJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function getDiscordAttachmentId(url) {
+  if (!url) return undefined;
+
+  try {
+    const segments = new URL(url).pathname.split("/").filter(Boolean);
+    const attachmentsIndex = segments.indexOf("attachments");
+    const attachmentId = attachmentsIndex >= 0 ? segments[attachmentsIndex + 2] : undefined;
+    return attachmentId && /^\d+$/.test(attachmentId) ? attachmentId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function findMessageAttachmentUrl(message, attachmentId) {
+  const directAttachment = message.attachments?.get(attachmentId);
+  if (directAttachment?.url) return directAttachment.url;
+
+  for (const embed of message.embeds ?? []) {
+    for (const candidate of [embed.image?.url, embed.thumbnail?.url]) {
+      if (getDiscordAttachmentId(candidate) === attachmentId) return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+async function resolveAttachmentPreview(channelId, messageId, attachmentId) {
+  if (![channelId, messageId, attachmentId].every((value) => /^\d+$/.test(value))) return null;
+
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  const belongsToFeedbackChannel =
+    channel &&
+    "messages" in channel &&
+    (channel.id === mapper.channelId || (channel.isThread?.() && channel.parentId === mapper.channelId));
+  if (!belongsToFeedbackChannel) return null;
+
+  const message = await channel.messages
+    .fetch({ message: messageId, force: true, cache: false })
+    .catch(() => null);
+  if (!message) return null;
+
+  return findMessageAttachmentUrl(message, attachmentId) ?? null;
+}
+
 async function createForumSubmission(payload) {
   const channel = await client.channels.fetch(mapper.channelId).catch(() => null);
   if (!channel || !isForumParentChannel(channel)) {
@@ -448,6 +492,35 @@ const apiServer = createServer(async (request, response) => {
       channelId: mapper.channelId,
       apiPort,
     });
+    return;
+  }
+
+  const attachmentPreviewMatch = url.pathname.match(/^\/attachment-preview\/(\d+)\/(\d+)\/(\d+)$/);
+  if (attachmentPreviewMatch && request.method === "GET") {
+    const [, channelId, messageId, attachmentId] = attachmentPreviewMatch;
+
+    try {
+      if (!client.isReady()) {
+        writeJson(response, 503, { ok: false, error: "Discord bot is not ready." });
+        return;
+      }
+
+      const previewUrl = await resolveAttachmentPreview(channelId, messageId, attachmentId);
+      if (!previewUrl) {
+        writeJson(response, 404, { ok: false, error: "Attachment not found." });
+        return;
+      }
+
+      response.writeHead(302, {
+        Location: previewUrl,
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      });
+      response.end();
+    } catch (error) {
+      console.error(`Failed to resolve attachment ${attachmentId} from message ${messageId}:`, error);
+      writeJson(response, 502, { ok: false, error: "Failed to resolve Discord attachment." });
+    }
     return;
   }
 
