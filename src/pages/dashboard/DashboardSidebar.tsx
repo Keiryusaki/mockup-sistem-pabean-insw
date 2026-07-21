@@ -5,7 +5,7 @@ import { Tooltip } from "../../components/Tooltip";
 import { useState } from "react";
 
 const MENU_ITEMS = [
-  { to: "/", label: "Dashboard", icon: HomeIcon },
+  { to: "/dashboard", label: "Dashboard", icon: HomeIcon },
   { to: "/data", label: "Data Pengajuan", icon: DocumentsIcon },
 ] as const;
 

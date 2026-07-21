@@ -19,13 +19,22 @@ It is focused on:
 
 ## Main Routes
 
-- `/` Dashboard
-- `/data` Data Pengajuan
+- `/` App selector hub (Smart Form + Client App)
+- `/smart-form` Smart Form role picker (Pengaju / Penyedia)
+- `/dashboard` Smart Form Pengaju Dashboard
+- `/data` Data Pengajuan (pengaju)
 - `/form` Form Pengajuan
+- `/penyedia` Penyedia dashboard AI + peta
+- `/penyedia/pengajuan` Penyedia list pengajuan (readonly)
+- `/penyedia/detail` Penyedia detail + analisis AI
 - `/component` Local component docs
 - `/icon` Icon library preview
 - `/loading` Loading state
 - `/feedback` Feedback inbox / mirror preview
+- `/client/login` Client App login
+- `/client/relasi` Client App pilih relasi + hak akses
+- `/client/pengajuan` Client App list pengajuan (review only)
+- `/client/tracking` Client App detail tracking
 
 ## Important Local Components
 

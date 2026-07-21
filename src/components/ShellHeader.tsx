@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ACCESS_KEY } from "./AccessGate";
 import { IconButton } from "./Button";
-import { DocumentsIcon, LogoutIcon } from "./Icons";
+import { DocumentsIcon, LogoutIcon, UserIcon } from "./Icons";
 
 type HeaderMenu = "notifications" | "updates" | "profile" | null;
 
@@ -41,6 +41,14 @@ const DEFAULT_NOTICES: HeaderNotice[] = [
     time: "Hari ini",
     unread: true,
     href: "/icon",
+  },
+  {
+    id: "notif-hub",
+    title: "Root sekarang jadi pilih aplikasi",
+    description: "Buka `/` untuk pilih Smart Form atau Client App. Dashboard Smart Form pindah ke `/dashboard`.",
+    time: "Baru saja",
+    unread: true,
+    href: "/",
   },
 ];
 
@@ -162,7 +170,21 @@ function ButtonLink({ to, children }: { to: string; children: ReactNode }) {
   );
 }
 
-export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action?: ReactNode }) {
+export function ShellHeader({
+  breadcrumb,
+  action,
+  homeTo = "/dashboard",
+  onLogout,
+  logoutDescription,
+  showSwitchRole = false,
+}: {
+  breadcrumb: string;
+  action?: ReactNode;
+  homeTo?: "/dashboard" | "/client/pengajuan" | "/penyedia" | "/";
+  onLogout?: () => void;
+  logoutDescription?: string;
+  showSwitchRole?: boolean;
+}) {
   const [now, setNow] = useState(() => new Date());
   const [menu, setMenu] = useState<HeaderMenu>(null);
   const [notifications, setNotifications] = useState<HeaderNotice[]>(DEFAULT_NOTICES);
@@ -253,6 +275,12 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
   };
 
   const logout = () => {
+    setMenu(null);
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+
     window.localStorage.removeItem(ACCESS_KEY);
     window.location.reload();
   };
@@ -260,7 +288,12 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
   return (
     <header ref={shellRef} className="sticky top-0 z-40 border-b border-brand-primary-800 bg-brand-primary-800 text-white shadow-[0_2px_10px_rgba(1,33,78,0.22)]">
       <div className="shell-header-top mx-auto flex h-[50px] w-full items-center justify-between gap-4 px-4 sm:px-6">
-        <Link to="/" aria-label="Beranda" className="shrink-0">
+        <Link
+          to={homeTo}
+          search={homeTo === "/client/pengajuan" ? { status: undefined } : undefined}
+          aria-label="Beranda"
+          className="shrink-0"
+        >
           <LogoMark />
         </Link>
 
@@ -332,6 +365,26 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
                   <div className="mt-1 text-[12px] leading-5 text-neutral-600">Akses cepat ke komponen lokal dan keluar dari sesi aktif.</div>
                 </div>
                 <div className="p-2">
+                  <MenuItem href="/">
+                    <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-600">
+                      <DocumentsIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[12px] font-semibold text-neutral-800">Pilih Aplikasi</span>
+                      <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Pindah ke Smart Form atau Client App.</span>
+                    </span>
+                  </MenuItem>
+                  {showSwitchRole ? (
+                    <MenuItem href="/smart-form">
+                      <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-600">
+                        <UserIcon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[12px] font-semibold text-neutral-800">Ganti Role</span>
+                        <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Pilih ulang Pengaju atau Penyedia.</span>
+                      </span>
+                    </MenuItem>
+                  ) : null}
                   <MenuItem href="/feedback">
                     <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-error-50 text-error-600">
                       <LaporIcon className="h-4 w-4" />
@@ -369,7 +422,9 @@ export function ShellHeader({ breadcrumb, action }: { breadcrumb: string; action
                     </span>
                     <span className="min-w-0">
                       <span className="block text-[12px] font-semibold text-neutral-800">Logout</span>
-                      <span className="mt-1 block text-[11px] leading-5 text-neutral-600">Hapus passkey lokal dan kembali ke mode terkunci.</span>
+                      <span className="mt-1 block text-[11px] leading-5 text-neutral-600">
+                        {logoutDescription ?? "Hapus passkey lokal dan kembali ke mode terkunci."}
+                      </span>
                     </span>
                   </button>
                 </div>

@@ -1,0 +1,27 @@
+Revisi layout Dashboard Monitoring agar lebih menyerupai Monitoring Center daripada dashboard berbasis card.
+
+Perubahan utama:
+
+- Jadikan World Map sebagai fokus utama halaman (hero section), bukan hanya card biasa.
+- Perbesar area peta menjadi full width dengan tinggi sekitar 500–600 px.
+- Tambahkan filter di atas peta:
+  - Semua
+  - Ekspor
+  - Impor
+  - KEK
+- Card statistik (Total, Diproses, Selesai, Perlu Perhatian) tidak lagi berada di atas peta, tetapi dibuat sebagai floating overlay di dalam area peta dengan desain transparan dan modern.
+- Panel Detail Negara tidak lagi menjadi sidebar terpisah. Ubah menjadi floating overlay di sisi kanan dalam area peta, menyerupai popup informasi pada aplikasi peta.
+- Setelah negara dipilih, tampilkan ringkasan:
+  - Nama negara
+  - Jumlah pengajuan
+  - HS Code dominan
+  - Jenis dokumen dominan
+  - Insight AI
+  - Indikator Perlu Perhatian
+  - Tombol Lihat Daftar Pengajuan
+- Gunakan warna peta yang lebih terang dan elegan. Hindari siluet hitam pekat. Negara menggunakan tone biru muda/abu terang, marker tetap biru agar menjadi fokus.
+- Marker dibuat lebih interaktif dengan efek hover, tooltip, dan ukuran berdasarkan jumlah pengajuan.
+- Area di bawah peta diubah menjadi satu tabel full width "Pengajuan Terkait". Jangan lagi menggunakan layout dua kolom.
+- Tabel berisi preview pengajuan dari negara yang dipilih, dengan tombol "Lihat Semua" menuju halaman daftar pengajuan.
+
+Target akhirnya adalah dashboard yang terasa seperti pusat monitoring nasional, di mana peta menjadi media navigasi utama dan seluruh informasi lain mengikuti konteks negara yang sedang dipilih.

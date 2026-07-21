@@ -558,7 +558,7 @@ export function FeedbackInboxPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="border-white/30 bg-white text-brand-primary-700 hover:bg-white/90">
-              <Link to="/">Ke Dashboard</Link>
+              <Link to="/dashboard">Ke Dashboard</Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="border-white/30 bg-white text-brand-primary-700 hover:bg-white/90">
               <Link to="/changelog">Buka Change Log</Link>

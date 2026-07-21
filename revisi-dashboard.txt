@@ -1,0 +1,197 @@
+Revisi Dashboard Monitoring Role Penyedia / Internal LNSW.
+
+Secara umum dashboard sudah mengarah ke konsep yang benar, namun saat ini fokus visual masih terlalu besar pada peta, sementara tujuan dashboard adalah membantu petugas memonitor pengajuan dan menemukan pengajuan yang perlu diperhatikan dengan cepat.
+
+==================================================
+TUJUAN
+==================================================
+
+Dashboard ini bukan dashboard Business Intelligence.
+
+Dashboard ini adalah Monitoring Dashboard.
+
+Tujuan utama:
+
+- Monitoring seluruh pengajuan.
+- Menampilkan distribusi pengajuan.
+- Membantu menemukan pengajuan yang memerlukan perhatian.
+- Memberikan insight AI.
+- Mempermudah navigasi menuju Detail Pengajuan.
+
+==================================================
+LAYOUT
+==================================================
+
+Pertahankan struktur layout saat ini.
+
+Namun ubah proporsi agar fokus utama bukan hanya peta.
+
+Peta hanya berfungsi sebagai media navigasi/filter berdasarkan negara.
+
+==================================================
+PETA
+==================================================
+
+Pertahankan world map.
+
+Tambahkan kesan lebih interaktif.
+
+Contoh:
+
+- Hover marker menampilkan tooltip.
+- Tooltip berisi:
+  - Nama Negara
+  - Jumlah Pengajuan
+  - Klik untuk melihat detail.
+
+Marker tetap menggunakan ukuran berdasarkan jumlah pengajuan.
+
+==================================================
+DETAIL NEGARA
+==================================================
+
+Panel kanan dibuat lebih informatif.
+
+Urutan informasi yang disarankan:
+
+- Nama Negara
+- Jumlah Pengajuan
+- HS Code terbanyak
+- Jenis Dokumen terbanyak
+- Status Pengajuan
+- Insight AI
+- Indikator Perlu Perhatian
+- Tombol Lihat Daftar Pengajuan
+
+==================================================
+INSIGHT AI
+==================================================
+
+Insight AI jangan hanya berupa statistik.
+
+Buat terasa seperti ringkasan yang dihasilkan AI.
+
+Contoh:
+
+- HS Code 8471 mendominasi pengajuan dari China.
+- Mayoritas pengajuan selesai kurang dari 2 hari.
+- Belum ditemukan pola anomali yang signifikan.
+- Sebagian kecil pengajuan masih memerlukan pengecekan dokumen pendukung.
+
+==================================================
+PERLU PERHATIAN
+==================================================
+
+Tambahkan section baru pada panel kanan.
+
+Judul:
+
+Perlu Perhatian
+
+Berisi indikator yang ditemukan AI.
+
+Contoh:
+
+🟡 COO belum tersedia (8)
+
+🟡 Invoice belum sinkron (3)
+
+🟡 Packing List belum tersedia (2)
+
+🟢 Tidak ditemukan indikasi duplikasi
+
+🟢 Lartas tidak diperlukan
+
+Seluruh indikator hanya bersifat informasi.
+
+==================================================
+HASIL ANALISIS AI
+==================================================
+
+Tambahkan ringkasan kualitas data.
+
+Contoh:
+
+Kelengkapan Dokumen
+92%
+
+Konsistensi Data
+95%
+
+Validasi HS
+Sesuai
+
+Dokumen Pendukung
+Perlu pengecekan
+
+Semua hanya berupa indikator.
+
+==================================================
+PENGAJUAN TERKAIT
+==================================================
+
+Setelah negara dipilih, tampilkan preview daftar pengajuan langsung pada dashboard.
+
+Tidak perlu menunggu user menekan tombol.
+
+Tampilkan sekitar 5 data pertama.
+
+Kolom:
+
+- Nomor Pengajuan
+- Jenis Dokumen
+- Status
+- Flag AI
+
+Tombol:
+
+Lihat Semua
+
+Halaman Daftar Pengajuan tetap menjadi halaman utama untuk melihat seluruh data.
+
+==================================================
+VISUAL
+==================================================
+
+Dashboard masih terasa kosong pada area bawah peta.
+
+Isi area tersebut dengan preview daftar pengajuan agar dashboard terasa lebih hidup dan fungsional.
+
+==================================================
+PRINSIP AI
+==================================================
+
+AI tidak memberikan keputusan.
+
+AI hanya membantu petugas menemukan informasi penting lebih cepat.
+
+Fokus AI adalah:
+
+- Kelengkapan dokumen.
+- Konsistensi data.
+- Pola pengajuan.
+- Indikator yang memerlukan perhatian.
+
+Bukan:
+
+- Approve.
+- Reject.
+- Menentukan keputusan.
+
+==================================================
+TARGET UX
+==================================================
+
+Ketika user membuka dashboard, alur yang diharapkan adalah:
+
+1. Melihat ringkasan monitoring.
+
+2. Klik negara pada peta.
+
+3. Melihat insight AI dan indikator pada panel kanan.
+
+4. Melihat preview pengajuan terkait.
+
+5. Membuka Detail Pengajuan jika diperlukan.
+
+Dashboard harus memberikan kesan sebagai alat monitoring dan navigasi menuju data, bukan halaman analisis bisnis maupun sistem pengambilan keputusan.

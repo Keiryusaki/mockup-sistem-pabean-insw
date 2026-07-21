@@ -1,0 +1,57 @@
+Revisi halaman Detail Pengajuan agar menggunakan struktur yang sama dengan Form Pengajuan.
+
+Tujuan:
+- Form Pengajuan menjadi source of truth layout.
+- Halaman Detail hanya merupakan versi read-only dari Form Pengajuan.
+- Jangan membuat layout berbeda antara Form dan Detail.
+
+Yang perlu dilakukan:
+
+1. Gunakan pola one page scroll + TOC seperti Form Pengajuan.
+2. Hapus seluruh wizard lama.
+3. Semua section mengikuti urutan Form:
+   - Pengajuan
+   - Entitas
+   - Dokumen Lampiran
+   - Kemasan & Kontainer
+   - Barang
+   - Review
+
+4. Seluruh field ditampilkan sebagai value read-only, bukan input disabled.
+
+5. Layout card, grouping, dan TOC mengikuti Form agar user langsung familiar.
+
+6. Section Entitas tetap menggunakan child section/card seperti Form Pengajuan.
+
+7. Section Barang menggunakan tabel utama yang sama seperti Form.
+
+8. Klik "Lihat Detail" pada barang membuka Drawer read-only.
+
+9. Drawer Barang jangan dibuat versi sederhana. Gunakan struktur yang sama seperti Drawer pada Form Pengajuan.
+
+Drawer terdiri dari dua tab:
+
+Detail
+- Data Barang
+- Spesifikasi Wajib
+- Dokumen Barang
+- Barang VD
+- Barang Tarif
+- Karantina
+
+Validasi
+- COO
+- Lartas
+- Masterlist
+- Transportasi
+- Temuan Analisis (placeholder)
+- Catatan (placeholder)
+
+Semua data hanya ditampilkan (read-only).
+
+10. TOC Detail Pengajuan mengikuti TOC Form.
+
+11. TOC Drawer Barang mengikuti struktur Drawer Form.
+
+Target akhir:
+Halaman Detail Pengajuan terlihat seperti Form Pengajuan yang sedang dibaca (read-only), sehingga user tidak perlu belajar layout baru. Semua perubahan struktur di Form otomatis dapat diadaptasi ke halaman Detail tanpa membuat dua desain yang berbeda.

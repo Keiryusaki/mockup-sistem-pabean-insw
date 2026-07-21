@@ -66,7 +66,7 @@ export const proposalRows: ProposalRow[] = [
 ];
 
 export const menuItems = [
-  { to: "/", label: "Dashboard" },
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/data", label: "Data Pengajuan" },
 ];
 

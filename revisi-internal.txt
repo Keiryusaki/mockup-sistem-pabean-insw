@@ -1,0 +1,186 @@
+Revisi mockup Role Penyedia / Internal LNSW.
+
+Catatan penting:
+Role Penyedia bukan aplikasi untuk mengambil keputusan (approve/reject), melainkan dashboard monitoring internal yang membantu petugas memonitor seluruh pengajuan serta memberikan analisis awal berbasis AI.
+
+AI hanya memberikan insight, indikator, dan informasi pendukung. AI tidak menentukan keputusan.
+
+==================================================
+TUJUAN DASHBOARD
+==================================================
+
+Dashboard digunakan untuk:
+
+- Monitoring seluruh pengajuan.
+- Melihat statistik pengajuan.
+- Melihat distribusi pengajuan berdasarkan negara.
+- Membantu menemukan pengajuan yang memerlukan perhatian.
+- Membuka detail pengajuan beserta hasil analisis AI.
+
+Dashboard bukan aplikasi approval.
+
+==================================================
+LAYOUT
+==================================================
+
+Pertahankan layout dashboard modern.
+
+Namun ubah fokus menjadi Dashboard Monitoring, bukan Business Intelligence Dashboard.
+
+==================================================
+RINGKASAN
+==================================================
+
+Gunakan card sederhana seperti:
+
+- Total Pengajuan
+- Sedang Diproses
+- Selesai
+- Perlu Perhatian
+
+Bukan card pertumbuhan bisnis atau metrik eksekutif.
+
+==================================================
+PETA DUNIA
+==================================================
+
+Gunakan peta dunia sebenarnya (world map), bukan ilustrasi.
+
+Marker menunjukkan jumlah pengajuan berdasarkan negara asal.
+
+Semakin banyak pengajuan, semakin besar marker.
+
+Klik marker negara akan memperbarui panel detail di sebelah kanan.
+
+==================================================
+PANEL DETAIL NEGARA
+==================================================
+
+Saat negara dipilih, tampilkan informasi seperti:
+
+- Nama Negara
+- Jumlah Pengajuan
+- HS Code yang paling sering muncul
+- Jenis Dokumen yang paling banyak diajukan
+- Status pengajuan
+- Insight AI
+
+Tambahkan tombol:
+
+"Lihat Daftar Pengajuan"
+
+==================================================
+INSIGHT AI
+==================================================
+
+Insight AI hanya berupa informasi.
+
+Contoh:
+
+- HS Code 8471 mendominasi pengajuan dari China.
+- Mayoritas selesai dalam 2 hari.
+- Beberapa pengajuan belum memiliki dokumen COO.
+- Terdapat beberapa pengajuan yang perlu pengecekan manual karena kelengkapan dokumen belum konsisten.
+
+Jangan menggunakan istilah:
+
+- High Risk
+- Fraud
+- Reject Recommendation
+
+Karena AI tidak mengambil keputusan.
+
+==================================================
+INDIKATOR ANALISIS
+==================================================
+
+AI hanya memberikan flag seperti:
+
+🟢 Lengkap
+
+🟡 COO belum tersedia
+
+🟡 Dokumen pendukung belum lengkap
+
+🟡 Perlu pengecekan reviewer
+
+🟡 Ada ketidaksesuaian data
+
+Semua hanya indikator.
+
+==================================================
+DAFTAR PENGAJUAN
+==================================================
+
+Saat user memilih negara atau filter tertentu, tampilkan daftar pengajuan.
+
+Kolom contoh:
+
+- Nomor Pengajuan
+- Jenis Dokumen
+- Negara
+- HS Code
+- Status
+- Indikator AI
+- Aksi
+
+Aksi hanya:
+
+Detail
+
+Tidak ada:
+
+- Edit
+- Approve
+- Reject
+
+==================================================
+DETAIL PENGAJUAN
+==================================================
+
+Gunakan halaman Detail Pengajuan yang sama seperti Role Pengaju.
+
+Tidak perlu membuat layout baru.
+
+Tambahkan satu section baru di bagian atas:
+
+Ringkasan Analisis AI
+
+Berisi:
+
+- Insight AI
+- Flag Analisis
+- Temuan
+- Dokumen yang perlu diperiksa
+- Catatan Analisis
+
+Seluruh data hanya bersifat informatif.
+
+==================================================
+SIDEBAR
+==================================================
+
+Sederhanakan sidebar.
+
+Hilangkan menu-menu statis yang tidak digunakan dalam mockup.
+
+Fokuskan hanya pada menu yang benar-benar digunakan, misalnya:
+
+- Dashboard Analisis
+- Daftar Pengajuan
+- Ganti Role
+
+==================================================
+PRINSIP DESAIN
+==================================================
+
+Role Penyedia berfungsi sebagai:
+
+- Monitoring
+- Observasi
+- Analisis awal
+- Navigasi menuju Detail Pengajuan
+
+Bukan sebagai aplikasi untuk melakukan review resmi maupun pengambilan keputusan.
+
+Mockup harus memberikan kesan bahwa AI membantu petugas menemukan informasi penting lebih cepat, namun seluruh keputusan tetap berada pada reviewer atau instansi yang berwenang.

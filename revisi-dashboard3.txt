@@ -1,0 +1,190 @@
+Revisi Dashboard Monitoring pada bagian Peta Distribusi Pengajuan Nasional.
+
+Tujuan:
+Membuat peta benar-benar terasa interaktif, tidak terlalu tertutup overlay, dan panel Detail Negara lebih nyaman digunakan.
+
+==================================================
+1. INTERAKSI PETA
+==================================================
+
+Peta harus mendukung:
+
+- Drag / pan untuk menggeser posisi peta
+- Zoom in
+- Zoom out
+- Reset view
+- Mouse wheel zoom
+- Double click zoom
+- Cursor berubah menjadi grab/grabbing saat peta digeser
+
+Tambahkan kontrol peta kecil di pojok kiri bawah atau kanan bawah:
+
+[ + ]
+[ - ]
+[ Reset ]
+
+Jangan biarkan overlay statistik atau panel detail mengganggu interaksi drag dan zoom pada area peta.
+
+==================================================
+2. PETA SEBAGAI AREA UTAMA
+==================================================
+
+Pastikan sebagian besar area peta tetap terlihat.
+
+Jangan menutupi area peta terlalu banyak dengan card.
+
+Overlay hanya boleh menggunakan area secukupnya dan memiliki spacing dari tepi peta.
+
+Gunakan z-index yang jelas:
+- Peta
+- Marker
+- Statistik overlay
+- Detail Negara
+
+==================================================
+3. STATISTIK OVERLAY
+==================================================
+
+Card statistik tetap berada sebagai overlay di bagian atas peta, tetapi buat lebih compact.
+
+Card:
+- Total Pengajuan
+- Sedang Diproses
+- Selesai
+- Perlu Perhatian
+
+Tambahkan visual penanda agar mudah dibedakan, misalnya:
+- Icon kecil
+- Strip warna di sisi kiri
+- Dot warna
+- Border accent tipis
+
+Contoh kategori:
+- Total Pengajuan: navy / blue
+- Sedang Diproses: amber
+- Selesai: green
+- Perlu Perhatian: red / orange
+
+Tambahkan legend kecil atau gunakan warna yang konsisten dengan badge/status pada tabel.
+
+Jangan membuat seluruh card terlalu berwarna. Gunakan white/translucent background dengan aksen warna kecil agar tetap elegan.
+
+==================================================
+4. DETAIL NEGARA
+==================================================
+
+Panel Detail Negara hanya muncul jika sebuah negara dipilih.
+
+Kondisi awal:
+- Tidak ada negara terpilih
+- Panel Detail Negara tidak tampil
+- Peta terlihat lebih luas
+
+Saat marker negara diklik:
+- Tampilkan panel Detail Negara sebagai floating overlay di sisi kanan peta
+
+Panel memiliki struktur:
+
+Header sticky:
+- Nama Negara
+- Kode Negara
+- Jumlah Pengajuan singkat
+- Tombol Close / Dismiss
+
+Body scrollable:
+- HS Code dominan
+- Jenis Pengajuan dominan
+- Status pengajuan
+- Insight AI
+- Perlu Perhatian
+- Tombol Lihat Daftar Pengajuan
+
+Header panel tidak ikut scroll.
+
+Hanya body panel yang boleh scroll.
+
+==================================================
+5. DISMISS BEHAVIOR
+==================================================
+
+Panel Detail Negara dapat ditutup dengan:
+
+- Tombol X pada header
+- Klik area kosong di luar panel
+- Tekan tombol Escape
+
+Saat panel ditutup:
+- Hilangkan selected state pada marker
+- Kembalikan peta ke kondisi normal
+- Tidak perlu mereset posisi zoom/pan pengguna
+
+Klik di dalam panel tidak boleh menutup panel.
+
+==================================================
+6. SELECTED MARKER
+==================================================
+
+Marker negara yang dipilih harus memiliki state berbeda:
+
+- Border lebih tebal
+- Ring luar
+- Pulse ringan
+- Label negara atau jumlah lebih jelas
+
+Saat panel ditutup, selected state hilang.
+
+==================================================
+7. TOOLTIP MARKER
+==================================================
+
+Saat hover marker, tampilkan tooltip:
+
+Nama Negara
+Jumlah Pengajuan
+Klik untuk melihat detail
+
+Tooltip tidak boleh menghalangi marker lain.
+
+==================================================
+8. FILTER
+==================================================
+
+Pertahankan filter:
+
+- Semua
+- Ekspor
+- Impor
+- KEK
+
+Saat filter berubah:
+- Update marker
+- Update statistik overlay
+- Jika negara terpilih tidak memiliki data pada filter baru, tutup panel Detail Negara secara otomatis
+- Update tabel Pengajuan Terkait
+
+==================================================
+9. TABEL PENGAJUAN TERKAIT
+==================================================
+
+Tabel tetap berada full width di bawah peta.
+
+Judul mengikuti negara dan filter aktif.
+
+Contoh:
+"Pengajuan Terkait · China · Impor"
+
+Jika belum ada negara terpilih:
+"Pengajuan Terbaru"
+
+==================================================
+TARGET UX
+==================================================
+
+Peta harus terasa sebagai workspace monitoring yang bisa dieksplorasi.
+
+User harus bisa:
+1. Menggeser dan memperbesar peta
+2. Memilih negara
+3. Melihat detail negara tanpa kehilangan konteks peta
+4. Menutup detail dengan mudah
+5. Melihat daftar pengajuan terkait di bawah peta

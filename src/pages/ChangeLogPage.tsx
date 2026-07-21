@@ -653,7 +653,7 @@ export function ChangeLogPage() {
 
         <div className="mt-5 flex flex-wrap gap-3">
           <Button asChild variant="outline" size="sm" className="border-white/30 bg-white text-brand-primary-700 hover:bg-white/90">
-            <Link to="/">Kembali ke Dashboard</Link>
+            <Link to="/dashboard">Kembali ke Dashboard</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="border-white/30 bg-white text-brand-primary-700 hover:bg-white/90">
             <Link to="/component">Buka Komponen Lokal</Link>
