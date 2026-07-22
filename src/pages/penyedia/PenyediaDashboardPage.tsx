@@ -1,35 +1,19 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Badge } from "../../components/Badge";
 import { Button } from "../../components/Button";
 import {
   countryNodes,
   filterPenyediaProposals,
-  getCountryProposalCount,
+  getCountryFilterCount,
   monitoringSummary,
-  projectCountry,
   type CountryNode,
   type TradeKind,
 } from "./penyediaData";
 import { AiFlagChip, PenyediaSectionCard } from "./PenyediaAppLayout";
-
-function assetUrl(path: string) {
-  const baseUrl = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
-  if (baseUrl === "/") return path;
-  return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-}
+import { PenyediaWorldMap } from "./PenyediaWorldMap";
 
 const KIND_FILTERS: Array<TradeKind | "Semua"> = ["Semua", "Ekspor", "Impor", "KEK"];
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 3.2;
-const ZOOM_STEP = 0.2;
 
 const STAT_ACCENT: Record<string, string> = {
   total: "border-l-[#02275d]",
@@ -49,24 +33,8 @@ export function PenyediaDashboardPage() {
   const navigate = useNavigate();
   const [kindFilter, setKindFilter] = useState<TradeKind | "Semua">("Semua");
   const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
-  const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const mapShellRef = useRef<HTMLDivElement>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef({ zoom: 1, offset: { x: 0, y: 0 } });
-  const dragRef = useRef<{ active: boolean; moved: boolean; startX: number; startY: number; originX: number; originY: number }>({
-    active: false,
-    moved: false,
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-  });
-
-  viewRef.current = { zoom, offset };
+  const mapShellRef = useRef<HTMLDivElement>(null);
 
   const selectedCountry = useMemo(
     () => countryNodes.find((item) => item.id === selectedCountryId) ?? null,
@@ -82,24 +50,17 @@ export function PenyediaDashboardPage() {
 
   const relatedRows = useMemo(() => relatedSource.slice(0, 5), [relatedSource]);
 
-  const visibleCountries = useMemo(() => {
-    return countryNodes.map((country) => {
-      const exact = getCountryProposalCount(country.code, kindFilter);
-      const count = kindFilter === "Semua" ? country.total : exact > 0 ? exact : Math.max(1, Math.round(country.total * 0.28));
-      return { country, count, exact };
-    });
-  }, [kindFilter]);
+  const selectedCount = selectedCountry ? getCountryFilterCount(selectedCountry, kindFilter) : 0;
 
-  // Only auto-close detail when filter changes and selected country has no matching data.
+  // Drop selection if filter leaves the country with zero volume.
   useEffect(() => {
     if (!selectedCountryId) return;
-    const code = countryNodes.find((item) => item.id === selectedCountryId)?.code;
-    if (!code) return;
-    if (kindFilter !== "Semua" && getCountryProposalCount(code, kindFilter) === 0) {
+    const country = countryNodes.find((item) => item.id === selectedCountryId);
+    if (!country) return;
+    if (getCountryFilterCount(country, kindFilter) === 0) {
       setSelectedCountryId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kindFilter]);
+  }, [kindFilter, selectedCountryId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -109,103 +70,23 @@ export function PenyediaDashboardPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const clampOffset = (nextZoom: number, nextX: number, nextY: number) => {
-    const shell = mapShellRef.current;
-    if (!shell) return { x: nextX, y: nextY };
-    const maxX = ((nextZoom - 1) * shell.clientWidth) / 2 + 80;
-    const maxY = ((nextZoom - 1) * shell.clientHeight) / 2 + 80;
-    return {
-      x: Math.max(-maxX, Math.min(maxX, nextX)),
-      y: Math.max(-maxY, Math.min(maxY, nextY)),
-    };
-  };
-
-  const applyZoomAround = (nextZoomRaw: number, clientX?: number, clientY?: number) => {
-    const shell = mapShellRef.current;
-    const current = viewRef.current;
-    const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoomRaw));
-    if (!shell || Math.abs(nextZoom - current.zoom) < 0.0001) {
-      setZoom(nextZoom);
-      return;
-    }
-
-    const rect = shell.getBoundingClientRect();
-    const anchorX = clientX == null ? rect.left + rect.width / 2 : clientX;
-    const anchorY = clientY == null ? rect.top + rect.height / 2 : clientY;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const relX = anchorX - centerX;
-    const relY = anchorY - centerY;
-    const scale = nextZoom / current.zoom;
-    const nextOffset = clampOffset(
-      nextZoom,
-      relX - (relX - current.offset.x) * scale,
-      relY - (relY - current.offset.y) * scale,
-    );
-    setZoom(nextZoom);
-    setOffset(nextOffset);
-  };
-
-  const resetView = () => {
-    setZoom(1);
-    setOffset({ x: 0, y: 0 });
-  };
-
-  const handlePointerDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-map-ui='true']") || target.closest("[data-map-marker='true']")) return;
-
-    dragRef.current = {
-      active: true,
-      moved: false,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: offset.x,
-      originY: offset.y,
-    };
-    setIsDragging(true);
-  };
-
-  // Native non-passive wheel listener (React onWheel is passive in many browsers).
+  // Click outside detail panel closes selection (map zoom/pan preserved by chart viewRef).
   useEffect(() => {
-    const shell = mapShellRef.current;
-    if (!shell) return;
+    if (!selectedCountryId) return;
 
-    const onWheel = (event: WheelEvent) => {
+    const onPointerDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest("[data-map-ui='true']")) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      const direction = event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      applyZoomAround(viewRef.current.zoom + direction, event.clientX, event.clientY);
+      if (!target) return;
+      if (detailPanelRef.current?.contains(target)) return;
+      if (target.closest("[data-map-ui='true']")) return;
+      // Clicks on chart canvas also select countries via ECharts events; ignore them here.
+      if (mapShellRef.current?.contains(target) && target.closest("canvas")) return;
+      setSelectedCountryId(null);
     };
 
-    shell.addEventListener("wheel", onWheel, { passive: false });
-    return () => shell.removeEventListener("wheel", onWheel);
-  }, []);
-
-  useEffect(() => {
-    const onMove = (event: MouseEvent) => {
-      if (!dragRef.current.active) return;
-      const dx = event.clientX - dragRef.current.startX;
-      const dy = event.clientY - dragRef.current.startY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
-      setOffset(clampOffset(viewRef.current.zoom, dragRef.current.originX + dx, dragRef.current.originY + dy));
-    };
-    const onUp = () => {
-      if (!dragRef.current.active) return;
-      dragRef.current.active = false;
-      setIsDragging(false);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [selectedCountryId]);
 
   const openList = (country?: CountryNode | null) => {
     void navigate({
@@ -221,8 +102,6 @@ export function PenyediaDashboardPage() {
   const tableTitle = selectedCountry
     ? `Pengajuan Terkait · ${selectedCountry.name}${kindFilter !== "Semua" ? ` · ${kindFilter}` : ""}`
     : "Pengajuan Terbaru";
-
-  const hoveredCountry = countryNodes.find((item) => item.id === hoveredCountryId) ?? null;
 
   return (
     <section className="flex flex-col gap-4">
@@ -264,86 +143,14 @@ export function PenyediaDashboardPage() {
 
         <div
           ref={mapShellRef}
-          className={[
-            "relative h-[min(74vh,580px)] min-h-[520px] w-full overflow-hidden overscroll-none bg-[#edf4fb] select-none",
-            isDragging ? "cursor-grabbing" : "cursor-grab",
-          ].join(" ")}
-          onMouseDown={handlePointerDown}
-          onDoubleClick={(event) => {
-            if ((event.target as HTMLElement).closest("[data-map-ui='true']")) return;
-            if ((event.target as HTMLElement).closest("[data-map-marker='true']")) return;
-            applyZoomAround(viewRef.current.zoom + ZOOM_STEP * 1.5, event.clientX, event.clientY);
-          }}
-          onClick={(event) => {
-            if (!selectedCountryId) return;
-            if (dragRef.current.moved) return;
-            const target = event.target as HTMLElement;
-            if (target.closest("[data-map-ui='true']") || target.closest("[data-map-marker='true']")) return;
-            setSelectedCountryId(null);
-          }}
+          className="relative h-[min(74vh,580px)] min-h-[520px] w-full overflow-hidden bg-[#edf4fb]"
         >
-          <div
-            className="absolute left-1/2 top-1/2 h-full w-full will-change-transform"
-            style={{
-              transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`,
-              transformOrigin: "center center",
-            }}
-          >
-            <img
-              src={assetUrl("/world-map.png")}
-              alt="Peta dunia monitoring pengajuan"
-              draggable={false}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-85 brightness-110 contrast-95 saturate-70"
-            />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(237,244,251,0.22)_0%,rgba(237,244,251,0.04)_35%,rgba(237,244,251,0.08)_100%)]" />
-
-            {visibleCountries.map(({ country, count }) => {
-              const point = projectCountry(country.lat, country.lon);
-              const size = Math.max(18, Math.min(44, 12 + count * 0.32));
-              const active = selectedCountryId === country.id;
-              return (
-                <button
-                  key={country.id}
-                  type="button"
-                  data-map-marker="true"
-                  onMouseEnter={() => setHoveredCountryId(country.id)}
-                  onMouseLeave={() => setHoveredCountryId(null)}
-                  onMouseDown={(event) => {
-                    // Prevent map pan from stealing marker click.
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    dragRef.current.moved = false;
-                    setSelectedCountryId(country.id);
-                  }}
-                  className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                  style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                  aria-label={`${country.name}, ${count} pengajuan`}
-                >
-                  <span
-                    className={[
-                      "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition-all",
-                      active ? "animate-pulse bg-[#0353a4]/35" : "bg-[#6898c8]/18 group-hover:bg-[#0353a4]/28",
-                    ].join(" ")}
-                    style={{ width: size + (active ? 22 : 16), height: size + (active ? 22 : 16) }}
-                  />
-                  <span
-                    className={[
-                      "relative inline-flex items-center justify-center rounded-full border-white text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(2,39,93,0.28)] transition-transform",
-                      active
-                        ? "scale-110 border-[3px] bg-[#02275d] ring-4 ring-[#0353a4]/30"
-                        : "border-2 bg-[#0353a4] group-hover:scale-110",
-                    ].join(" ")}
-                    style={{ width: size, height: size }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <PenyediaWorldMap
+            kindFilter={kindFilter}
+            selectedCountryId={selectedCountryId}
+            onSelectCountry={setSelectedCountryId}
+            onBlankClick={() => setSelectedCountryId(null)}
+          />
 
           <div
             data-map-ui="true"
@@ -368,34 +175,6 @@ export function PenyediaDashboardPage() {
             ))}
           </div>
 
-          <div className="absolute bottom-4 left-4 z-30 flex flex-col gap-1.5" data-map-ui="true">
-            <MapControlButton label="Zoom in" onClick={() => applyZoomAround(viewRef.current.zoom + ZOOM_STEP)}>
-              +
-            </MapControlButton>
-            <MapControlButton label="Zoom out" onClick={() => applyZoomAround(viewRef.current.zoom - ZOOM_STEP)}>
-              −
-            </MapControlButton>
-            <MapControlButton label="Reset view" onClick={resetView} className="h-9 w-auto px-2 text-[10px] font-semibold">
-              Reset
-            </MapControlButton>
-          </div>
-
-          {hoveredCountry && hoveredCountry.id !== selectedCountryId ? (
-            <div
-              className="pointer-events-none absolute bottom-4 left-20 z-30 max-w-[220px] rounded-xl border border-white/70 bg-white/92 px-3 py-2 shadow-lg backdrop-blur-md"
-              data-map-ui="true"
-            >
-              <div className="text-[12px] font-semibold text-neutral-900">{hoveredCountry.name}</div>
-              <div className="mt-0.5 text-[12px] text-neutral-700">
-                {kindFilter === "Semua"
-                  ? hoveredCountry.total
-                  : Math.max(getCountryProposalCount(hoveredCountry.code, kindFilter), 1)}{" "}
-                pengajuan
-              </div>
-              <div className="mt-1 text-[11px] text-brand-primary-700">Klik untuk melihat detail</div>
-            </div>
-          ) : null}
-
           {selectedCountry ? (
             <div
               ref={detailPanelRef}
@@ -414,12 +193,7 @@ export function PenyediaDashboardPage() {
                       {selectedCountry.name}{" "}
                       <span className="text-[12px] font-medium text-neutral-500">({selectedCountry.code})</span>
                     </div>
-                    <div className="mt-0.5 text-[12px] text-neutral-600">
-                      {kindFilter === "Semua"
-                        ? selectedCountry.total
-                        : Math.max(getCountryProposalCount(selectedCountry.code, kindFilter), relatedSource.length)}{" "}
-                      pengajuan
-                    </div>
+                    <div className="mt-0.5 text-[12px] text-neutral-600">{selectedCount} pengajuan</div>
                   </div>
                   <button
                     type="button"
@@ -433,6 +207,12 @@ export function PenyediaDashboardPage() {
               </div>
 
               <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 py-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <MiniStat label="Impor" value={selectedCountry.import} />
+                  <MiniStat label="Ekspor" value={selectedCountry.export} />
+                  <MiniStat label="KEK" value={selectedCountry.kek} />
+                </div>
+
                 <InfoRow label="HS Code dominan" value={selectedCountry.topHsCode} />
                 <InfoRow label="Jenis pengajuan dominan" value={selectedCountry.topDocument} />
 
@@ -556,35 +336,12 @@ export function PenyediaDashboardPage() {
   );
 }
 
-function MapControlButton({
-  label,
-  onClick,
-  children,
-  className,
-}: {
-  label: string;
-  onClick: () => void;
-  children: ReactNode;
-  className?: string;
-}) {
+function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-      onMouseDown={(event) => event.stopPropagation()}
-      className={[
-        "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/70 bg-white/90 text-[16px] font-semibold text-neutral-800 shadow-md backdrop-blur-md transition-colors hover:bg-white",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {children}
-    </button>
+    <div className="rounded-xl border border-border-primary bg-white px-2 py-2 text-center">
+      <div className="text-[10px] uppercase tracking-[0.1em] text-neutral-500">{label}</div>
+      <div className="mt-0.5 text-[14px] font-semibold text-neutral-900">{value}</div>
+    </div>
   );
 }
 

@@ -26,9 +26,16 @@ export type CountryNode = {
   id: string;
   name: string;
   code: string;
+  /** GeoJSON feature name used by the world map (echarts.registerMap). */
+  geoName: string;
   lat: number;
   lon: number;
+  /** [longitude, latitude] for ECharts scatter series. */
+  coordinates: [number, number];
   total: number;
+  export: number;
+  import: number;
+  kek: number;
   topHsCode: string;
   topDocument: string;
   statusBreakdown: { selesai: number; proses: number; perluPerhatian: number };
@@ -91,9 +98,14 @@ export const countryNodes: CountryNode[] = [
     id: "cn",
     name: "China",
     code: "CN",
-    lat: 35.8,
-    lon: 104.2,
+    geoName: "China",
+    lat: 35.8617,
+    lon: 104.1954,
+    coordinates: [104.1954, 35.8617],
     total: 86,
+    export: 28,
+    import: 54,
+    kek: 4,
     topHsCode: "8471 - Mesin pengolah data otomatis",
     topDocument: "BC 2.0",
     statusBreakdown: { selesai: 48, proses: 28, perluPerhatian: 10 },
@@ -120,12 +132,17 @@ export const countryNodes: CountryNode[] = [
     id: "sg",
     name: "Singapura",
     code: "SG",
-    lat: 1.35,
-    lon: 103.82,
-    total: 54,
+    geoName: "Singapore",
+    lat: 1.3521,
+    lon: 103.8198,
+    coordinates: [103.8198, 1.3521],
+    total: 18,
+    export: 10,
+    import: 6,
+    kek: 2,
     topHsCode: "2709 - Minyak mentah",
     topDocument: "BC 2.3",
-    statusBreakdown: { selesai: 31, proses: 18, perluPerhatian: 5 },
+    statusBreakdown: { selesai: 10, proses: 6, perluPerhatian: 2 },
     aiInsights: [
       "Volume pengajuan Singapura relatif stabil minggu ini.",
       "Mayoritas pengajuan selesai dengan kelengkapan dokumen yang baik.",
@@ -147,9 +164,14 @@ export const countryNodes: CountryNode[] = [
     id: "jp",
     name: "Jepang",
     code: "JP",
-    lat: 36.2,
-    lon: 138.25,
+    geoName: "Japan",
+    lat: 36.2048,
+    lon: 138.2529,
+    coordinates: [138.2529, 36.2048],
     total: 41,
+    export: 14,
+    import: 24,
+    kek: 3,
     topHsCode: "8708 - Suku cadang kendaraan",
     topDocument: "BC 2.0",
     statusBreakdown: { selesai: 22, proses: 14, perluPerhatian: 5 },
@@ -173,9 +195,14 @@ export const countryNodes: CountryNode[] = [
     id: "us",
     name: "Amerika Serikat",
     code: "US",
-    lat: 39.8,
-    lon: -98.5,
+    geoName: "United States",
+    lat: 39.8283,
+    lon: -98.5795,
+    coordinates: [-98.5795, 39.8283],
     total: 33,
+    export: 15,
+    import: 16,
+    kek: 2,
     topHsCode: "0901 - Kopi",
     topDocument: "BC 2.7",
     statusBreakdown: { selesai: 16, proses: 12, perluPerhatian: 5 },
@@ -200,9 +227,14 @@ export const countryNodes: CountryNode[] = [
     id: "nl",
     name: "Belanda",
     code: "NL",
-    lat: 52.1,
-    lon: 5.3,
+    geoName: "Netherlands",
+    lat: 52.1326,
+    lon: 5.2913,
+    coordinates: [5.2913, 52.1326],
     total: 22,
+    export: 12,
+    import: 8,
+    kek: 2,
     topHsCode: "1511 - Minyak kelapa sawit",
     topDocument: "BC 2.3",
     statusBreakdown: { selesai: 14, proses: 6, perluPerhatian: 2 },
@@ -227,9 +259,14 @@ export const countryNodes: CountryNode[] = [
     id: "au",
     name: "Australia",
     code: "AU",
-    lat: -25.3,
-    lon: 133.8,
+    geoName: "Australia",
+    lat: -25.2744,
+    lon: 133.7751,
+    coordinates: [133.7751, -25.2744],
     total: 29,
+    export: 11,
+    import: 15,
+    kek: 3,
     topHsCode: "2601 - Bijih besi",
     topDocument: "BC 2.16",
     statusBreakdown: { selesai: 12, proses: 12, perluPerhatian: 5 },
@@ -254,9 +291,14 @@ export const countryNodes: CountryNode[] = [
     id: "my",
     name: "Malaysia",
     code: "MY",
-    lat: 4.2,
-    lon: 101.9,
+    geoName: "Malaysia",
+    lat: 4.2105,
+    lon: 101.9758,
+    coordinates: [101.9758, 4.2105],
     total: 18,
+    export: 7,
+    import: 9,
+    kek: 2,
     topHsCode: "8471 - Mesin",
     topDocument: "BC 2.0",
     statusBreakdown: { selesai: 9, proses: 7, perluPerhatian: 2 },
@@ -275,6 +317,40 @@ export const countryNodes: CountryNode[] = [
       consistency: "96%",
       hsValidation: "Sesuai",
       supportingDocs: "Baik",
+    },
+  },
+  {
+    id: "id",
+    name: "Indonesia",
+    code: "ID",
+    geoName: "Indonesia",
+    lat: -2.5489,
+    lon: 118.0149,
+    coordinates: [118.0149, -2.5489],
+    total: 164,
+    export: 72,
+    import: 58,
+    kek: 34,
+    topHsCode: "1511 - Minyak kelapa sawit dan turunannya",
+    topDocument: "BC 2.3",
+    statusBreakdown: { selesai: 88, proses: 57, perluPerhatian: 19 },
+    aiInsights: [
+      "Indonesia menjadi region utama dengan volume pengajuan paling tinggi.",
+      "Pengajuan KEK cukup signifikan dan tersebar pada komoditas manufaktur serta CPO.",
+      "Sebagian pengajuan membutuhkan pengecekan konsistensi dokumen pendukung.",
+      "Rute domestik dan kawasan berikat perlu diprioritaskan pada monitoring harian.",
+    ],
+    attention: [
+      { id: "id-a1", label: "Packing List belum tersedia", count: 11, tone: "yellow" },
+      { id: "id-a2", label: "Invoice belum sinkron", count: 7, tone: "yellow" },
+      { id: "id-a3", label: "Perlu pengecekan reviewer", count: 19, tone: "yellow" },
+      { id: "id-a4", label: "Mayoritas dokumen utama tersedia", tone: "green" },
+    ],
+    quality: {
+      completeness: "91%",
+      consistency: "89%",
+      hsValidation: "Perlu sampling",
+      supportingDocs: "Perlu pengecekan",
     },
   },
 ];
@@ -486,13 +562,92 @@ export const penyediaProposals: PenyediaProposal[] = [
     documentsToCheck: ["Invoice", "Ringkasan transaksi"],
     analysisNotes: "AI hanya menandai inkonsistensi untuk diperhatikan petugas.",
   },
+  {
+    pengajuan: "2019942ID12320260611000001",
+    dokumen: "BC 2.3",
+    kind: "Ekspor",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    kirim: "11-06-2026, 08:30",
+    perusahaan: "NUSANTARA AGRO EKSPOR",
+    status: "Selesai",
+    hsCode: "1511.90",
+    flags: [{ id: "f-id1", label: "Lengkap", tone: "green" }],
+    aiSummary: "Pengajuan ekspor CPO dari Indonesia lengkap dan konsisten dengan dokumen pendukung.",
+    findings: ["HS Code selaras dengan uraian barang.", "Dokumen utama tersedia."],
+    documentsToCheck: ["Invoice", "Packing List", "COO"],
+    analysisNotes: "Data Indonesia menjadi baseline region utama pada dashboard monitoring.",
+  },
+  {
+    pengajuan: "2019942ID12320260611000002",
+    dokumen: "BC 2.0",
+    kind: "Impor",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    kirim: "11-06-2026, 09:45",
+    perusahaan: "GARUDA MANUFAKTUR INDONESIA",
+    status: "Proses",
+    progressLabel: "Sedang diproses",
+    hsCode: "8471.50",
+    flags: [{ id: "f-id2", label: "Packing List belum tersedia", tone: "yellow" }],
+    aiSummary: "Pengajuan impor komponen manufaktur masih membutuhkan pelengkap packing list.",
+    findings: ["Packing List belum tersedia.", "Status proses aktif."],
+    documentsToCheck: ["Packing List", "Invoice"],
+    analysisNotes: "Perlu dipantau karena masuk volume region Indonesia yang tinggi.",
+  },
+  {
+    pengajuan: "2019942ID12320260611000003",
+    dokumen: "BC 2.7",
+    kind: "KEK",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    kirim: "11-06-2026, 10:20",
+    perusahaan: "KEK PRIMA LOGISTIK",
+    status: "Perlu Perhatian",
+    hsCode: "8708.99",
+    flags: [
+      { id: "f-id3", label: "Invoice belum sinkron", tone: "yellow" },
+      { id: "f-id4", label: "Perlu pengecekan reviewer", tone: "yellow" },
+    ],
+    aiSummary: "Pengajuan KEK Indonesia memiliki selisih nilai invoice dan ringkasan transaksi.",
+    findings: ["Invoice belum sinkron.", "Perlu sampling dokumen pendukung."],
+    documentsToCheck: ["Invoice", "Ringkasan transaksi", "Packing List"],
+    analysisNotes: "Flag hanya membantu reviewer menelusuri prioritas monitoring KEK.",
+  },
+  {
+    pengajuan: "2019942ID12320260611000004",
+    dokumen: "BC 2.3",
+    kind: "Ekspor",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    kirim: "11-06-2026, 11:05",
+    perusahaan: "BAHARI HASIL LAUT",
+    status: "Proses",
+    progressLabel: "Menunggu respon instansi",
+    hsCode: "0306.17",
+    flags: [{ id: "f-id5", label: "Dokumen pendukung belum lengkap", tone: "yellow" }],
+    aiSummary: "Pengajuan ekspor hasil laut Indonesia menunggu dokumen pendukung tambahan.",
+    findings: ["Dokumen pendukung belum lengkap.", "Menunggu respon instansi terkait."],
+    documentsToCheck: ["Health Certificate", "Invoice"],
+    analysisNotes: "Monitoring diprioritaskan karena termasuk komoditas ekspor reguler.",
+  },
+  {
+    pengajuan: "2019942ID12320260611000005",
+    dokumen: "BC 2.0",
+    kind: "Impor",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    kirim: "11-06-2026, 13:15",
+    perusahaan: "INDOTECH KAWASAN BERIKAT",
+    status: "Selesai",
+    hsCode: "8542.31",
+    flags: [{ id: "f-id6", label: "Lengkap", tone: "green" }],
+    aiSummary: "Pengajuan impor elektronik Indonesia selesai dengan kelengkapan dokumen baik.",
+    findings: ["Tidak ada temuan kelengkapan utama.", "Data konsisten antar dokumen."],
+    documentsToCheck: ["Invoice", "B/L"],
+    analysisNotes: "Dapat digunakan sebagai pembanding pola pengajuan serupa.",
+  },
 ];
-
-export function projectCountry(lat: number, lon: number) {
-  const x = ((lon + 180) / 360) * 100;
-  const y = ((90 - lat) / 180) * 100;
-  return { x, y };
-}
 
 export function filterPenyediaProposals(options: {
   countryCode?: string;
@@ -520,4 +675,20 @@ export function filterPenyediaProposals(options: {
 
 export function getCountryProposalCount(countryCode: string, kind: TradeKind | "Semua" = "Semua") {
   return filterPenyediaProposals({ countryCode, kind }).length;
+}
+
+/** Marker value shown on the map for the active trade-kind filter. */
+export function getCountryFilterCount(country: CountryNode, kind: TradeKind | "Semua" = "Semua") {
+  if (kind === "Semua") return country.total;
+  if (kind === "Ekspor") return country.export;
+  if (kind === "Impor") return country.import;
+  return country.kek;
+}
+
+export function getCountryByCode(code: string) {
+  return countryNodes.find((item) => item.code === code) ?? null;
+}
+
+export function getCountryByGeoName(geoName: string) {
+  return countryNodes.find((item) => item.geoName === geoName || item.name === geoName) ?? null;
 }
