@@ -93,3 +93,68 @@ export const clientSubmittedRows: ClientProposalRow[] = [
     progressLabel: "Menunggu Respon Instansi",
   },
 ];
+
+/**
+ * Audit log data entitas (Pengusaha/Importir, PPJK, Penerima, Pembeli, Penanggung Jawab)
+ * pada step "Entitas" di Smart Form. Hanya field-field company-level yang diaudit,
+ * bukan seluruh field pengajuan.
+ */
+export type EntityAuditSection = "Pengusaha / Importir" | "PPJK" | "Penerima" | "Pembeli" | "Penanggung Jawab";
+
+export type EntityAuditLogEntry = {
+  pengajuan: string;
+  section: EntityAuditSection;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  changedBy: string;
+  changedAt: string;
+};
+
+export const entityAuditLogs: EntityAuditLogEntry[] = [
+  {
+    pengajuan: "2012342ED12320260606000001",
+    section: "Pengusaha / Importir",
+    field: "Alamat",
+    oldValue: "Jl. Industri Raya No. 12, Semarang",
+    newValue: "Jl. Contoh Raya No. 123, Jakarta",
+    changedBy: "Dewi Anggraini",
+    changedAt: "05-06-2026, 14:20",
+  },
+  {
+    pengajuan: "2012342ED12320260606000001",
+    section: "Penanggung Jawab",
+    field: "Email",
+    oldValue: "lama@perwira.co.id",
+    newValue: "pic@perwira.co.id",
+    changedBy: "Dewi Anggraini",
+    changedAt: "06-06-2026, 07:52",
+  },
+  {
+    pengajuan: "2010142ED12320260606000001",
+    section: "PPJK",
+    field: "Nama PPJK",
+    oldValue: "-",
+    newValue: "PT Mitra Kepabeanan Sejahtera",
+    changedBy: "Rizal Fadillah",
+    changedAt: "06-06-2026, 08:40",
+  },
+  {
+    pengajuan: "2011642ED12320260605000005",
+    section: "Pengusaha / Importir",
+    field: "NIB",
+    oldValue: "9120100781918",
+    newValue: "9120100781919",
+    changedBy: "Sistem (Sinkronisasi NIB)",
+    changedAt: "05-06-2026, 10:05",
+  },
+  {
+    pengajuan: "2013342ED12320260607000011",
+    section: "Penerima",
+    field: "Alamat",
+    oldValue: "23 Raffles Place, Singapore",
+    newValue: "35 Marina Boulevard, Singapore",
+    changedBy: "Nusantara Logistik Admin",
+    changedAt: "07-06-2026, 09:15",
+  },
+];
