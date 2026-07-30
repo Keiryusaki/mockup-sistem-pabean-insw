@@ -474,16 +474,15 @@ const stepFieldGroups = [
   },
 ] as const;
 
-const dokumenColumns = ["Seri", "Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"];
+const dokumenColumns = ["Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"];
 const mandatoryDokumenDefinitions = [
-  { seri: "1", kode: "INV", placeholder: "surat_pengajuan_impor_v01.docx" },
-  { seri: "2", kode: "PL", placeholder: "packing_list_mock.pdf" },
-  { seri: "3", kode: "BL", placeholder: "bill_of_lading_mock.pdf" },
+  { kode: "INV", placeholder: "surat_pengajuan_impor_v01.docx" },
+  { kode: "PL", placeholder: "packing_list_mock.pdf" },
+  { kode: "BL", placeholder: "bill_of_lading_mock.pdf" },
 ] as const;
 
 const createDokumenLampiranRow = (definition: (typeof mandatoryDokumenDefinitions)[number], nomorDokumen?: string) =>
   createRow(dokumenColumns, {
-    Seri: definition.seri,
     "Kode Dokumen": definition.kode,
     "Nomor Dokumen": nomorDokumen || definition.placeholder,
     Tanggal: "2026-06-30",
@@ -494,14 +493,14 @@ const createDokumenLampiranRow = (definition: (typeof mandatoryDokumenDefinition
 const normalizeDokumenRows = (rows: Row[]) => {
   const mandatoryRows = mandatoryDokumenDefinitions.map((definition) => {
     const existing = rows.find((row) => row["Kode Dokumen"] === definition.kode);
-    return existing ? createRow(dokumenColumns, { ...existing, Seri: definition.seri, "Kode Dokumen": definition.kode }) : createDokumenLampiranRow(definition);
+    return existing ? createRow(dokumenColumns, { ...existing, "Kode Dokumen": definition.kode }) : createDokumenLampiranRow(definition);
   });
   const extraRows = rows.filter((row) => !mandatoryDokumenDefinitions.some((definition) => row["Kode Dokumen"] === definition.kode));
-  return [...mandatoryRows, ...extraRows.map((row, index) => createRow(dokumenColumns, { ...row, Seri: row.Seri || String(index + mandatoryRows.length + 1) }))];
+  return [...mandatoryRows, ...extraRows.map((row) => createRow(dokumenColumns, row))];
 };
 
-const kemasanColumns = ["Seri", "Jenis Kemasan", "Merek"];
-const kontainerColumns = ["Seri", "Nomor Kontainer", "Ukuran", "Jenis Muatan", "Tipe"];
+const kemasanColumns = ["Jenis Kemasan", "Merek"];
+const kontainerColumns = ["Nomor Kontainer", "Ukuran", "Jenis Muatan", "Tipe"];
 const barangColumns = [
   "Seri",
   "HS Code",
@@ -672,8 +671,8 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
       createDokumenLampiranRow(mandatoryDokumenDefinitions[1], documents[1]),
       createDokumenLampiranRow(mandatoryDokumenDefinitions[2], documents[2]),
     ]),
-    kemasan: [createRow(kemasanColumns, { Seri: "1", "Jenis Kemasan": "Pallet", Merek: "INSW" })],
-    kontainer: [createRow(kontainerColumns, { Seri: "1", "Nomor Kontainer": "MSKU1234567", Ukuran: "40", "Jenis Muatan": "FCL", Tipe: "Dry" })],
+    kemasan: [createRow(kemasanColumns, { "Jenis Kemasan": "Pallet", Merek: "INSW" })],
+    kontainer: [createRow(kontainerColumns, { "Nomor Kontainer": "MSKU1234567", Ukuran: "40", "Jenis Muatan": "FCL", Tipe: "Dry" })],
     barang: [
       createRow(barangMasterColumns, {
         Seri: "1",
@@ -1432,13 +1431,6 @@ function DokumenLampiranEditor({
       </div>
 
       <div className={compact ? "mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
-        <Input
-          label="Seri"
-          value={value.Seri ?? ""}
-          onChange={(event) => onChange("Seri", event.target.value)}
-          placeholder="1"
-          requiredMark
-        />
         <Input
           label="Kode Dokumen"
           value={value["Kode Dokumen"] ?? ""}
@@ -2699,9 +2691,8 @@ export function FormPage() {
     { no: 3, hsCode: "8473.30.99", nama: "Docking Station", jumlah: "5", negara: "MY", berat: "45", status: "Selesai" },
   ];
 
-  const createDokumenDraftRow = (seri = String(formState.dokumen.length + 1), base?: Row) =>
+  const createDokumenDraftRow = (base?: Row) =>
     createRow(dokumenColumns, {
-      Seri: seri,
       "Kode Dokumen": "",
       "Nomor Dokumen": "",
       Tanggal: "2026-06-30",
@@ -2743,7 +2734,7 @@ export function FormPage() {
 
   const startEditDokumenRow = (rowIndex: number) => {
     setDokumenEditIndex(rowIndex);
-    setDokumenEditRow(createRow(dokumenColumns, formState.dokumen[rowIndex] ?? createDokumenDraftRow(String(rowIndex + 1))));
+    setDokumenEditRow(createRow(dokumenColumns, formState.dokumen[rowIndex] ?? createDokumenDraftRow()));
     setDokumenAddOpen(false);
     setDokumenDraftRow(null);
   };
@@ -2788,8 +2779,8 @@ export function FormPage() {
 
   const createCompactDraftRow = (section: "kemasan" | "kontainer", base?: Row) =>
     section === "kemasan"
-      ? createRow(kemasanColumns, { Seri: String(formState.kemasan.length + 1), "Jenis Kemasan": "", Merek: "", ...base })
-      : createRow(kontainerColumns, { Seri: String(formState.kontainer.length + 1), "Nomor Kontainer": "", Ukuran: "", "Jenis Muatan": "", Tipe: "", ...base });
+      ? createRow(kemasanColumns, { "Jenis Kemasan": "", Merek: "", ...base })
+      : createRow(kontainerColumns, { "Nomor Kontainer": "", Ukuran: "", "Jenis Muatan": "", Tipe: "", ...base });
 
   const openKemasanAddForm = () => {
     setKontainerAddOpen(false);
@@ -3603,7 +3594,7 @@ export function FormPage() {
                       const isEditing = dokumenEditIndex === rowIndex && Boolean(dokumenEditRow);
 
                       return (
-                        <Fragment key={`${row.Seri ?? rowIndex}-${row["Kode Dokumen"] ?? rowIndex}`}>
+                        <Fragment key={`${rowIndex}-${row["Kode Dokumen"] ?? rowIndex}`}>
                           <tr
                             className={[
                               "border-t border-border-primary align-top",
@@ -3805,9 +3796,6 @@ export function FormPage() {
               </Button>
               <Button variant="outline" size="sm" onClick={openImportExcel}>
                 Import Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setStatusMessage("Download template barang masih placeholder.")}>
-                Download Template
               </Button>
               <Button variant="error" size="sm" onClick={() => setClearBarangOpen(true)}>
                 Clear Data
@@ -4036,9 +4024,6 @@ export function FormPage() {
                 Batal
               </Button>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setStatusMessage("Template Excel Barang siap diunduh (placeholder).")}>
-                  Download Template
-                </Button>
                 <Button variant="primary" size="sm" onClick={startImportParsing} disabled={!importExcelFileName || importExcelStage !== "upload"}>
                   Upload & Parse
                 </Button>
@@ -4058,42 +4043,51 @@ export function FormPage() {
               </div>
 
               {importExcelStage === "upload" ? (
-                <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-2xl border border-dashed border-border-primary bg-white p-4">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Step 1</div>
-                    <h4 className="mt-1 text-[18px] font-semibold text-neutral-800">Upload Excel</h4>
-                    <p className="mt-2 text-[12px] leading-6 text-neutral-600">Support file XLSX. Gunakan template barang yang sudah disiapkan.</p>
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setStatusMessage("Template Excel Barang siap diunduh (placeholder).")}>
-                        Download Template
-                      </Button>
-                      <span className="text-[12px] text-neutral-500">Belum ada file dipilih.</span>
+                <>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-primary bg-white p-4">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Template Excel</div>
+                      <p className="mt-1 text-[12px] leading-6 text-neutral-600">
+                        Belum punya file? Unduh template terlebih dahulu agar kolom dan format data sesuai, supaya proses parsing tidak gagal.
+                      </p>
                     </div>
-                    <input
-                      type="file"
-                      accept=".xlsx"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        setImportExcelFileName(file?.name ?? "");
-                        if (file) setImportExcelStage("upload");
-                      }}
-                      className="mt-4 block w-full text-[12px] text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:text-[12px] file:font-semibold file:text-white"
-                    />
+                    <Button variant="outline" size="sm" onClick={() => setStatusMessage("Template Excel Barang siap diunduh (placeholder).")}>
+                      Download Template
+                    </Button>
                   </div>
-                  <div className="rounded-2xl border border-border-primary bg-white p-4">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Informasi Import</div>
-                    <p className="mt-2 text-[12px] leading-6 text-neutral-600">
-                      Import akan menggantikan seluruh data Barang beserta child data yang terkait:
-                    </p>
-                    <ul className="mt-3 space-y-1.5 text-[12px] text-neutral-700">
-                      <li>Spesifikasi Wajib</li>
-                      <li>Dokumen Barang</li>
-                      <li>Barang VD</li>
-                      <li>Barang Tarif</li>
-                      <li>Karantina</li>
-                    </ul>
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-2xl border border-dashed border-border-primary bg-white p-4">
+                      <h4 className="mt-1 text-[18px] font-semibold text-neutral-800">Upload Excel</h4>
+                      <p className="mt-2 text-[12px] leading-6 text-neutral-600">Support file XLSX. Gunakan template barang yang sudah disiapkan.</p>
+                      <input
+                        type="file"
+                        accept=".xlsx"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          setImportExcelFileName(file?.name ?? "");
+                          if (file) setImportExcelStage("upload");
+                        }}
+                        className="mt-4 block w-full text-[12px] text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:text-[12px] file:font-semibold file:text-white"
+                      />
+                      {!importExcelFileName ? (
+                        <span className="mt-2 block text-[12px] text-neutral-500">Belum ada file dipilih.</span>
+                      ) : null}
+                    </div>
+                    <div className="rounded-2xl border border-border-primary bg-white p-4">
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Informasi Import</div>
+                      <p className="mt-2 text-[12px] leading-6 text-neutral-600">
+                        Import akan menggantikan seluruh data Barang beserta child data yang terkait:
+                      </p>
+                      <ul className="mt-3 space-y-1.5 text-[12px] text-neutral-700">
+                        <li>Spesifikasi Wajib</li>
+                        <li>Dokumen Barang</li>
+                        <li>Barang VD</li>
+                        <li>Barang Tarif</li>
+                        <li>Karantina</li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
+                </>
               ) : importExcelStage === "parsing" ? (
                 <div className="mt-4 rounded-2xl border border-warning-100 bg-warning-50 p-4">
                   <div className="text-[12px] font-semibold text-warning-700">Parsing...</div>
