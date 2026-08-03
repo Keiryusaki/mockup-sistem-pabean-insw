@@ -4,6 +4,18 @@ import { Button, IconButton } from "../components/Button";
 import { Input, Select, Textarea } from "../components/FormControls";
 import { Modal } from "../components/Surface";
 import { Tooltip } from "../components/Tooltip";
+import { FormConfigurationDrawer } from "../form-config/FormConfigurationDrawer";
+import {
+  cloneConfigFile,
+  FORM_CONFIG_ACCESS_EVENT,
+  getDocumentConfig,
+  hasIntranetConfiguratorSession,
+  initialDocumentConfigFile,
+  isLocalConfiguratorHost,
+  readConfigDraft,
+  resolveDocumentSteps,
+} from "../form-config/config";
+import type { DocumentConfigFile, ResolvedFieldConfig, ResolvedSectionConfig } from "../form-config/types";
 import {
   AI_DRAFT_STORAGE_KEY,
   BC20_FORM_STORAGE_KEY,
@@ -64,6 +76,7 @@ type FormState = {
   kemasan: Row[];
   kontainer: Row[];
   barang: Row[];
+  barangCukai: Row[];
   spesifikasi: Row[];
   barangDokumen: Row[];
   barangVd: Row[];
@@ -79,6 +92,8 @@ type BarangSectionRow = { row: Row; index: number };
 type StoredFormState = {
   draft: AiSubmissionDraft | null;
   formState: FormState;
+  documentType?: string;
+  requiresQuarantine?: boolean;
 };
 
 const wizardSteps: Array<{ id: WizardStepId; label: string; description: string }> = [
@@ -108,6 +123,29 @@ const barangMasterColumns = [
   "Negara Asal",
   "Jumlah Satuan",
   "Berat Bersih",
+  "Berat Kotor",
+  "Pernyataan Lartas",
+  "Kondisi Barang",
+  "Ukuran",
+  "Spesifikasi Lain",
+  "Kode Satuan",
+  "Kode Kemasan",
+  "Jumlah Kemasan",
+  "Harga Invoice",
+  "Biaya Penambahan",
+  "Biaya Pengurangan",
+  "Harga per Satuan",
+  "Freight",
+  "Asuransi",
+  "Nilai VD",
+  "Nilai CIF",
+  "Nilai Pabean Rupiah",
+  "Metode Nilai Pabean",
+  "Alasan",
+  "Perbedaan Harga",
+  "FOB",
+  "Tambahan - Diskon",
+  "Volume",
   "Status",
 ];
 
@@ -144,6 +182,7 @@ const barangInfoFields: EntityFieldConfig[] = [
 
 const barangTocItems = [
   { id: "barang-info", title: "Informasi Barang", description: "Data inti barang per seri." },
+  { id: "barang-cukai", title: "Barang Cukai", description: "Rincian cukai per seri barang." },
   { id: "barang-spesifikasi", title: "Spesifikasi Wajib", description: "Spesifikasi tambahan per seri." },
   { id: "barang-dokumen", title: "Dokumen Barang", description: "Dokumen yang terhubung ke seri barang." },
   { id: "barang-vd", title: "Barang VD", description: "Mock data barang VD." },
@@ -189,6 +228,8 @@ type EntityFieldConfig = {
   readOnly?: boolean;
   disabled?: boolean;
   lookup?: boolean;
+  inputType?: string;
+  required?: boolean;
 };
 type EntityDefinition = {
   kind: EntityKind;
@@ -474,7 +515,7 @@ const stepFieldGroups = [
   },
 ] as const;
 
-const dokumenColumns = ["Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"];
+const dokumenColumns = ["Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin", "Kategori Dokumen", "Negara Asal"];
 const mandatoryDokumenDefinitions = [
   { kode: "INV", placeholder: "surat_pengajuan_impor_v01.docx" },
   { kode: "PL", placeholder: "packing_list_mock.pdf" },
@@ -499,8 +540,8 @@ const normalizeDokumenRows = (rows: Row[]) => {
   return [...mandatoryRows, ...extraRows.map((row) => createRow(dokumenColumns, row))];
 };
 
-const kemasanColumns = ["Jenis Kemasan", "Merek"];
-const kontainerColumns = ["Nomor Kontainer", "Ukuran", "Jenis Muatan", "Tipe"];
+const kemasanColumns = ["Seri", "Jumlah", "Jenis Kemasan", "Merek", "Kemasan"];
+const kontainerColumns = ["Seri", "Nomor Kontainer", "Ukuran", "Jenis Muatan", "Tipe", "Nomor Seal", "Stuffing"];
 const barangColumns = [
   "Seri",
   "HS Code",
@@ -518,11 +559,29 @@ const barangColumns = [
   "Kode Kemasan",
   "Jumlah Kemasan",
   "Harga Invoice",
+  "Biaya Penambahan",
+  "Biaya Pengurangan",
+  "Harga per Satuan",
+  "Freight",
+  "Asuransi",
+  "Nilai VD",
+  "Nilai CIF",
+  "Nilai Pabean Rupiah",
+  "Metode Nilai Pabean",
+  "Alasan",
+  "Perbedaan Harga",
+  "FOB",
+  "Tambahan - Diskon",
+  "Volume",
+  "Berat Kotor",
+  "Pernyataan Lartas",
+  "Status",
 ];
+const barangCukaiColumns = ["Seri Barang", "Komoditi", "Jenis Tarif Cukai", "Tarif Cukai", "Kode Fasilitas Cukai", "Jumlah Satuan Cukai", "Jenis Satuan Cukai", "Nilai Cukai", "Jenis Tarif HJE", "HJE RP", "Total Kemasan Cukai", "Jenis Kemasan Cukai", "Isi Per Kemasan", "Jumlah Pita Cukai", "Saldo Awal", "Saldo Akhir"];
 const spesifikasiColumns = ["Seri Barang", "Nama Spesifikasi", "Nilai", "Satuan"];
-const barangDokumenColumns = ["Seri Barang", "Seri Dokumen", "Jenis Dokumen", "Nomor Dokumen", "Tanggal"];
-const barangVdColumns = ["Seri Barang", "Jenis VD", "Nilai", "Keterangan"];
-const barangTarifColumns = ["Seri Barang", "Jenis Pungutan", "Jenis Tarif", "Kode Satuan", "Jumlah Satuan", "Nilai Tarif", "Kode Fasilitas Tarif", "Nilai Tarif Fasilitas"];
+const barangDokumenColumns = ["Seri Barang", "Seri Dokumen", "Jenis Dokumen", "Nomor Dokumen", "Tanggal", "Fasilitas", "No Urut Izin"];
+const barangVdColumns = ["Seri Barang", "Jenis VD", "Tanggal Jatuh Tempo", "Nilai", "Keterangan"];
+const barangTarifColumns = ["Seri Barang", "Jenis Pungutan", "Jenis Tarif", "Kode Satuan", "Jumlah Satuan", "Nilai Tarif", "Kode Fasilitas Tarif", "Nilai Tarif Fasilitas", "Penerbit SKA"];
 const karantinaColumns = ["Seri Barang", "Komoditas Karantina", "Jenis Karantina", "Nomor Dokumen", "Status"];
 
 const createRow = (columns: string[], values: Row = {}) =>
@@ -671,8 +730,8 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
       createDokumenLampiranRow(mandatoryDokumenDefinitions[1], documents[1]),
       createDokumenLampiranRow(mandatoryDokumenDefinitions[2], documents[2]),
     ]),
-    kemasan: [createRow(kemasanColumns, { "Jenis Kemasan": "Pallet", Merek: "INSW" })],
-    kontainer: [createRow(kontainerColumns, { "Nomor Kontainer": "MSKU1234567", Ukuran: "40", "Jenis Muatan": "FCL", Tipe: "Dry" })],
+    kemasan: [createRow(kemasanColumns, { Seri: "1", Jumlah: "2", "Jenis Kemasan": "Pallet", Merek: "INSW" })],
+    kontainer: [createRow(kontainerColumns, { Seri: "1", "Nomor Kontainer": "MSKU1234567", Ukuran: "40", "Jenis Muatan": "FCL", Tipe: "Dry", "Nomor Seal": "SEAL-001", Stuffing: "FCL" })],
     barang: [
       createRow(barangMasterColumns, {
         Seri: "1",
@@ -732,6 +791,9 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
         "Harga Invoice": "3200000",
       }),
     ],
+    barangCukai: [
+      createRow(barangCukaiColumns, { "Seri Barang": "1", Komoditi: "Hasil Tembakau", "Jenis Tarif Cukai": "Spesifik", "Tarif Cukai": "0", "Kode Fasilitas Cukai": "-", "Jumlah Satuan Cukai": "10", "Jenis Satuan Cukai": "PCE", "Nilai Cukai": "0", "Jenis Tarif HJE": "HJE", "HJE RP": "0", "Total Kemasan Cukai": "2", "Jenis Kemasan Cukai": "BOX", "Isi Per Kemasan": "5", "Jumlah Pita Cukai": "0", "Saldo Awal": "0", "Saldo Akhir": "0" }),
+    ],
     spesifikasi: [
       createRow(spesifikasiColumns, { "Seri Barang": "1", "Nama Spesifikasi": "Warna", Nilai: "Hitam", Satuan: "-" }),
       createRow(spesifikasiColumns, { "Seri Barang": "1", "Nama Spesifikasi": "Memori", Nilai: "16GB", Satuan: "GB" }),
@@ -778,6 +840,7 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
 const normalizeFormState = (state: FormState): FormState => ({
   ...state,
   dokumen: normalizeDokumenRows(state.dokumen),
+  barangCukai: state.barangCukai ?? [],
 });
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -953,8 +1016,9 @@ function EntityFieldRenderer({
         value={value}
         onValueChange={onChange}
         placeholder={field.placeholder ?? `Pilih ${field.label.toLowerCase()}`}
-        options={field.options ?? []}
+        options={field.options?.length ? field.options : [{ label: `Pilihan ${field.label} 1`, value: `${field.key}-1` }, { label: `Pilihan ${field.label} 2`, value: `${field.key}-2` }]}
         disabled={isDisabled}
+        required={field.required}
       />
     );
   }
@@ -968,6 +1032,8 @@ function EntityFieldRenderer({
       placeholder={field.placeholder ?? field.label}
       readOnly={isDisabled}
       disabled={isDisabled}
+      type={field.inputType}
+      requiredMark={field.required}
     />
   );
 }
@@ -1050,6 +1116,10 @@ function FormField({
   placeholder,
   type = "text",
   mandatory = false,
+  helperText,
+  inputType,
+  readOnly = false,
+  options,
 }: {
   label: string;
   value: string;
@@ -1057,16 +1127,64 @@ function FormField({
   placeholder?: string;
   type?: string;
   mandatory?: boolean;
+  helperText?: string;
+  inputType?: ResolvedFieldConfig["inputType"];
+  readOnly?: boolean;
+  options?: ResolvedFieldConfig["options"];
 }) {
+  if (inputType === "select") {
+    const configuredOptions = options?.length
+      ? options
+      : [
+          { label: `Pilihan ${label} 1`, value: `${label}-1` },
+          { label: `Pilihan ${label} 2`, value: `${label}-2` },
+        ];
+    const selectOptions = value && !configuredOptions.some((option) => option.value === value)
+      ? [{ label: value, value }, ...configuredOptions]
+      : configuredOptions;
+    return (
+      <Select
+        label={label}
+        value={value}
+        onValueChange={onChange}
+        options={selectOptions}
+        placeholder={placeholder ?? `Pilih ${label.toLowerCase()}`}
+        required={mandatory}
+        disabled={readOnly}
+        searchable
+        preserveOptions
+      />
+    );
+  }
+
+  if (inputType === "radio") {
+    return (
+      <fieldset>
+        <legend className="text-[12px] font-medium text-neutral-700">{label}{mandatory ? <span className="text-error-500"> *</span> : null}</legend>
+        <div className="mt-2 flex min-h-10 items-center gap-4 rounded-md border border-border-primary px-3">
+          {(options?.length ? options : [{ label: "Ya", value: "Ya" }, { label: "Tidak", value: "Tidak" }]).map((option) => <label key={option.value} className="flex items-center gap-2 text-[12px]"><input type="radio" checked={value === option.value} onChange={() => onChange(option.value)} disabled={readOnly} className="accent-brand-primary-500" />{option.label}</label>)}
+        </div>
+      </fieldset>
+    );
+  }
+
+  if (inputType === "alert") {
+    return <div className="rounded-xl border border-warning-100 bg-warning-50 p-3 text-[12px] text-warning-800"><strong>{label}</strong><div className="mt-1">{value || helperText || "Hasil analisis akan tampil otomatis."}</div></div>;
+  }
+
   return (
-    <Input
-      label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      type={type}
-      requiredMark={mandatory}
-    />
+    <div>
+      <Input
+        label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        type={inputType === "number" ? "number" : inputType === "date" ? "date" : type}
+        requiredMark={mandatory}
+        readOnly={readOnly}
+      />
+      {helperText ? <p className="mt-1.5 text-[11px] leading-5 text-neutral-500">{helperText}</p> : null}
+    </div>
   );
 }
 
@@ -1086,6 +1204,8 @@ function EditableTable({
   onEditCancel,
   editTitle,
   editSubtitle,
+  columnLabels,
+  fieldConfigs,
 }: {
   columns: string[];
   rows: Row[];
@@ -1102,6 +1222,8 @@ function EditableTable({
   onEditCancel?: () => void;
   editTitle?: string;
   editSubtitle?: string;
+  columnLabels?: Record<string, string>;
+  fieldConfigs?: ResolvedFieldConfig[];
 }) {
   const stretchToFill = (minWidth ?? 1100) <= 1200 || columns.length <= 4;
   const tableStyle = stretchToFill
@@ -1125,7 +1247,7 @@ function EditableTable({
                       (stretchToFill ? `${100 / columns.length}%` : `${Math.max(140, Math.floor((minWidth ?? 1100) / (columns.length + 2)))}px`),
                   }}
                 >
-                  {column}
+                  {columnLabels?.[column] ?? column}
                 </th>
               ))}
               <th className="w-[92px] whitespace-nowrap px-3 py-2 sm:w-[176px]">Aksi</th>
@@ -1171,6 +1293,8 @@ function EditableTable({
                           title={editTitle ?? "Edit Record"}
                           subtitle={editSubtitle}
                           columns={columns}
+                          columnLabels={columnLabels}
+                          fieldConfigs={fieldConfigs}
                           value={editingRow}
                           onChange={onEditChange}
                           onSave={onEditSave}
@@ -1197,7 +1321,7 @@ function EditableTable({
   );
 }
 
-type BarangDetailSection = "spesifikasi" | "dokumen" | "vd" | "tarif" | "karantina";
+type BarangDetailSection = "cukai" | "spesifikasi" | "dokumen" | "vd" | "tarif" | "karantina";
 
 function MiniStatusPill({ value }: { value: string }) {
   const variant =
@@ -1237,6 +1361,8 @@ function CompactEditableTable({
   onEditCancel,
   editTitle,
   editSubtitle,
+  columnLabels,
+  fieldConfigs,
 }: {
   columns: string[];
   rows: BarangSectionRow[];
@@ -1260,6 +1386,8 @@ function CompactEditableTable({
   onEditCancel?: () => void;
   editTitle?: string;
   editSubtitle?: string;
+  columnLabels?: Record<string, string>;
+  fieldConfigs?: ResolvedFieldConfig[];
 }) {
   return (
     <div className="space-y-3">
@@ -1273,6 +1401,8 @@ function CompactEditableTable({
           title={addFormTitle ?? `Tambah ${addLabel}`}
           subtitle={addFormSubtitle}
           columns={columns}
+          columnLabels={columnLabels}
+          fieldConfigs={fieldConfigs}
           value={addFormRow}
           onChange={onAddChange}
           onSave={onAddSave}
@@ -1288,7 +1418,7 @@ function CompactEditableTable({
                 <th className="w-[56px] px-3 py-2">#</th>
                 {columns.map((column) => (
                   <th key={column} className="px-3 py-2 font-semibold whitespace-nowrap">
-                    {column}
+                    {columnLabels?.[column] ?? column}
                   </th>
                 ))}
                 <th className="w-[92px] whitespace-nowrap px-3 py-2 sm:w-[176px]">Aksi</th>
@@ -1334,6 +1464,8 @@ function CompactEditableTable({
                             title={editTitle ?? "Edit Record"}
                             subtitle={editSubtitle}
                             columns={columns}
+                            columnLabels={columnLabels}
+                            fieldConfigs={fieldConfigs}
                             value={editingRow}
                             onChange={onEditChange}
                             onSave={onEditSave}
@@ -1368,6 +1500,7 @@ function DokumenLampiranEditor({
   saveLabel = "Simpan",
   codeLocked = false,
   compact = false,
+  fields,
 }: {
   title: string;
   subtitle?: string;
@@ -1378,8 +1511,11 @@ function DokumenLampiranEditor({
   saveLabel?: string;
   codeLocked?: boolean;
   compact?: boolean;
+  fields?: ResolvedFieldConfig[];
 }) {
   const [selectedFileName, setSelectedFileName] = useState(value["Nomor Dokumen"] ?? "");
+  const fieldMap = new Map((fields ?? []).map((field) => [field.id, field]));
+  const fieldConfig = (id: string) => fieldMap.get(id) ?? { id, label: id, enabled: true, required: false, order: 0 };
 
   useEffect(() => {
     setSelectedFileName(value["Nomor Dokumen"] ?? "");
@@ -1411,7 +1547,7 @@ function DokumenLampiranEditor({
         ) : null}
       </div>
 
-      <div className={compact ? "mt-3 rounded-xl border border-dashed border-border-primary bg-white/80 p-3" : "mt-4 rounded-2xl border border-dashed border-border-primary bg-white/80 p-4"}>
+      {fieldConfig("Nomor Dokumen").enabled ? <div className={compact ? "mt-3 rounded-xl border border-dashed border-border-primary bg-white/80 p-3" : "mt-4 rounded-2xl border border-dashed border-border-primary bg-white/80 p-4"}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Input File</div>
@@ -1428,44 +1564,44 @@ function DokumenLampiranEditor({
           className="mt-3 block w-full text-[12px] text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:text-[12px] file:font-semibold file:text-white"
         />
         <div className="mt-2 text-[11px] text-neutral-500">{selectedFileName || "Nama file yang dipilih akan otomatis mengisi Nomor Dokumen."}</div>
-      </div>
+      </div> : null}
 
       <div className={compact ? "mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
-        <Input
-          label="Kode Dokumen"
+        {fieldConfig("Kode Dokumen").enabled ? <FormField
+          label={fieldConfig("Kode Dokumen").label}
           value={value["Kode Dokumen"] ?? ""}
-          onChange={(event) => onChange("Kode Dokumen", event.target.value)}
+          onChange={(next) => onChange("Kode Dokumen", next)}
           placeholder={codeLocked ? "INV" : "INV / PL / BL"}
-          disabled={codeLocked}
-          requiredMark
-        />
-        <Input
-          label="Nomor Dokumen"
+          readOnly={codeLocked}
+          mandatory={fieldConfig("Kode Dokumen").required}
+          inputType={fieldConfig("Kode Dokumen").inputType}
+        /> : null}
+        {fieldConfig("Nomor Dokumen").enabled ? <Input
+          label={fieldConfig("Nomor Dokumen").label}
           value={value["Nomor Dokumen"] ?? selectedFileName ?? ""}
           onChange={() => void 0}
           placeholder="Nama file akan terisi otomatis"
           readOnly
-          requiredMark
-        />
-        <Input
-          label="Tanggal"
+          requiredMark={fieldConfig("Nomor Dokumen").required}
+        /> : null}
+        {fieldConfig("Tanggal").enabled ? <FormField
+          label={fieldConfig("Tanggal").label}
           value={value.Tanggal ?? ""}
-          onChange={(event) => onChange("Tanggal", event.target.value)}
-          type="date"
-          requiredMark
-        />
-        <Input
-          label="Kode Fasilitas"
+          onChange={(next) => onChange("Tanggal", next)} inputType="date" mandatory={fieldConfig("Tanggal").required}
+        /> : null}
+        {fieldConfig("Kode Fasilitas").enabled ? <FormField
+          label={fieldConfig("Kode Fasilitas").label}
           value={value["Kode Fasilitas"] ?? ""}
-          onChange={(event) => onChange("Kode Fasilitas", event.target.value)}
-          placeholder="-"
-        />
-        <Input
-          label="Kode Ijin"
+          onChange={(next) => onChange("Kode Fasilitas", next)} inputType="select" mandatory={fieldConfig("Kode Fasilitas").required}
+        /> : null}
+        {fieldConfig("Kode Ijin").enabled ? <FormField
+          label={fieldConfig("Kode Ijin").label}
           value={value["Kode Ijin"] ?? ""}
-          onChange={(event) => onChange("Kode Ijin", event.target.value)}
-          placeholder="-"
-        />
+          onChange={(next) => onChange("Kode Ijin", next)} inputType="select" mandatory={fieldConfig("Kode Ijin").required}
+        /> : null}
+        {(fields ?? []).filter((field) => field.enabled && !["Kode Dokumen", "Nomor Dokumen", "Tanggal", "Kode Fasilitas", "Kode Ijin"].includes(field.id)).map((field) => (
+          <FormField key={field.id} label={field.label} value={value[field.id] ?? field.defaultValue ?? ""} onChange={(next) => onChange(field.id, next)} inputType={field.inputType} mandatory={field.required} helperText={field.helperText} />
+        ))}
       </div>
 
       <div className={compact ? "mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-3" : "mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-4"}>
@@ -1489,6 +1625,8 @@ function CompactSectionRowEditor({
   onSave,
   onCancel,
   saveLabel = "Simpan",
+  columnLabels,
+  fieldConfigs,
 }: {
   title: string;
   subtitle?: string;
@@ -1498,6 +1636,8 @@ function CompactSectionRowEditor({
   onSave: () => void;
   onCancel: () => void;
   saveLabel?: string;
+  columnLabels?: Record<string, string>;
+  fieldConfigs?: ResolvedFieldConfig[];
 }) {
   return (
     <div className="rounded-xl border border-border-primary bg-background-primary/25 p-3">
@@ -1509,15 +1649,10 @@ function CompactSectionRowEditor({
       </div>
 
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {columns.map((column) => (
-          <Input
-            key={column}
-            label={column}
-            value={value[column] ?? ""}
-            onChange={(event) => onChange(column, event.target.value)}
-            placeholder={column}
-          />
-        ))}
+        {columns.map((column) => {
+          const config = fieldConfigs?.find((field) => field.id === column);
+          return <FormField key={column} label={columnLabels?.[column] ?? config?.label ?? column} value={value[column] ?? config?.defaultValue ?? ""} onChange={(next) => onChange(column, next)} inputType={config?.inputType} mandatory={config?.required} helperText={config?.helperText} readOnly={config?.readOnly} />;
+        })}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border-primary pt-3">
@@ -1550,6 +1685,11 @@ function BarangWorkspaceDrawer({
   onUpdateDetailEdit,
   onSaveDetailEdit,
   onCancelDetailEdit,
+  enabledSectionIds,
+  requiresQuarantine,
+  masterFields,
+  detailFields,
+  sectionLabels,
 }: {
   open: boolean;
   item: Row | null;
@@ -1568,6 +1708,11 @@ function BarangWorkspaceDrawer({
   onUpdateDetailEdit: (column: string, value: string) => void;
   onSaveDetailEdit: () => void;
   onCancelDetailEdit: () => void;
+  enabledSectionIds: string[];
+  requiresQuarantine: boolean;
+  masterFields: ResolvedFieldConfig[];
+  detailFields: Partial<Record<BarangDetailSection, ResolvedFieldConfig[]>>;
+  sectionLabels: Record<string, string>;
 }) {
   const [rendered, setRendered] = useState(open);
   const [animateOpen, setAnimateOpen] = useState(false);
@@ -1615,8 +1760,38 @@ function BarangWorkspaceDrawer({
       : "Kelola detail barang per seri dari drawer kanan. Data inti dan detail turunannya tetap melekat pada barang yang sama.";
   const sourceItems = ["COO-001 - Certificate of Origin", "COO-002 - Preferential COO", "COO-003 - Origin Statement"];
   const filteredSourceItems = sourceItems.filter((entry) => entry.toLowerCase().includes(cooSearch.trim().toLowerCase()));
-  const activeTocItems = activeTab === "data-barang" ? barangTocItems : complianceTocItems;
+  const activeTocItems = activeTab === "data-barang"
+    ? barangTocItems.filter((item) => enabledSectionIds.includes(item.id)).map((item) => ({ ...item, title: sectionLabels[item.id] ?? item.title }))
+    : complianceTocItems.filter((item) => item.id !== "compliance-karantina" || requiresQuarantine);
+  const hiddenSectionIds = [
+    ...barangTocItems.filter((item) => !enabledSectionIds.includes(item.id)).map((item) => item.id),
+    ...(!requiresQuarantine ? ["compliance-karantina"] : []),
+  ];
+  const configuredMasterFields = masterFields
+    .filter((field) => field.enabled)
+    .map<EntityFieldConfig>((field) => {
+      const base = barangInfoFields.find((item) => item.key === field.id);
+      return {
+        ...base,
+        key: field.id,
+        label: field.label,
+        note: field.helperText ?? base?.note,
+        type: field.inputType === "select" ? "select" : "input",
+        inputType: field.inputType === "number" ? "number" : field.inputType === "date" ? "date" : "text",
+        readOnly: field.readOnly,
+        required: field.required,
+        span: base?.span ?? 1,
+      };
+    });
+  const getDetailColumns = (section: BarangDetailSection, fallback: string[]) => {
+    const configured = detailFields[section];
+    return configured?.filter((field) => field.enabled).map((field) => field.id).filter((field) => fallback.includes(field)) ?? fallback;
+  };
+  const getDetailLabels = (section: BarangDetailSection) => Object.fromEntries((detailFields[section] ?? []).map((field) => [field.id, field.label]));
+  const configuredKarantinaFields = (detailFields.karantina ?? []).filter((field) => field.enabled);
+  const karantinaPreviewValues: Row = { "Komoditas Karantina": "Tumbuhan", "Jenis Karantina": "Karantina Tumbuhan", "Nomor Dokumen": "KAR-001", Status: "Perlu Validasi" };
   const detailDraftColumns: Record<BarangDetailSection, string[]> = {
+    cukai: barangCukaiColumns.slice(1),
     spesifikasi: spesifikasiColumns.slice(1),
     dokumen: barangDokumenColumns.slice(1),
     vd: barangVdColumns.slice(1),
@@ -1624,6 +1799,7 @@ function BarangWorkspaceDrawer({
     karantina: karantinaColumns.slice(1),
   };
   const detailAddLabels: Record<BarangDetailSection, string> = {
+    cukai: "Tambah Barang Cukai",
     spesifikasi: "Tambah Spesifikasi",
     dokumen: "Tambah Dokumen",
     vd: "Tambah VD",
@@ -1631,6 +1807,7 @@ function BarangWorkspaceDrawer({
     karantina: "Tambah Karantina",
   };
   const detailAddTitles: Record<BarangDetailSection, string> = {
+    cukai: "Tambah Barang Cukai",
     spesifikasi: "Tambah Spesifikasi",
     dokumen: "Tambah Dokumen Barang",
     vd: "Tambah Barang VD",
@@ -1638,6 +1815,7 @@ function BarangWorkspaceDrawer({
     karantina: "Tambah Karantina",
   };
   const detailAddSubtitles: Record<BarangDetailSection, string> = {
+    cukai: "Isi data cukai baru lalu simpan untuk menambah record ke tabel.",
     spesifikasi: "Isi data baru lalu simpan untuk menambah record ke tabel.",
     dokumen: "Isi data baru lalu simpan untuk menambah record ke tabel.",
     vd: "Isi data baru lalu simpan untuk menambah record ke tabel.",
@@ -1647,7 +1825,9 @@ function BarangWorkspaceDrawer({
 
   const createDetailDraftRow = (section: BarangDetailSection, seriBarang: string) =>
     createRow(
-      section === "spesifikasi"
+      section === "cukai"
+        ? barangCukaiColumns
+        : section === "spesifikasi"
         ? spesifikasiColumns
         : section === "dokumen"
           ? barangDokumenColumns
@@ -1712,6 +1892,7 @@ function BarangWorkspaceDrawer({
           animateOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
+        {hiddenSectionIds.length ? <style>{hiddenSectionIds.map((id) => `#${id}{display:none!important}`).join("")}</style> : null}
         <div className="relative flex h-full min-h-0 flex-col rounded-none bg-white lg:rounded-l-2xl">
             <div className="flex flex-col gap-4 border-b border-border-primary px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
@@ -1814,7 +1995,7 @@ function BarangWorkspaceDrawer({
                     <section id="barang-info" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-3 border-b border-border-primary pb-4 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Informasi Barang</div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-info"] ?? "Informasi Barang"}</div>
                           <p className="mt-1 text-[12px] text-neutral-600">Edit data inti untuk barang seri ini.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -1825,7 +2006,7 @@ function BarangWorkspaceDrawer({
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {barangInfoFields.map((field) => (
+                        {configuredMasterFields.map((field) => (
                           <EntityFieldRenderer
                             key={field.key}
                             field={field}
@@ -1836,14 +2017,48 @@ function BarangWorkspaceDrawer({
                       </div>
                     </section>
 
+                    <section id="barang-cukai" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-cukai"] ?? "Barang Cukai"}</div>
+                        <p className="text-[12px] text-neutral-600">Rincian cukai yang melekat pada seri barang.</p>
+                      </div>
+                      <div className="mt-4">
+                        <CompactEditableTable
+                          columns={getDetailColumns("cukai", barangCukaiColumns.slice(1))}
+                          columnLabels={getDetailLabels("cukai")}
+                          fieldConfigs={detailFields.cukai}
+                          rows={detailRows.cukai}
+                          onAdd={() => void 0}
+                          onRemove={(rowIndex) => onRemoveDetailRow("cukai", rowIndex)}
+                          emptyState="Belum ada rincian cukai untuk barang ini."
+                          addLabel={detailAddLabels.cukai}
+                          addFormOpen={detailAddState?.section === "cukai"}
+                          addFormRow={detailAddState?.section === "cukai" ? detailAddState.row : null}
+                          onAddStart={() => startAddDetailRow("cukai")}
+                          onAddChange={updateAddDetailField}
+                          onAddSave={saveAddDetailRow}
+                          onAddCancel={cancelAddDetailRow}
+                          editingRowIndex={detailEditState?.section === "cukai" ? detailEditState.rowIndex : null}
+                          editingRow={detailEditState?.section === "cukai" ? detailEditState.row : null}
+                          onEditStart={(rowIndex) => { setDetailAddState(null); const target = detailRows.cukai.find((entry) => entry.index === rowIndex); if (target) onStartDetailEdit("cukai", rowIndex, target.row); }}
+                          onEditChange={onUpdateDetailEdit}
+                          onEditSave={onSaveDetailEdit}
+                          onEditCancel={onCancelDetailEdit}
+                          editTitle="Edit Barang Cukai"
+                        />
+                      </div>
+                    </section>
+
                     <section id="barang-spesifikasi" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Spesifikasi Wajib</div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-spesifikasi"] ?? "Spesifikasi Wajib"}</div>
                         <p className="text-[12px] text-neutral-600">Editable mini table per seri. Jika kosong tampilkan empty state.</p>
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
-                          columns={spesifikasiColumns.slice(1)}
+                          columns={getDetailColumns("spesifikasi", spesifikasiColumns.slice(1))}
+                          columnLabels={getDetailLabels("spesifikasi")}
+                          fieldConfigs={detailFields.spesifikasi}
                           rows={detailRows.spesifikasi}
                           onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("spesifikasi", rowIndex)}
@@ -1875,12 +2090,14 @@ function BarangWorkspaceDrawer({
 
                     <section id="barang-dokumen" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Dokumen Barang</div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-dokumen"] ?? "Dokumen Barang"}</div>
                         <p className="text-[12px] text-neutral-600">Dokumen yang terhubung ke seri ini.</p>
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
-                          columns={barangDokumenColumns.slice(1)}
+                          columns={getDetailColumns("dokumen", barangDokumenColumns.slice(1))}
+                          columnLabels={getDetailLabels("dokumen")}
+                          fieldConfigs={detailFields.dokumen}
                           rows={detailRows.dokumen}
                           onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("dokumen", rowIndex)}
@@ -1912,12 +2129,14 @@ function BarangWorkspaceDrawer({
 
                     <section id="barang-vd" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Barang VD</div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-vd"] ?? "Barang VD"}</div>
                         <p className="text-[12px] text-neutral-600">Mock data barang VD untuk seri ini.</p>
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
-                          columns={barangVdColumns.slice(1)}
+                          columns={getDetailColumns("vd", barangVdColumns.slice(1))}
+                          columnLabels={getDetailLabels("vd")}
+                          fieldConfigs={detailFields.vd}
                           rows={detailRows.vd}
                           onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("vd", rowIndex)}
@@ -1949,12 +2168,14 @@ function BarangWorkspaceDrawer({
 
                     <section id="barang-tarif" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Barang Tarif</div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-tarif"] ?? "Barang Tarif"}</div>
                         <p className="text-[12px] text-neutral-600">Pungutan dan tarif per seri barang.</p>
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
-                          columns={barangTarifColumns.slice(1)}
+                          columns={getDetailColumns("tarif", barangTarifColumns.slice(1))}
+                          columnLabels={getDetailLabels("tarif")}
+                          fieldConfigs={detailFields.tarif}
                           rows={detailRows.tarif}
                           onAdd={() => void 0}
                           onRemove={(rowIndex) => onRemoveDetailRow("tarif", rowIndex)}
@@ -2093,12 +2314,11 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-karantina" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Karantina</div>
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels.karantina ?? "Karantina"}</div>
                       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <Input label="Komoditas Karantina" value="Tumbuhan" onChange={() => void 0} />
-                        <Input label="Jenis Karantina" value="Karantina Tumbuhan" onChange={() => void 0} />
-                        <Input label="Nomor Dokumen" value="KAR-001" onChange={() => void 0} />
-                        <Input label="Status" value="Perlu Validasi" onChange={() => void 0} />
+                        {configuredKarantinaFields.map((field) => (
+                          <Input key={field.id} label={field.label} value={karantinaPreviewValues[field.id] ?? ""} onChange={() => void 0} requiredMark={field.required} hint={field.helperText} />
+                        ))}
                       </div>
                     </section>
 
@@ -2215,6 +2435,15 @@ function StepFooterActions({
 }
 
 export function FormPage() {
+  const localConfiguratorEnabled = isLocalConfiguratorHost();
+  const [intranetConfiguratorEnabled, setIntranetConfiguratorEnabled] = useState(false);
+  const configuratorEnabled = localConfiguratorEnabled || intranetConfiguratorEnabled;
+  const [configFile, setConfigFile] = useState<DocumentConfigFile>(() => readConfigDraft() ?? cloneConfigFile(initialDocumentConfigFile));
+  const [documentType, setDocumentType] = useState<string>("BC20");
+  const [requiresQuarantine, setRequiresQuarantine] = useState(false);
+  const [configuratorOpen, setConfiguratorOpen] = useState(false);
+  const [costModalOpen, setCostModalOpen] = useState(false);
+  const [costDraft, setCostDraft] = useState<Row>({});
   const [draft, setDraft] = useState<AiSubmissionDraft | null>(null);
   const [formState, setFormState] = useState<FormState>(() => createInitialFormState(null));
   const [activeStep, setActiveStep] = useState<WizardStepId>("pengajuan");
@@ -2260,6 +2489,81 @@ export function FormPage() {
   const entitasScrollUnlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   useEffect(() => {
+    if (localConfiguratorEnabled) return;
+    let active = true;
+    const refreshAccess = () => {
+      void hasIntranetConfiguratorSession().then((unlocked) => {
+        if (active) setIntranetConfiguratorEnabled(unlocked);
+      });
+    };
+    refreshAccess();
+    window.addEventListener(FORM_CONFIG_ACCESS_EVENT, refreshAccess);
+    return () => {
+      active = false;
+      window.removeEventListener(FORM_CONFIG_ACCESS_EVENT, refreshAccess);
+    };
+  }, [localConfiguratorEnabled]);
+
+  const activeDocumentConfig = useMemo(() => getDocumentConfig(configFile, documentType), [configFile, documentType]);
+  const documentSelectOptions = useMemo(
+    () => configFile.documents
+      .filter((item) => !item.archived && (configuratorEnabled || item.id !== "ALL"))
+      .map((item) => ({ label: item.label, value: item.id })),
+    [configFile, configuratorEnabled],
+  );
+  const resolvedSteps = useMemo(() => resolveDocumentSteps(activeDocumentConfig), [activeDocumentConfig]);
+  const visibleWizardSteps = useMemo(() => resolvedSteps.filter((step) => step.enabled), [resolvedSteps]);
+  const isStepVisible = (stepId: WizardStepId) => visibleWizardSteps.some((step) => step.id === stepId);
+  const getResolvedSection = (stepId: string, sectionId: string) =>
+    resolvedSteps.find((step) => step.id === stepId)?.sections.find((section) => section.id === sectionId);
+  const getConfiguredFieldLabel = (stepId: string, sectionId: string, fieldId: string) =>
+    getResolvedSection(stepId, sectionId)?.fields.find((field) => field.id === fieldId)?.label ?? fieldId;
+  const visiblePengajuanGroups = useMemo(() => {
+    const sections = resolvedSteps.find((step) => step.id === "pengajuan")?.sections ?? [];
+    return sections
+      .filter((section) => section.enabled && section.presentation !== "modal")
+      .map((section) => ({
+        ...section,
+        icon: stepFieldGroups.find((group) => group.id === section.id)?.icon ?? DocumentsIcon,
+        fields: section.fields.filter((field) => field.enabled),
+      }));
+  }, [resolvedSteps]);
+  const costModalConfig = useMemo(
+    () => resolvedSteps.find((step) => step.id === "pengajuan")?.sections.find((section) => section.id === "informasi-komponen-biaya"),
+    [resolvedSteps],
+  );
+  const visibleEntityDefinitions = useMemo(() => {
+    const sections = resolvedSteps.find((step) => step.id === "entitas")?.sections ?? [];
+    return sections
+      .filter((section) => section.enabled)
+      .map((section) => ({ definition: entityDefinitionMap[section.id as EntityKind], config: section }))
+      .filter((item): item is { definition: EntityDefinition; config: ResolvedSectionConfig } => Boolean(item.definition));
+  }, [resolvedSteps]);
+  const barangSectionConfig = useMemo(
+    () => resolvedSteps.find((step) => step.id === "barang")?.sections.filter((section) => section.enabled) ?? [],
+    [resolvedSteps],
+  );
+  const enabledBarangSectionIds = barangSectionConfig.map((section) => section.id);
+  const activeBarangColumns = (getResolvedSection("barang", "barang-info")?.fields ?? [])
+    .filter((field) => field.enabled)
+    .map((field) => field.id)
+    .filter((field) => barangMasterColumns.includes(field));
+  const activeDokumenColumns = (getResolvedSection("dokumen", "dokumen-lampiran")?.fields ?? []).filter((field) => field.enabled).map((field) => field.id).filter((field) => dokumenColumns.includes(field));
+  const activeKemasanColumns = (getResolvedSection("kemasan", "kemasan")?.fields ?? []).filter((field) => field.enabled).map((field) => field.id).filter((field) => kemasanColumns.includes(field));
+  const activeKontainerColumns = (getResolvedSection("kemasan", "kontainer")?.fields ?? []).filter((field) => field.enabled).map((field) => field.id).filter((field) => kontainerColumns.includes(field));
+  const kemasanColumnLabels = Object.fromEntries(activeKemasanColumns.map((column) => [column, getConfiguredFieldLabel("kemasan", "kemasan", column)]));
+  const kontainerColumnLabels = Object.fromEntries(activeKontainerColumns.map((column) => [column, getConfiguredFieldLabel("kemasan", "kontainer", column)]));
+
+  useEffect(() => {
+    setRequiresQuarantine(documentType === "ALL" ? true : activeDocumentConfig.defaultRequiresQuarantine);
+  }, [activeDocumentConfig.defaultRequiresQuarantine, documentType]);
+
+  useEffect(() => {
+    if (visibleWizardSteps.some((step) => step.id === activeStep)) return;
+    setActiveStep((visibleWizardSteps[0]?.id as WizardStepId | undefined) ?? "pengajuan");
+  }, [activeStep, visibleWizardSteps]);
+
+  useEffect(() => {
     if (!statusMessage) return;
     setStatusToastVisible(true);
 
@@ -2277,6 +2581,8 @@ export function FormPage() {
         const parsed = JSON.parse(savedForm) as StoredFormState;
         setDraft(parsed.draft ?? null);
         setFormState(normalizeFormState(parsed.formState ?? createInitialFormState(parsed.draft ?? null)));
+        if (parsed.documentType) setDocumentType(parsed.documentType);
+        if (typeof parsed.requiresQuarantine === "boolean") setRequiresQuarantine(parsed.requiresQuarantine);
         setSource((sessionStorage.getItem(FORM_SOURCE_STORAGE_KEY) as FormSource | null) ?? null);
         setSourceNotice(sessionStorage.getItem(FORM_NOTICE_STORAGE_KEY));
         setStatusMessage("Draft form terakhir berhasil dimuat.");
@@ -2311,9 +2617,9 @@ export function FormPage() {
 
   useEffect(() => {
     if (activeStep !== "pengajuan") return;
-    const observedSections = stepFieldGroups
+    const observedSections = visiblePengajuanGroups
       .map((group) => ({ group, element: pengajuanSectionRefs.current[group.id] }))
-      .filter((item): item is { group: (typeof stepFieldGroups)[number]; element: HTMLDivElement } => Boolean(item.element));
+      .filter((item): item is { group: (typeof visiblePengajuanGroups)[number]; element: HTMLDivElement } => Boolean(item.element));
 
     if (!observedSections.length) return;
 
@@ -2340,12 +2646,12 @@ export function FormPage() {
 
     observedSections.forEach(({ element }) => observer.observe(element));
     return () => observer.disconnect();
-  }, [activePengajuanSection, activeStep]);
+  }, [activePengajuanSection, activeStep, visiblePengajuanGroups]);
 
   useEffect(() => {
     if (activeStep !== "entitas") return;
-    const observedSections = entityDefinitions
-      .map((definition) => ({ definition, element: entitasSectionRefs.current[definition.kind] }))
+    const observedSections = visibleEntityDefinitions
+      .map(({ definition }) => ({ definition, element: entitasSectionRefs.current[definition.kind] }))
       .filter((item): item is { definition: EntityDefinition; element: HTMLDivElement } => Boolean(item.element));
 
     if (!observedSections.length) return;
@@ -2375,7 +2681,7 @@ export function FormPage() {
 
     observedSections.forEach(({ element }) => observer.observe(element));
     return () => observer.disconnect();
-  }, [activeEntitasSection, activeStep]);
+  }, [activeEntitasSection, activeStep, visibleEntityDefinitions]);
 
   const entitasRowsByKind = useMemo(
     () =>
@@ -2386,9 +2692,15 @@ export function FormPage() {
   const entitasSectionStatus = useMemo(
     () =>
       Object.fromEntries(
-        entityDefinitions.map((definition) => [definition.kind, getSectionStatus(definition, entitasRowsByKind[definition.kind], formState.entitas)]),
+        visibleEntityDefinitions.map(({ definition, config }) => {
+          const row = entitasRowsByKind[definition.kind];
+          const optionalInactive = definition.toggle && !isTruthyValue(row?.[definition.toggle.key]);
+          const complete = !optionalInactive && config.fields.filter((field) => field.enabled && field.required).every((field) => isMandatoryFilled(row?.[field.id] ?? ""));
+          const started = Boolean(row && hasAnyValue(row));
+          return [definition.kind, optionalInactive ? { label: "Opsional", tone: "neutral" } : complete ? { label: "Lengkap", tone: "success" } : started ? { label: "Belum lengkap", tone: "warning" } : { label: "Belum diisi", tone: "neutral" }];
+        }),
       ) as Record<EntityKind, { label: string; tone: "brand" | "neutral" | "warning" | "success" | "error" | "info" }>,
-    [entitasRowsByKind, formState.entitas],
+    [entitasRowsByKind, formState.entitas, visibleEntityDefinitions],
   );
 
   const syncPembeliFromPenerima = (rows: Row[], penerimaRow: Row) => {
@@ -2409,36 +2721,46 @@ export function FormPage() {
   };
 
   const stepComplete = useMemo(
-    () => ({
-      pengajuan: mandatoryPengajuanFields.every((key) => isMandatoryFilled(formState.pengajuan[key] ?? "")),
-      entitas: entityDefinitions
-        .filter((definition) => !definition.toggle || isTruthyValue(entitasRowsByKind[definition.kind]?.[definition.toggle.key]))
-        .every((definition) => isSectionComplete(definition, entitasRowsByKind[definition.kind], formState.entitas)),
-      dokumen:
-        formState.dokumen.length >= mandatoryDokumenDefinitions.length &&
-        mandatoryDokumenDefinitions.every(
-          (definition, index) =>
-            formState.dokumen[index]?.["Kode Dokumen"] === definition.kode &&
-            dokumenColumns.every((column) => isMandatoryFilled(formState.dokumen[index]?.[column] ?? "")),
-        ),
-      kemasan:
-        hasAnyRows(formState.kemasan) &&
-        hasAnyRows(formState.kontainer) &&
-        ["Jenis Kemasan"].every((column) => isMandatoryFilled(formState.kemasan[0]?.[column] ?? "")) &&
-        ["Nomor Kontainer", "Ukuran"].every((column) => isMandatoryFilled(formState.kontainer[0]?.[column] ?? "")),
-      barang:
-        hasAnyRows(formState.barang) &&
-        ["HS Code", "Kode Barang", "Uraian", "Negara Asal", "Kode Satuan", "Jumlah Satuan", "Harga Invoice"].every((column) =>
-          isMandatoryFilled(formState.barang[0]?.[column] ?? ""),
-        ),
-    }),
-    [formState, entitasRowsByKind],
+    () => {
+      const pengajuanRequired = [
+        ...visiblePengajuanGroups.flatMap((section) => section.fields.filter((field) => field.required)),
+        ...(costModalConfig?.enabled ? costModalConfig.fields.filter((field) => field.enabled && field.required) : []),
+      ];
+      const dokumenConfig = getResolvedSection("dokumen", "dokumen-lampiran");
+      const kemasanConfig = getResolvedSection("kemasan", "kemasan");
+      const kontainerConfig = getResolvedSection("kemasan", "kontainer");
+      const barangConfig = getResolvedSection("barang", "barang-info");
+      const karantinaConfig = getResolvedSection("barang", "karantina");
+      const requiredColumns = (section?: ResolvedSectionConfig) => section?.fields.filter((field) => field.enabled && field.required).map((field) => field.id) ?? [];
+
+      return {
+        pengajuan: pengajuanRequired.every((field) => isMandatoryFilled(formState.pengajuan[field.id] ?? field.defaultValue ?? "")),
+        entitas: visibleEntityDefinitions.every(({ definition, config }) => {
+          const row = entitasRowsByKind[definition.kind];
+          if (definition.toggle && !isTruthyValue(row?.[definition.toggle.key])) return true;
+          return requiredColumns(config).every((field) => isMandatoryFilled(row?.[field] ?? ""));
+        }),
+        dokumen:
+          dokumenConfig?.enabled === false ||
+          (formState.dokumen.length >= mandatoryDokumenDefinitions.length &&
+            mandatoryDokumenDefinitions.every((definition, index) =>
+              formState.dokumen[index]?.["Kode Dokumen"] === definition.kode &&
+              requiredColumns(dokumenConfig).every((column) => isMandatoryFilled(formState.dokumen[index]?.[column] ?? "")))),
+        kemasan:
+          (kemasanConfig?.enabled === false || (hasAnyRows(formState.kemasan) && requiredColumns(kemasanConfig).every((column) => isMandatoryFilled(formState.kemasan[0]?.[column] ?? "")))) &&
+          (kontainerConfig?.enabled === false || (hasAnyRows(formState.kontainer) && requiredColumns(kontainerConfig).every((column) => isMandatoryFilled(formState.kontainer[0]?.[column] ?? "")))),
+        barang:
+          (barangConfig?.enabled === false || (hasAnyRows(formState.barang) && requiredColumns(barangConfig).every((column) => isMandatoryFilled(formState.barang[0]?.[column] ?? "")))) &&
+          (!requiresQuarantine || karantinaConfig?.enabled === false || (hasAnyRows(formState.karantina) && requiredColumns(karantinaConfig).every((column) => isMandatoryFilled(formState.karantina[0]?.[column] ?? "")))),
+      };
+    },
+    [formState, entitasRowsByKind, visibleEntityDefinitions, visiblePengajuanGroups, resolvedSteps, requiresQuarantine, costModalConfig],
   );
 
   const reviewStatus = useMemo(() => {
-    const sections = ["pengajuan", "entitas", "dokumen", "kemasan", "barang"] as const;
+    const sections = visibleWizardSteps.map((step) => step.id).filter((id): id is Exclude<WizardStepId, "review"> => id !== "review");
     return sections.every((section) => stepComplete[section]);
-  }, [stepComplete]);
+  }, [stepComplete, visibleWizardSteps]);
 
   const summaryCounts = useMemo(
     () => ({
@@ -2468,6 +2790,7 @@ export function FormPage() {
 
   const selectedBarangDetailRows = useMemo(
     () => ({
+      cukai: formState.barangCukai.map((row, index) => ({ row, index })).filter(({ row }) => row["Seri Barang"] === workspaceBarang?.Seri),
       spesifikasi: formState.spesifikasi.map((row, index) => ({ row, index })).filter(({ row }) => row["Seri Barang"] === workspaceBarang?.Seri),
       dokumen: formState.barangDokumen.map((row, index) => ({ row, index })).filter(({ row }) => row["Seri Barang"] === workspaceBarang?.Seri),
       vd: formState.barangVd.map((row, index) => ({ row, index })).filter(({ row }) => row["Seri Barang"] === workspaceBarang?.Seri),
@@ -2477,7 +2800,7 @@ export function FormPage() {
     [formState, workspaceBarang],
   );
 
-  const updateRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, rowIndex: number, column: string, value: string) => {
+  const updateRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, rowIndex: number, column: string, value: string) => {
     setFormState((current) => {
       const rows = [...current[section]];
       rows[rowIndex] = { ...rows[rowIndex], [column]: value };
@@ -2485,7 +2808,7 @@ export function FormPage() {
     });
   };
 
-  const addRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, columns: string[], template?: Row) => {
+  const addRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, columns: string[], template?: Row) => {
     setFormState((current) => ({
       ...current,
       [section]: [...current[section], createRow(columns, template)],
@@ -2506,7 +2829,8 @@ export function FormPage() {
   };
 
   const updateBarangDetailRow = (section: BarangDetailSection, rowIndex: number, column: string, value: string) => {
-    const map: Record<BarangDetailSection, keyof Pick<FormState, "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+    const map: Record<BarangDetailSection, keyof Pick<FormState, "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+      cukai: "barangCukai",
       spesifikasi: "spesifikasi",
       dokumen: "barangDokumen",
       vd: "barangVd",
@@ -2518,7 +2842,8 @@ export function FormPage() {
 
   const addBarangDetailRow = (section: BarangDetailSection, template?: Row) => {
     const seri = workspaceBarang?.Seri ?? nextBarangSeri;
-    const map: Record<BarangDetailSection, { section: keyof Pick<FormState, "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">; columns: string[]; template: Row }> = {
+    const map: Record<BarangDetailSection, { section: keyof Pick<FormState, "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">; columns: string[]; template: Row }> = {
+      cukai: { section: "barangCukai", columns: barangCukaiColumns, template: { "Seri Barang": seri } },
       spesifikasi: {
         section: "spesifikasi",
         columns: spesifikasiColumns,
@@ -2555,7 +2880,8 @@ export function FormPage() {
   };
 
   const removeBarangDetailRow = (section: BarangDetailSection, rowIndex: number) => {
-    const map: Record<BarangDetailSection, keyof Pick<FormState, "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+    const map: Record<BarangDetailSection, keyof Pick<FormState, "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+      cukai: "barangCukai",
       spesifikasi: "spesifikasi",
       dokumen: "barangDokumen",
       vd: "barangVd",
@@ -2655,6 +2981,7 @@ export function FormPage() {
     setFormState((current) => ({
       ...current,
       barang: importedRows,
+      barangCukai: [],
       spesifikasi: [],
       barangDokumen: [],
       barangVd: [],
@@ -2672,6 +2999,7 @@ export function FormPage() {
     setFormState((current) => ({
       ...current,
       barang: [],
+      barangCukai: [],
       spesifikasi: [],
       barangDokumen: [],
       barangVd: [],
@@ -2904,6 +3232,7 @@ export function FormPage() {
 
   const startEditBarangDetailRow = (section: BarangDetailSection, rowIndex: number, row: Row) => {
     const columnMap: Record<BarangDetailSection, string[]> = {
+      cukai: barangCukaiColumns.slice(1),
       spesifikasi: spesifikasiColumns.slice(1),
       dokumen: barangDokumenColumns.slice(1),
       vd: barangVdColumns.slice(1),
@@ -2927,7 +3256,8 @@ export function FormPage() {
   const saveBarangDetailEditRow = () => {
     if (!barangDetailEditState) return;
     const { section, rowIndex, row } = barangDetailEditState;
-    const map: Record<BarangDetailSection, keyof Pick<FormState, "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+    const map: Record<BarangDetailSection, keyof Pick<FormState, "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">> = {
+      cukai: "barangCukai",
       spesifikasi: "spesifikasi",
       dokumen: "barangDokumen",
       vd: "barangVd",
@@ -2935,6 +3265,7 @@ export function FormPage() {
       karantina: "karantina",
     };
     const columnsMap: Record<BarangDetailSection, string[]> = {
+      cukai: barangCukaiColumns,
       spesifikasi: spesifikasiColumns,
       dokumen: barangDokumenColumns,
       vd: barangVdColumns,
@@ -2951,7 +3282,7 @@ export function FormPage() {
     setStatusMessage("Perubahan detail barang sudah disimpan.");
   };
 
-  const removeRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, columns: string[]) => {
+  const removeRow = (section: keyof Pick<FormState, "entitas" | "dokumen" | "kemasan" | "kontainer" | "barang" | "barangCukai" | "spesifikasi" | "barangDokumen" | "barangVd" | "barangTarif" | "karantina">, columns: string[]) => {
     setFormState((current) => {
       const rows = current[section].length > 1 ? current[section].slice(0, -1) : [createRow(columns)];
       return { ...current, [section]: rows };
@@ -2966,6 +3297,20 @@ export function FormPage() {
         [key]: value,
       },
     }));
+  };
+
+  const costValue = (key: string) => Number.parseFloat(costDraft[key] || "0") || 0;
+  const costA = costValue("ikbHargaInvoice") + costValue("ikbPembayaranTidakLangsung");
+  const costC = costA - costValue("ikbDiskon");
+  const costD = ["ikbKomisiPenjualan", "ikbBiayaPengemasan", "ikbBiayaPengepakan", "ikbAssist", "ikbRoyaltiLisensi", "ikbProceeds", "ikbFreight", "ikbPemuatan", "ikbGaransi"].reduce((total, key) => total + costValue(key), 0);
+  const costE = costC + costD;
+  const costF = ["ikbKepentinganSendiri", "ikbPascaImpor", "ikbPajakInternal", "ikbBunga", "ikbDividen"].reduce((total, key) => total + costValue(key), 0);
+  const costG = costE - costF;
+  const resetCostDraft = () => setCostDraft(Object.fromEntries((costModalConfig?.fields ?? []).filter((field) => field.enabled).map((field) => [field.id, field.inputType === "number" ? "0.00" : ""])));
+  const saveCostDraft = () => {
+    setFormState((current) => ({ ...current, pengajuan: { ...current.pengajuan, ...costDraft } }));
+    setCostModalOpen(false);
+    setStatusMessage("Informasi Komponen Biaya berhasil disimpan.");
   };
 
   const updateEntityField = (kind: EntityKind, column: string, value: string) => {
@@ -3001,6 +3346,8 @@ export function FormPage() {
     const snapshot: StoredFormState = {
       draft,
       formState,
+      documentType,
+      requiresQuarantine,
     };
     sessionStorage.setItem(BC20_FORM_STORAGE_KEY, JSON.stringify(snapshot));
     setStatusMessage("Draft form disimpan lokal di browser.");
@@ -3011,10 +3358,15 @@ export function FormPage() {
     setStatusMessage("Pengajuan mock berhasil disubmit. Silakan lanjut integrasi backend.");
   };
 
-  const activeStepLabel = wizardSteps.find((step) => step.id === activeStep)?.label ?? "Pengajuan";
+  const activeStepLabel = visibleWizardSteps.find((step) => step.id === activeStep)?.label ?? "Pengajuan";
+  const navigateStep = (current: WizardStepId, delta: number) => {
+    const order = visibleWizardSteps.map((step) => step.id as WizardStepId);
+    const index = order.indexOf(current);
+    const nextIndex = Math.min(order.length - 1, Math.max(0, index + delta));
+    return order[nextIndex] ?? current;
+  };
   const handleCheckCompleteness = () => {
-    const currentIndex = formStepOrder.indexOf(activeStep);
-    const stepKey = currentIndex >= 0 ? formStepOrder[currentIndex] : "pengajuan";
+    const stepKey = activeStep;
     if (stepKey === "review") {
       setStatusMessage(reviewStatus ? "Review sudah siap submit." : "Masih ada data mandatory yang belum lengkap.");
       return;
@@ -3066,14 +3418,46 @@ export function FormPage() {
         </div>
       </section>
 
+      {configuratorEnabled ? (
+        <section className="hidden" aria-hidden="true">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-primary-600">Development tool · localhost only</div>
+              <h2 className="mt-1 text-[18px] font-semibold text-neutral-800">Konfigurasi Form Pengajuan</h2>
+              <p className="mt-1 text-[12px] leading-5 text-neutral-600">Area internal untuk mapping jenis dokumen. Area ini tidak tersedia melalui IP atau build GitHub Pages.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[260px_auto_auto] sm:items-end">
+              <Select
+                label="Jenis Dokumen"
+                value={documentType}
+                onValueChange={setDocumentType}
+                options={configFile.documents.filter((item) => !item.archived).map((item) => ({ label: item.label, value: item.id }))}
+              />
+              <label className="flex h-10 items-center gap-2 rounded-md border border-border-primary bg-white px-3 text-[12px] font-medium text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={requiresQuarantine}
+                  disabled={documentType === "ALL"}
+                  onChange={(event) => setRequiresQuarantine(event.target.checked)}
+                  className="h-4 w-4 accent-brand-primary-500"
+                />
+                Memerlukan Karantina
+              </label>
+              <Button variant="primary" size="sm" className="h-10 whitespace-nowrap" onClick={() => setConfiguratorOpen(true)}>Kelola Konfigurasi Form</Button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <section className={`${sectionTone} p-4 pb-6 sm:p-5 sm:pb-7`}>
-        <div className="flex flex-col gap-3 border-b border-border-primary pb-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Form BC 2.0</div>
-            <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.02em] text-neutral-800">Form Pengajuan BC 2.0</h1>
+        <div className="flex flex-col gap-4 border-b border-border-primary pb-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Form {activeDocumentConfig.label}</div>
+            <h1 className="mt-1 text-[26px] font-semibold tracking-[-0.02em] text-neutral-800">Form Pengajuan {activeDocumentConfig.label}</h1>
             <p className="mt-2 max-w-4xl text-[12px] leading-6 text-neutral-600">
               Wizard non-linear. Klik step mana pun untuk berpindah kategori, lalu edit block field di dalam accordion.
             </p>
+            <p className="mt-2 text-[11px] leading-5 text-neutral-500">Susunan step, section, field, dan label dapat berbeda sesuai jenis dokumen yang dipilih.</p>
             <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
               Sumber data: {getSourceLabel(source)}
             </div>
@@ -3083,18 +3467,30 @@ export function FormPage() {
               </div>
             )}
           </div>
-          <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
-            {activeStepLabel}
+          <div className="flex w-full shrink-0 flex-col gap-3 sm:w-[280px] lg:items-end">
+            <div className="w-full">
+              <Select
+                label="Pilih Form"
+                value={documentType}
+                onValueChange={setDocumentType}
+                options={documentSelectOptions}
+                placeholder="Pilih jenis form"
+              />
+            </div>
+            <div className="w-fit rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
+              {activeStepLabel}
+            </div>
           </div>
         </div>
 
       <div className="mt-4 rounded-2xl border border-border-primary bg-white px-4 py-4 shadow-sm">
         <div className="overflow-x-auto pb-1 pt-2">
           <div className="relative flex min-w-[920px] items-start pt-1">
-              {wizardSteps.map((step, index) => {
-                const active = step.id === activeStep;
-                const done = step.id === "review" ? reviewStatus : stepComplete[step.id];
-                const isLast = index === wizardSteps.length - 1;
+              {visibleWizardSteps.map((step, index) => {
+                const stepId = step.id as WizardStepId;
+                const active = stepId === activeStep;
+                const done = stepId === "review" ? reviewStatus : stepComplete[stepId];
+                const isLast = index === visibleWizardSteps.length - 1;
                 return (
                   <div key={step.id} className="relative flex flex-1 items-start">
                     {!isLast && (
@@ -3109,7 +3505,7 @@ export function FormPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setActiveStep(step.id)}
+                      onClick={() => setActiveStep(stepId)}
                       className="group flex min-w-0 flex-1 flex-col items-center gap-2 rounded-2xl px-2 text-center transition-transform hover:-translate-y-0.5"
                     >
                       <span
@@ -3124,7 +3520,7 @@ export function FormPage() {
                           .filter(Boolean)
                           .join(" ")}
                       >
-                        {done ? <CheckIcon /> : step.id === "pengajuan" ? "1" : step.id === "entitas" ? "2" : step.id === "dokumen" ? "3" : step.id === "kemasan" ? "4" : step.id === "barang" ? "5" : "6"}
+                        {done ? <CheckIcon /> : index + 1}
                       </span>
                       <span className="min-w-0">
                         <span className={["block text-[12px] font-semibold", active || done ? "text-brand-primary-700" : "text-neutral-700"].filter(Boolean).join(" ")}>
@@ -3187,7 +3583,7 @@ export function FormPage() {
                 </div>
 
                 <div className={[tocScrollClass, "mt-4 flex flex-col gap-2", isPengajuanTocExpanded ? "" : "mt-3"].join(" ")}>
-                  {stepFieldGroups.map((group) => {
+                  {visiblePengajuanGroups.map((group) => {
                     const active = activePengajuanSection === group.id;
                     const Icon = group.icon;
                     if (isPengajuanTocExpanded) {
@@ -3196,7 +3592,7 @@ export function FormPage() {
                           key={group.id}
                           type="button"
                           onClick={() => scrollToPengajuanSection(group.id)}
-                          aria-label={group.title}
+                          aria-label={group.label}
                           className={[
                             "group relative flex w-full items-start rounded-xl border text-left transition-colors",
                             "gap-3 px-3 py-3",
@@ -3214,7 +3610,7 @@ export function FormPage() {
                             <Icon className="h-4.5 w-4.5" />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block text-[12px] font-semibold text-neutral-800">{group.title}</span>
+                            <span className="block text-[12px] font-semibold text-neutral-800">{group.label}</span>
                             <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{group.fields.length} field</span>
                           </span>
                         </button>
@@ -3229,7 +3625,7 @@ export function FormPage() {
                         className="block w-full"
                         content={
                           <div>
-                            <div className="text-[12px] font-semibold text-neutral-800">{group.title}</div>
+                            <div className="text-[12px] font-semibold text-neutral-800">{group.label}</div>
                             <div className="mt-1 text-[11px] leading-5 text-neutral-600">{group.fields.length} field pada section ini.</div>
                           </div>
                         }
@@ -3237,7 +3633,7 @@ export function FormPage() {
                         <button
                           type="button"
                           onClick={() => scrollToPengajuanSection(group.id)}
-                          aria-label={group.title}
+                          aria-label={group.label}
                           className={[
                             "group relative flex w-full items-start rounded-xl border text-left transition-colors",
                             "justify-center px-2 py-3",
@@ -3263,7 +3659,7 @@ export function FormPage() {
             </aside>
 
             <div className="flex flex-col gap-4">
-              {stepFieldGroups.map((group) => (
+              {visiblePengajuanGroups.map((group) => (
                 <div
                   key={group.id}
                   ref={(node) => {
@@ -3272,20 +3668,35 @@ export function FormPage() {
                   id={group.id}
                   className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
                 >
-                  <AccordionCard title={group.title} subtitle="Edit field secara langsung di bawah ini." defaultOpen>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {group.fields.map((field) => (
-                        <FormField
-                          key={field.key}
-                          label={field.label}
-                          value={formState.pengajuan[field.key] ?? ""}
-                          onChange={(value) => updatePengajuanField(field.key, value)}
-                          placeholder={field.label}
-                          type={field.key === "perkiraanTanggalTiba" ? "date" : "text"}
-                          mandatory={"mandatory" in field ? Boolean(field.mandatory) : false}
-                        />
-                      ))}
-                    </div>
+                  <AccordionCard title={group.label} subtitle={group.description ?? "Edit field secara langsung di bawah ini."} defaultOpen>
+                    {group.groups?.length ? (
+                      <div className="grid gap-4 xl:grid-cols-3">
+                        {group.groups.map((fieldGroup) => (
+                          <div key={fieldGroup.id} className="rounded-2xl border border-border-primary bg-background-primary/15 p-4">
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-[14px] font-semibold text-neutral-800">{fieldGroup.label}</h3>
+                              {group.id === "transaksi" && fieldGroup.id === "harga" && costModalConfig?.enabled ? (
+                                <Button variant="primary" size="sm" onClick={() => {
+                                  setCostDraft(Object.fromEntries(costModalConfig.fields.filter((field) => field.enabled).map((field) => [field.id, formState.pengajuan[field.id] ?? field.defaultValue ?? ""])));
+                                  setCostModalOpen(true);
+                                }}>Informasi Komponen Biaya</Button>
+                              ) : null}
+                            </div>
+                            <div className="grid gap-4">
+                              {group.fields.filter((field) => field.groupId === fieldGroup.id).map((field) => (
+                                <FormField key={field.id} label={field.label} value={formState.pengajuan[field.id] ?? field.defaultValue ?? ""} onChange={(value) => updatePengajuanField(field.id, value)} placeholder={field.label} mandatory={field.required} helperText={field.helperText} inputType={field.inputType} readOnly={field.readOnly} options={field.options} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {group.fields.map((field) => (
+                          <FormField key={field.id} label={field.label} value={formState.pengajuan[field.id] ?? field.defaultValue ?? ""} onChange={(value) => updatePengajuanField(field.id, value)} placeholder={field.label} mandatory={field.required} helperText={field.helperText} inputType={field.inputType} readOnly={field.readOnly} options={field.options} />
+                        ))}
+                      </div>
+                    )}
                   </AccordionCard>
                 </div>
               ))}
@@ -3295,7 +3706,7 @@ export function FormPage() {
             step="pengajuan"
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
-            onNext={() => setActiveStep(goToStep("pengajuan", 1))}
+            onNext={() => setActiveStep(navigateStep("pengajuan", 1))}
             showPrevious={false}
           />
         </div>
@@ -3336,7 +3747,7 @@ export function FormPage() {
                 </div>
 
                 <div className={[tocScrollClass, "mt-4 flex flex-col gap-2", isEntitasTocExpanded ? "" : "mt-3"].join(" ")}>
-                  {entityDefinitions.map((definition) => {
+                  {visibleEntityDefinitions.map(({ definition, config }) => {
                     const status = entitasSectionStatus[definition.kind];
                     const active = activeEntitasSection === definition.kind;
                     const Icon = definition.icon;
@@ -3347,7 +3758,7 @@ export function FormPage() {
                           key={definition.kind}
                           type="button"
                           onClick={() => scrollToEntitasSection(definition.kind)}
-                          aria-label={definition.title}
+                          aria-label={config.label}
                           className={[
                             "group relative flex w-full items-start rounded-xl border text-left transition-colors",
                             "gap-3 px-3 py-3",
@@ -3366,7 +3777,7 @@ export function FormPage() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-center gap-2">
-                              <span className="text-[12px] font-semibold text-neutral-800">{definition.title}</span>
+                              <span className="text-[12px] font-semibold text-neutral-800">{config.label}</span>
                               <Badge
                                 variant={status.tone === "neutral" ? "secondary" : status.tone === "brand" ? "brand" : status.tone}
                                 className="px-2 py-0.5 text-[10px] font-semibold"
@@ -3388,7 +3799,7 @@ export function FormPage() {
                         className="block w-full"
                         content={
                           <div>
-                            <div className="text-[12px] font-semibold text-neutral-800">{definition.title}</div>
+                            <div className="text-[12px] font-semibold text-neutral-800">{config.label}</div>
                             <div className="mt-1 text-[11px] leading-5 text-neutral-600">{definition.description}</div>
                             <div
                               className={[
@@ -3412,7 +3823,7 @@ export function FormPage() {
                         <button
                           type="button"
                           onClick={() => scrollToEntitasSection(definition.kind)}
-                          aria-label={definition.title}
+                          aria-label={config.label}
                           className={[
                             "group relative flex w-full items-start rounded-xl border text-left transition-colors",
                             "justify-center px-2 py-3",
@@ -3447,13 +3858,33 @@ export function FormPage() {
               </div>
 
               <div className="flex flex-col gap-4">
-                {entityDefinitions.map((definition) => {
+                {visibleEntityDefinitions.map(({ definition, config }) => {
+                  const baseFields = [...(definition.headerFields ?? []), ...definition.fields];
+                  const configuredDefinition: EntityDefinition = {
+                    ...definition,
+                    headerFields: undefined,
+                    fields: config.fields.filter((field) => field.enabled).map((field) => {
+                      const base = baseFields.find((item) => item.key === field.id);
+                      return {
+                        ...base,
+                        key: field.id,
+                        label: field.label,
+                        type: field.inputType === "select" ? "select" : "input",
+                        inputType: field.inputType === "date" ? "date" : field.inputType === "number" ? "number" : "text",
+                        readOnly: field.readOnly || field.id === "Jenis Entitas",
+                        required: field.required,
+                        note: field.helperText ?? base?.note,
+                        span: base?.span ?? 1,
+                      } satisfies EntityFieldConfig;
+                    }),
+                    requiredFields: config.fields.filter((field) => field.enabled && field.required).map((field) => field.id),
+                  };
                   const entityRow = entitasRowsByKind[definition.kind] ?? getSectionRow(formState.entitas, definition.title);
-                  const status = entitasSectionStatus[definition.kind];
+                  const status = getSectionStatus(configuredDefinition, entityRow, formState.entitas);
                   const Icon = definition.icon;
-                  const isToggleActive = definition.toggle ? isTruthyValue(entityRow?.[definition.toggle.key]) : true;
+                  const isToggleActive = configuredDefinition.toggle ? isTruthyValue(entityRow?.[configuredDefinition.toggle.key]) : true;
                   const isPembeliSame = definition.kind === "pembeli" && isTruthyValue(entityRow?.["Sama dengan Penerima"]);
-                  const isOptionalCollapsed = Boolean(definition.toggle) && !isToggleActive;
+                  const isOptionalCollapsed = Boolean(configuredDefinition.toggle) && !isToggleActive;
 
                   return (
                     <div
@@ -3465,17 +3896,17 @@ export function FormPage() {
                       className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
                     >
                       <AccordionCard
-                        title={definition.title}
-                        subtitle={definition.description}
+                        title={config.label}
+                        subtitle={config.description ?? definition.description}
                         defaultOpen={definition.defaultOpen ?? false}
                         leadingIcon={<Icon className="h-5 w-5" />}
                         headerActions={<SectionStatusBadge label={status.label} tone={status.tone} />}
                       >
                         <div className="flex flex-col gap-4">
-                          {definition.headerFields?.length ? (
+                          {configuredDefinition.headerFields?.length ? (
                             <div className="flex flex-col gap-4">
                               <div className="grid grid-cols-1 gap-4 md:max-w-md">
-                                {definition.headerFields.map((field) => (
+                                {configuredDefinition.headerFields.map((field) => (
                                   <EntityFieldRenderer
                                     key={field.key}
                                     field={field}
@@ -3492,17 +3923,17 @@ export function FormPage() {
                             </div>
                           ) : null}
 
-                          {definition.toggle ? (
+                          {configuredDefinition.toggle ? (
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-primary bg-background-primary/25 px-4 py-3">
                               <div className="min-w-0">
-                                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{definition.toggle.label}</div>
+                                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{configuredDefinition.toggle.label}</div>
                                 <div className="mt-1 text-[12px] leading-5 text-neutral-600">{isToggleActive ? "Section aktif dan siap diisi." : definition.emptyState}</div>
                               </div>
                               <EntitasCheckbox
-                                label={definition.toggle.label}
+                                  label={configuredDefinition.toggle.label}
                                 checked={isToggleActive}
                                 onChange={(checked) => {
-                                  updateEntityField(definition.kind, definition.toggle!.key, checked ? "Ya" : "");
+                                    updateEntityField(definition.kind, configuredDefinition.toggle!.key, checked ? "Ya" : "");
                                 }}
                               />
                             </div>
@@ -3510,13 +3941,13 @@ export function FormPage() {
 
                           {isOptionalCollapsed ? <SectionEmptyState text={definition.emptyState} /> : null}
 
-                          {(!definition.toggle || isToggleActive) && !isOptionalCollapsed ? (
+                          {(!configuredDefinition.toggle || isToggleActive) && !isOptionalCollapsed ? (
                             <>
                               {definition.kind === "pembeli" && isPembeliSame ? (
                                 <EntitasSectionNote text="Data pembeli disamakan dengan penerima. Ubah ceklis bila ingin mengisi manual." />
                               ) : null}
                               <EntityCardContent
-                                entity={definition}
+                                entity={configuredDefinition}
                                 row={entityRow ?? createRow(getSectionColumns(definition), definition.defaultValues)}
                                 disabled={definition.kind === "pembeli" && isPembeliSame}
                                 onChange={(column, value) => updateEntityField(definition.kind, column, value)}
@@ -3535,10 +3966,10 @@ export function FormPage() {
 
           <StepFooterActions
             step="entitas"
-            onPrevious={() => setActiveStep(goToStep("entitas", -1))}
+            onPrevious={() => setActiveStep(navigateStep("entitas", -1))}
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
-            onNext={() => setActiveStep(goToStep("entitas", 1))}
+            onNext={() => setActiveStep(navigateStep("entitas", 1))}
           />
         </div>
       )}
@@ -3546,8 +3977,8 @@ export function FormPage() {
       {activeStep === "dokumen" && (
         <div className="flex flex-col gap-4">
           <AccordionCard
-            title="Dokumen Lampiran"
-            subtitle="Tiga dokumen awal INV, PL, dan BL wajib tersedia. Record tambahan boleh ditambah dan dihapus."
+            title={getResolvedSection("dokumen", "dokumen-lampiran")?.label ?? "Dokumen Lampiran"}
+            subtitle={getResolvedSection("dokumen", "dokumen-lampiran")?.description ?? "Tiga dokumen awal INV, PL, dan BL wajib tersedia. Record tambahan boleh ditambah dan dihapus."}
             defaultOpen
             headerActions={
               <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
@@ -3564,6 +3995,7 @@ export function FormPage() {
 
               {dokumenAddOpen && dokumenDraftRow ? (
                 <DokumenLampiranEditor
+                  fields={getResolvedSection("dokumen", "dokumen-lampiran")?.fields}
                   title="Tambah Dokumen Lampiran"
                   subtitle="Record baru akan muncul di bagian bawah tabel setelah disimpan."
                   value={dokumenDraftRow}
@@ -3580,9 +4012,9 @@ export function FormPage() {
                   <thead className="bg-brand-primary-500 text-white">
                     <tr>
                       <th className="w-[56px] px-3 py-2">#</th>
-                      {dokumenColumns.map((column) => (
+                      {activeDokumenColumns.map((column) => (
                         <th key={column} className="px-3 py-2 font-semibold whitespace-nowrap">
-                          {column}
+                          {getConfiguredFieldLabel("dokumen", "dokumen-lampiran", column)}
                         </th>
                       ))}
                       <th className="w-px whitespace-nowrap px-3 py-2">Aksi</th>
@@ -3602,7 +4034,7 @@ export function FormPage() {
                             ].join(" ")}
                           >
                             <td className="px-3 py-3 font-medium text-neutral-600">{rowIndex + 1}</td>
-                            {dokumenColumns.map((column) => (
+                            {activeDokumenColumns.map((column) => (
                               <td key={column} className="px-3 py-3 align-top text-neutral-700">
                                 <div className={column === "Kode Dokumen" && isMandatoryRow ? "inline-flex rounded-full bg-brand-primary-50 px-2.5 py-1 text-[11px] font-semibold text-brand-primary-700" : ""}>
                                   {row[column] || <span className="text-neutral-400">-</span>}
@@ -3624,8 +4056,9 @@ export function FormPage() {
                           </tr>
                           {isEditing && dokumenEditRow ? (
                             <tr>
-                              <td colSpan={dokumenColumns.length + 2} className="border-t border-border-primary bg-background-primary/30 px-3 py-3">
+                              <td colSpan={activeDokumenColumns.length + 2} className="border-t border-border-primary bg-background-primary/30 px-3 py-3">
                                 <DokumenLampiranEditor
+                                  fields={getResolvedSection("dokumen", "dokumen-lampiran")?.fields}
                                   title={`Edit Dokumen ${row["Kode Dokumen"] || rowIndex + 1}`}
                                   subtitle={
                                     isMandatoryRow
@@ -3653,19 +4086,20 @@ export function FormPage() {
           </AccordionCard>
           <StepFooterActions
             step="dokumen"
-            onPrevious={() => setActiveStep(goToStep("dokumen", -1))}
+            onPrevious={() => setActiveStep(navigateStep("dokumen", -1))}
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
-            onNext={() => setActiveStep(goToStep("dokumen", 1))}
+            onNext={() => setActiveStep(navigateStep("dokumen", 1))}
           />
         </div>
       )}
 
       {activeStep === "kemasan" && (
         <div className="flex flex-col gap-4">
+          {getResolvedSection("kemasan", "kemasan")?.enabled !== false ? (
           <AccordionCard
-            title="Kemasan"
-            subtitle="Data kemasan bisa ditambah lewat form collapsible agar area tabel tetap rapi."
+            title={getResolvedSection("kemasan", "kemasan")?.label ?? "Kemasan"}
+            subtitle={getResolvedSection("kemasan", "kemasan")?.description ?? "Data kemasan bisa ditambah lewat form collapsible agar area tabel tetap rapi."}
             defaultOpen
             headerActions={
               <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
@@ -3684,7 +4118,9 @@ export function FormPage() {
                 <CompactSectionRowEditor
                   title="Tambah Kemasan"
                   subtitle="Isi field lalu simpan untuk menambah record baru."
-                  columns={kemasanColumns}
+                  columns={activeKemasanColumns}
+                  columnLabels={kemasanColumnLabels}
+                  fieldConfigs={getResolvedSection("kemasan", "kemasan")?.fields}
                   value={kemasanDraftRow}
                   onChange={updateKemasanDraftField}
                   onSave={saveKemasanDraftRow}
@@ -3694,7 +4130,9 @@ export function FormPage() {
               ) : null}
 
               <EditableTable
-                columns={kemasanColumns}
+                columns={activeKemasanColumns}
+                columnLabels={kemasanColumnLabels}
+                fieldConfigs={getResolvedSection("kemasan", "kemasan")?.fields}
                 rows={formState.kemasan}
                 onAdd={() => openKemasanAddForm()}
                 onRemove={() => removeRow("kemasan", kemasanColumns)}
@@ -3711,9 +4149,11 @@ export function FormPage() {
               />
             </div>
           </AccordionCard>
+          ) : null}
+          {getResolvedSection("kemasan", "kontainer")?.enabled !== false ? (
           <AccordionCard
-            title="Kontainer"
-            subtitle="Tambah record kontainer lewat toolbar, record lama tetap bisa diedit inline."
+            title={getResolvedSection("kemasan", "kontainer")?.label ?? "Kontainer"}
+            subtitle={getResolvedSection("kemasan", "kontainer")?.description ?? "Tambah record kontainer lewat toolbar, record lama tetap bisa diedit inline."}
             defaultOpen
             headerActions={
               <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[11px] font-semibold text-brand-primary-700">
@@ -3732,7 +4172,9 @@ export function FormPage() {
                 <CompactSectionRowEditor
                   title="Tambah Kontainer"
                   subtitle="Isi field lalu simpan untuk menambah record baru."
-                  columns={kontainerColumns}
+                  columns={activeKontainerColumns}
+                  columnLabels={kontainerColumnLabels}
+                  fieldConfigs={getResolvedSection("kemasan", "kontainer")?.fields}
                   value={kontainerDraftRow}
                   onChange={updateKontainerDraftField}
                   onSave={saveKontainerDraftRow}
@@ -3742,7 +4184,9 @@ export function FormPage() {
               ) : null}
 
               <EditableTable
-                columns={kontainerColumns}
+                columns={activeKontainerColumns}
+                columnLabels={kontainerColumnLabels}
+                fieldConfigs={getResolvedSection("kemasan", "kontainer")?.fields}
                 rows={formState.kontainer}
                 onAdd={() => openKontainerAddForm()}
                 onRemove={() => removeRow("kontainer", kontainerColumns)}
@@ -3759,12 +4203,13 @@ export function FormPage() {
               />
             </div>
           </AccordionCard>
+          ) : null}
           <StepFooterActions
             step="kemasan"
-            onPrevious={() => setActiveStep(goToStep("kemasan", -1))}
+            onPrevious={() => setActiveStep(navigateStep("kemasan", -1))}
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
-            onNext={() => setActiveStep(goToStep("kemasan", 1))}
+            onNext={() => setActiveStep(navigateStep("kemasan", 1))}
           />
         </div>
       )}
@@ -3802,13 +4247,13 @@ export function FormPage() {
               </Button>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border-primary">
-              <table className="min-w-full table-fixed border-collapse text-left text-[12px]">
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-border-primary">
+              <table className="min-w-max table-fixed border-collapse text-left text-[12px]">
                 <thead className="bg-brand-primary-500 text-white">
                   <tr>
-                    {barangMasterColumns.map((column) => (
+                    {activeBarangColumns.map((column) => (
                       <th key={column} className="px-3 py-3 font-semibold whitespace-nowrap">
-                        {column}
+                        {getConfiguredFieldLabel("barang", "barang-info", column)}
                       </th>
                     ))}
                     <th className="w-[140px] px-3 py-3">Aksi</th>
@@ -3817,7 +4262,7 @@ export function FormPage() {
                 <tbody>
                   {formState.barang.map((row, rowIndex) => (
                     <tr key={row.Seri || rowIndex} className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
-                      {barangMasterColumns.map((column) => {
+                      {activeBarangColumns.map((column) => {
                         if (column === "Status") {
                           return (
                             <td key={column} className="px-3 py-3">
@@ -3852,10 +4297,10 @@ export function FormPage() {
 
           <StepFooterActions
             step="barang"
-            onPrevious={() => setActiveStep(goToStep("barang", -1))}
+            onPrevious={() => setActiveStep(navigateStep("barang", -1))}
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
-            onNext={() => setActiveStep(goToStep("barang", 1))}
+            onNext={() => setActiveStep(navigateStep("barang", 1))}
           />
 
           <BarangWorkspaceDrawer
@@ -3881,6 +4326,18 @@ export function FormPage() {
             onUpdateDetailEdit={updateBarangDetailEditField}
             onSaveDetailEdit={saveBarangDetailEditRow}
             onCancelDetailEdit={cancelEditBarangDetailRow}
+            enabledSectionIds={enabledBarangSectionIds}
+            requiresQuarantine={requiresQuarantine}
+            masterFields={getResolvedSection("barang", "barang-info")?.fields ?? []}
+            detailFields={{
+              cukai: getResolvedSection("barang", "barang-cukai")?.fields,
+              spesifikasi: getResolvedSection("barang", "barang-spesifikasi")?.fields,
+              dokumen: getResolvedSection("barang", "barang-dokumen")?.fields,
+              vd: getResolvedSection("barang", "barang-vd")?.fields,
+              tarif: getResolvedSection("barang", "barang-tarif")?.fields,
+              karantina: getResolvedSection("barang", "karantina")?.fields,
+            }}
+            sectionLabels={Object.fromEntries(barangSectionConfig.map((section) => [section.id, section.label]))}
           />
         </div>
       )}
@@ -3937,26 +4394,17 @@ export function FormPage() {
               <div className="rounded-2xl border border-border-primary bg-white p-4">
                 <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Status Data</div>
                 <ul className="mt-3 space-y-2 text-[12px] text-neutral-700">
-                  <li className="flex items-center justify-between gap-3">
-                    <span>Pengajuan</span>
-                    <span className={stepComplete.pengajuan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.pengajuan ? "Lengkap" : "Belum lengkap"}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span>Entitas</span>
-                    <span className={stepComplete.entitas ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.entitas ? "Lengkap" : "Belum lengkap"}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span>Dokumen Lampiran</span>
-                    <span className={stepComplete.dokumen ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.dokumen ? "Lengkap" : "Belum lengkap"}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span>Kemasan & Kontainer</span>
-                    <span className={stepComplete.kemasan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.kemasan ? "Lengkap" : "Belum lengkap"}</span>
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <span>Barang</span>
-                    <span className={stepComplete.barang ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.barang ? "Lengkap" : "Belum lengkap"}</span>
-                  </li>
+                  {isStepVisible("pengajuan") ? <li className="flex items-center justify-between gap-3"><span>Pengajuan</span><span className={stepComplete.pengajuan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.pengajuan ? "Lengkap" : "Belum lengkap"}</span></li> : null}
+                  {isStepVisible("entitas") ? <li className="flex items-center justify-between gap-3"><span>Entitas</span><span className={stepComplete.entitas ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.entitas ? "Lengkap" : "Belum lengkap"}</span></li> : null}
+                  {isStepVisible("dokumen") ? <li className="flex items-center justify-between gap-3"><span>Dokumen Lampiran</span><span className={stepComplete.dokumen ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.dokumen ? "Lengkap" : "Belum lengkap"}</span></li> : null}
+                  {isStepVisible("kemasan") ? <li className="flex items-center justify-between gap-3"><span>Kemasan & Kontainer</span><span className={stepComplete.kemasan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.kemasan ? "Lengkap" : "Belum lengkap"}</span></li> : null}
+                  {isStepVisible("barang") ? <li className="flex items-center justify-between gap-3"><span>Barang</span><span className={stepComplete.barang ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.barang ? "Lengkap" : "Belum lengkap"}</span></li> : null}
+                  {requiresQuarantine && getResolvedSection("barang", "karantina")?.enabled !== false ? (
+                    <li className="flex items-center justify-between gap-3">
+                      <span>Karantina</span>
+                      <span className={hasAnyRows(formState.karantina) ? "font-semibold text-success-600" : "text-error-600"}>{hasAnyRows(formState.karantina) ? "Lengkap" : "Belum lengkap"}</span>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
 
@@ -3986,7 +4434,7 @@ export function FormPage() {
 
           <StepFooterActions
             step="review"
-            onPrevious={() => setActiveStep(goToStep("review", -1))}
+            onPrevious={() => setActiveStep(navigateStep("review", -1))}
             onCheck={handleCheckCompleteness}
             onSaveDraft={saveSnapshot}
             onNext={submitForm}
@@ -4156,6 +4604,91 @@ export function FormPage() {
           </div>
         </Modal>
       </section>
+      {configuratorEnabled ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setConfiguratorOpen(true)}
+            aria-label="Buka Konfigurasi Form"
+            aria-expanded={configuratorOpen}
+            className="fixed right-0 top-1/2 z-40 flex h-44 w-11 -translate-y-1/2 items-center justify-center rounded-l-xl border border-r-0 border-brand-primary-600 bg-brand-primary-600 text-white shadow-lg transition-colors hover:bg-brand-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary-200"
+          >
+            <span className="flex -rotate-90 items-center gap-2 whitespace-nowrap text-[12px] font-semibold tracking-wide">
+              <PencilIcon className="h-4 w-4" />
+              Konfigurasi Form
+            </span>
+          </button>
+          <FormConfigurationDrawer
+            open={configuratorOpen}
+            configFile={configFile}
+            documentId={documentType}
+            onChange={setConfigFile}
+            onDocumentChange={setDocumentType}
+            onClose={() => setConfiguratorOpen(false)}
+            onMessage={setStatusMessage}
+            allowLocalDraft={localConfiguratorEnabled}
+          />
+        </>
+      ) : null}
+      <Modal
+        open={costModalOpen}
+        title="Informasi Komponen Biaya"
+        description="Rincian pembentuk nilai transaksi berdasarkan konfigurasi jenis dokumen."
+        onClose={() => setCostModalOpen(false)}
+        widthClassName="w-[min(96vw,1240px)]"
+        panelClassName="max-h-[92vh] flex flex-col"
+        bodyClassName="min-h-0 flex-1 overflow-y-auto"
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button variant="error" size="sm" onClick={resetCostDraft}>Hapus</Button>
+            <Button variant="primary" size="sm" onClick={saveCostDraft}>Simpan</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4 rounded-2xl border border-border-primary bg-background-primary/20 p-4 md:grid-cols-2">
+            {costModalConfig?.fields.filter((field) => field.enabled && ["jenisNilai", "incoterm"].includes(field.id)).map((field) => (
+              <FormField key={field.id} label={field.label} value={costDraft[field.id] ?? ""} onChange={(value) => setCostDraft((current) => ({ ...current, [field.id]: value }))} inputType="select" mandatory={field.required} />
+            ))}
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-border-primary">
+            <table className="min-w-[900px] w-full border-collapse text-left text-[12px]">
+              <thead className="bg-brand-primary-600 text-white">
+                <tr><th className="px-4 py-3">Keterangan</th><th className="w-[220px] px-4 py-3 text-right">Nilai Pasti</th><th className="w-[220px] px-4 py-3 text-right">Nilai Perkiraan (VD)</th></tr>
+              </thead>
+              <tbody>
+                {(costModalConfig?.groups ?? []).map((costGroup) => {
+                  const fields = (costModalConfig?.fields ?? []).filter((field) => field.enabled && field.groupId === costGroup.id && !["jenisNilai", "incoterm"].includes(field.id));
+                  const summaryRows = costGroup.id === "harga-dibayar"
+                    ? [{ label: "A. Jumlah Harga yang Sebenarnya atau Seharusnya Dibayar", value: costA }, { label: "C. Jumlah A Dikurangi Diskon", value: costC }]
+                    : costGroup.id === "biaya-penambah"
+                      ? [{ label: "D. Jumlah Biaya Penambah", value: costD }, { label: "E. Jumlah C Ditambah D", value: costE }]
+                      : [{ label: "F. Jumlah Biaya yang Tidak Ditambahkan", value: costF }, { label: "G. Jumlah E Dikurangi F", value: costG }];
+                  return (
+                    <Fragment key={costGroup.id}>
+                      <tr className="border-t border-border-primary bg-neutral-100"><th colSpan={3} className="px-4 py-3 text-[13px] font-semibold text-neutral-800">{costGroup.label}</th></tr>
+                      {fields.map((field, index) => (
+                        <tr key={field.id} className="border-t border-border-primary bg-white">
+                          <td className="px-4 py-3 text-neutral-700">{index + 1}. {field.label}{field.required ? <span className="text-error-500"> *</span> : null}</td>
+                          <td className="px-4 py-2">
+                            {field.inputType === "select" ? (
+                              <select value={costDraft[field.id] ?? ""} onChange={(event) => setCostDraft((current) => ({ ...current, [field.id]: event.target.value }))} className={fieldTone}><option value="">-- Pilih --</option><option value="0">Tidak Ada</option><option value="1">Ada</option></select>
+                            ) : (
+                              <input type="number" step="0.01" value={costDraft[field.id] ?? field.defaultValue ?? "0.00"} onChange={(event) => setCostDraft((current) => ({ ...current, [field.id]: event.target.value }))} className={`${fieldTone} text-right font-semibold text-brand-primary-600`} />
+                            )}
+                          </td>
+                          <td className="bg-neutral-50 px-4 py-3 text-right text-neutral-500">0.00</td>
+                        </tr>
+                      ))}
+                      {summaryRows.map((row) => <tr key={row.label} className="border-t border-border-primary bg-neutral-100 font-semibold"><td className="px-4 py-3">{row.label}</td><td className="px-4 py-3 text-right text-brand-primary-600">{row.value.toFixed(2)}</td><td className="px-4 py-3 text-right text-brand-primary-600">0.00</td></tr>)}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

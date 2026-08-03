@@ -73,6 +73,7 @@ export function Input({
   error,
   warning,
   state,
+  requiredMark,
   className,
   prefixIcon,
   suffixIcon,
@@ -91,7 +92,7 @@ export function Input({
   const iconWrapClass = compact ? "w-8" : "w-10";
 
   return (
-    <FieldShell label={label} hint={hint} error={error} warning={warning} className={className}>
+    <FieldShell label={label} hint={hint} error={error} warning={warning} requiredMark={requiredMark} className={className}>
       <div className="relative">
         {hasPrefix ? (
           <span className={`pointer-events-none absolute inset-y-0 left-0 inline-flex ${iconWrapClass} items-center justify-center text-neutral-500`}>
@@ -124,12 +125,13 @@ export function Textarea({
   error,
   warning,
   state,
+  requiredMark,
   className,
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps) {
   const currentState = fieldStateFromProps(error, warning, state);
   return (
-    <FieldShell label={label} hint={hint} error={error} warning={warning} className={className}>
+    <FieldShell label={label} hint={hint} error={error} warning={warning} requiredMark={requiredMark} className={className}>
       <textarea
         className={cn(
           "min-h-24 w-full rounded-md border bg-white px-3 py-2 text-[12px] text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500",
@@ -161,6 +163,7 @@ type SelectProps = FieldProps & {
   searchable?: boolean;
   clearable?: boolean;
   searchPlaceholder?: string;
+  preserveOptions?: boolean;
 };
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -197,6 +200,7 @@ export function Select({
   searchable,
   clearable,
   searchPlaceholder = "Search option...",
+  preserveOptions = false,
 }: SelectProps) {
   const currentState = fieldStateFromProps(error, warning, state);
   const [open, setOpen] = useState(false);
@@ -204,22 +208,48 @@ export function Select({
   const rootRef = useRef<HTMLDivElement>(null);
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
+  const [rememberedOptions, setRememberedOptions] = useState(options);
   const selectedValue = isControlled ? value ?? "" : internalValue;
 
+  useEffect(() => {
+    if (!preserveOptions) {
+      setRememberedOptions(options);
+      return;
+    }
+    setRememberedOptions((current) => {
+      const next = [...current];
+      const knownValues = new Set(current.map((option) => option.value));
+      options.forEach((option) => {
+        if (!knownValues.has(option.value)) next.push(option);
+      });
+      return next;
+    });
+  }, [options, preserveOptions]);
+
+  const uniqueOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const sourceOptions = preserveOptions ? rememberedOptions : options;
+    return sourceOptions.filter((option) => {
+      if (seen.has(option.value)) return false;
+      seen.add(option.value);
+      return true;
+    });
+  }, [options, preserveOptions, rememberedOptions]);
+
   const selectedOption = useMemo(
-    () => options.find((option) => option.value === selectedValue),
-    [options, selectedValue],
+    () => uniqueOptions.find((option) => option.value === selectedValue),
+    [uniqueOptions, selectedValue],
   );
 
   const visibleOptions = useMemo(() => {
-    if (!searchable) return options;
+    if (!searchable) return uniqueOptions;
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return options;
-    return options.filter((option) => `${option.label} ${option.description ?? ""}`.toLowerCase().includes(normalized));
-  }, [options, query, searchable]);
+    if (!normalized) return uniqueOptions;
+    return uniqueOptions.filter((option) => `${option.label} ${option.description ?? ""}`.toLowerCase().includes(normalized));
+  }, [uniqueOptions, query, searchable]);
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -228,23 +258,26 @@ export function Select({
       if (event.key === "Escape") setOpen(false);
     };
 
-    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
-  const commitValue = (nextValue: string) => {
+  const commitValue = (nextValue: string, blurAfterCommit = false) => {
     if (!isControlled) setInternalValue(nextValue);
-    onValueChange?.(nextValue);
     setQuery("");
     setOpen(false);
+    onValueChange?.(nextValue);
+    if (blurAfterCommit && document.activeElement instanceof HTMLElement && rootRef.current?.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
   };
 
   return (
-    <FieldShell label={label} hint={hint} error={error} warning={warning} className={className}>
+    <FieldShell label={label} hint={hint} error={error} warning={warning} requiredMark={required} className={className}>
       <div ref={rootRef} className="relative">
         {name ? <input type="hidden" name={name} value={selectedValue} /> : null}
         <div
@@ -267,7 +300,7 @@ export function Select({
             aria-haspopup="listbox"
             aria-expanded={open}
             disabled={disabled}
-            className={cn("flex min-w-0 flex-1 items-center px-3 text-left", !selectedOption && "text-neutral-400")}
+            className={cn("flex min-w-0 flex-1 items-center px-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary-200", !selectedOption && "text-neutral-400")}
           >
             <span className="truncate">{selectedOption?.label || placeholder}</span>
           </button>
@@ -297,7 +330,7 @@ export function Select({
             }}
             aria-label={open ? "Tutup dropdown" : "Buka dropdown"}
             disabled={disabled}
-            className="inline-flex w-11 shrink-0 items-center justify-center text-neutral-700 disabled:text-neutral-400"
+            className="inline-flex w-11 shrink-0 items-center justify-center text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary-200 disabled:text-neutral-400"
           >
             <ChevronIcon open={open} />
           </button>
@@ -318,7 +351,10 @@ export function Select({
             <div className="py-1">
               <button
                 type="button"
-                onClick={() => commitValue("")}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  commitValue("", true);
+                }}
                 className={cn(
                   "group relative flex w-full items-center px-4 py-3 text-left text-[12px] transition-colors duration-150",
                   !selectedValue ? "bg-brand-primary-50 text-brand-primary-700" : "bg-neutral-50 text-neutral-600 hover:bg-neutral-100",
@@ -339,7 +375,17 @@ export function Select({
                     key={option.value}
                     type="button"
                     disabled={option.disabled}
-                    onClick={() => commitValue(option.value)}
+                    onPointerDown={(event) => {
+                      if (option.disabled) return;
+                      event.preventDefault();
+                      commitValue(option.value, true);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!option.disabled && (event.key === "Enter" || event.key === " ")) {
+                        event.preventDefault();
+                        commitValue(option.value);
+                      }
+                    }}
                   className={cn(
                     "group relative flex w-full flex-col items-start px-4 py-3 text-left text-[12px] transition-colors duration-150",
                     active ? "bg-brand-primary-50 text-brand-primary-700" : "text-brand-primary-700 hover:bg-brand-primary-50",

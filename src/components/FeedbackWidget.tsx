@@ -9,6 +9,7 @@ import {
   type FeedbackAttachment,
   type FeedbackType,
 } from "../lib/feedbackFeed";
+import { unlockIntranetConfigurator } from "../form-config/config";
 
 type MathChallenge = {
   left: number;
@@ -116,7 +117,8 @@ export function FeedbackWidget() {
 
   const currentRouteLabel = location.pathname === "/" ? "Dashboard" : location.pathname;
   const currentUrl = typeof window !== "undefined" ? window.location.href : currentRouteLabel;
-  const canSubmit = Boolean(name.trim() && message.trim() && mathAnswer.trim() && status !== "sending" && FEEDBACK_SUBMIT_URL);
+  const isDeveloperUnlockAttempt = location.pathname === "/form" && Boolean(mathAnswer.trim()) && !/^-?\d+$/.test(mathAnswer.trim());
+  const canSubmit = isDeveloperUnlockAttempt || Boolean(name.trim() && message.trim() && mathAnswer.trim() && status !== "sending" && FEEDBACK_SUBMIT_URL);
 
   const resetChallenge = () => setChallenge(makeChallenge());
 
@@ -230,6 +232,21 @@ export function FeedbackWidget() {
   };
 
   const sendFeedback = async () => {
+    if (isDeveloperUnlockAttempt) {
+      setStatus("sending");
+      setStatusMessage("Memeriksa akses...");
+      try {
+        await unlockIntranetConfigurator(mathAnswer.trim());
+        setMathAnswer("");
+        setStatus("success");
+        setStatusMessage("Developer mode aktif selama tab ini tetap terbuka.");
+      } catch {
+        setStatus("error");
+        setStatusMessage("Jawaban matematika belum benar.");
+      }
+      return;
+    }
+
     if (!FEEDBACK_SUBMIT_URL) {
       setStatus("error");
       setStatusMessage("Endpoint submit belum dikonfigurasi.");
@@ -474,6 +491,12 @@ export function FeedbackWidget() {
                           onChange={(event) => {
                             setMathAnswer(event.target.value);
                             if (status === "error") setStatus("idle");
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && isDeveloperUnlockAttempt) {
+                              event.preventDefault();
+                              void sendFeedback();
+                            }
                           }}
                           error={status === "error" ? statusMessage : undefined}
                           className="flex-1"
