@@ -139,6 +139,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
     base: process.env.GITHUB_PAGES === "true" ? "/mockup-sistem-pabean-insw/" : "/",
+    server: {
+      allowedHosts: [".trycloudflare.com"],
+    },
     plugins: [react(), tailwindcss(), localFormConfigWriter(env.FORM_CONFIG_UNLOCK_CODE ?? "")],
     resolve: {
       alias: {
