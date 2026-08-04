@@ -105,6 +105,15 @@ const wizardSteps: Array<{ id: WizardStepId; label: string; description: string 
   { id: "review", label: "Review & Submit", description: "Ringkasan akhir sebelum submit." },
 ];
 
+const wizardStepIcons = {
+  pengajuan: BriefcaseIcon,
+  entitas: UserIcon,
+  dokumen: DocumentsIcon,
+  kemasan: TruckIcon,
+  barang: HamburgerMenuIcon,
+  review: CheckReadIcon,
+} satisfies Record<WizardStepId, typeof BriefcaseIcon>;
+
 const sectionTone = "rounded-2xl border border-border-primary bg-white shadow-sm";
 const fieldTone =
   "h-10 w-full rounded-md border border-border-primary bg-white px-3 text-[12px] text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100";
@@ -112,6 +121,45 @@ const tocStickyClass = "lg:sticky lg:top-[calc(var(--shell-sticky-top)+12px)] lg
 const tocShellClass =
   "flex flex-col rounded-2xl border border-border-primary bg-white shadow-sm lg:h-[calc(100vh-var(--shell-sticky-top)-36px)] lg:max-h-[calc(100vh-var(--shell-sticky-top)-36px)]";
 const tocScrollClass = "min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1";
+
+const pungutanMatrixColumns = [
+  "Dibayar",
+  "Ditanggung Pemerintah",
+  "Ditunda",
+  "Tidak Dipungut",
+  "Dibebaskan",
+  "Sudah Dilunasi",
+] as const;
+
+const pungutanMatrixRows: Array<{
+  label: string;
+  values: Array<number | null>;
+  total?: boolean;
+}> = [
+  { label: "BM", values: [212195000, null, null, null, 212195000, null] },
+  { label: "BMT", values: [282926000, null, null, null, null, null] },
+  { label: "PPN", values: [707313736, null, null, null, null, null] },
+  { label: "PPNBM", values: [608289799, 608289799, null, null, null, null] },
+  { label: "PPH", values: [114054300, null, null, null, 347467800, null] },
+  { label: "TOTAL", values: [1924778835, 608289799, null, null, 559662800, null], total: true },
+];
+
+const rupiahFormatter = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const formatReviewDate = (value?: string) => {
+  if (!value) return "Tanggal belum diisi";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric" }).format(date);
+};
+
+const resolveResponsibleValue = (values: Array<string | undefined>, fallback: string) =>
+  values.find((value) => value?.trim() && !/^test(?:ing)?$/i.test(value.trim()))?.trim() || fallback;
 
 const barangMasterColumns = [
   "Seri",
@@ -406,12 +454,12 @@ const entityDefinitions: EntityDefinition[] = [
     requiredFields: ["Nama", "Jabatan", "Kota", "Kode Pos", "Email"],
     defaultValues: {
       "Jenis Entitas": "Penanggung Jawab",
-      Nama: "testing",
-      Jabatan: "test",
+      Nama: "Andi Pratama",
+      Jabatan: "Direktur Operasional",
       Kota: "Kota Jakarta Selatan",
-      "Kode Pos": "00000",
-      Email: "testing@test.com",
-      Keterangan: "test",
+      "Kode Pos": "12190",
+      Email: "andi.pratama@contoh.co.id",
+      Keterangan: "Penanggung jawab pengajuan kepabeanan.",
     },
     fields: [
       { key: "Nama", label: "Nama", placeholder: "Nama penanggung jawab", span: 2, lookup: true },
@@ -2373,6 +2421,61 @@ function SummaryCard({ label, value }: { label: string; value: string | number }
   );
 }
 
+function PungutanSummaryCard() {
+  return (
+    <section className={`${sectionTone} p-4 sm:p-5`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[16px] font-semibold text-neutral-800">Ringkasan Pungutan</h3>
+          <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+            Ringkasan nilai pungutan berdasarkan data tarif dan fasilitas yang telah diisi.
+          </p>
+        </div>
+        <Badge variant="secondary" className="shrink-0 px-3 py-1.5 font-semibold">
+          Mata Uang: IDR
+        </Badge>
+      </div>
+
+      <div className="mt-5 border-t border-border-primary pt-5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-600">Rincian Pungutan</div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[1120px] border-collapse text-[12px]">
+            <thead>
+              <tr className="border-b-2 border-neutral-200 text-neutral-600">
+                <th scope="col" className="px-3 py-3 text-left font-semibold">Jenis Pungutan</th>
+                {pungutanMatrixColumns.map((column) => (
+                  <th key={column} scope="col" className="px-3 py-3 text-right font-semibold">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pungutanMatrixRows.map((row) => (
+                <tr
+                  key={row.label}
+                  className={row.total
+                    ? "border-t-2 border-brand-primary-200 bg-brand-primary-50/25 font-semibold text-neutral-900"
+                    : "border-b border-neutral-100 text-neutral-700 last:border-b-0"}
+                >
+                  <th scope="row" className="whitespace-nowrap px-3 py-3.5 text-left font-semibold">
+                    {row.label}
+                  </th>
+                  {row.values.map((value, index) => (
+                    <td key={pungutanMatrixColumns[index]} className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
+                      {value === null ? <span className="text-neutral-400">—</span> : rupiahFormatter.format(value)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function StepFooterActions({
   step,
   onPrevious,
@@ -3407,6 +3510,73 @@ export function FormPage() {
     }, 650);
   };
 
+  const reviewStatusCards: Array<{
+    id: Exclude<WizardStepId, "review">;
+    label: string;
+    description: string;
+    actionLabel: string;
+    icon: ReactNode;
+  }> = [
+    {
+      id: "pengajuan",
+      label: "Pengajuan",
+      description: stepComplete.pengajuan ? "Semua section pengajuan sudah lengkap" : "2 section perlu diperiksa",
+      actionLabel: "Periksa Pengajuan",
+      icon: <BriefcaseIcon className="h-4 w-4" />,
+    },
+    {
+      id: "entitas",
+      label: "Entitas",
+      description: stepComplete.entitas ? "Data entitas utama sudah lengkap" : "Data PPJK belum lengkap",
+      actionLabel: "Periksa Entitas",
+      icon: <UserIcon className="h-4 w-4" />,
+    },
+    {
+      id: "dokumen",
+      label: "Dokumen Lampiran",
+      description: `${summaryCounts.dokumen} dokumen tersedia`,
+      actionLabel: stepComplete.dokumen ? "Lihat Dokumen" : "Periksa Dokumen",
+      icon: <DocumentsIcon className="h-4 w-4" />,
+    },
+    {
+      id: "kemasan",
+      label: "Kemasan & Kontainer",
+      description: `${summaryCounts.kemasan} kemasan dan ${summaryCounts.kontainer} kontainer`,
+      actionLabel: stepComplete.kemasan ? "Lihat Data" : "Periksa Data",
+      icon: <TruckIcon className="h-4 w-4" />,
+    },
+    {
+      id: "barang",
+      label: "Barang",
+      description: stepComplete.barang ? `${summaryCounts.barang} barang telah lengkap` : "2 dari 3 barang perlu dilengkapi",
+      actionLabel: "Periksa Barang",
+      icon: <HamburgerMenuIcon className="h-4 w-4" />,
+    },
+  ];
+  const visibleReviewStatusCards = reviewStatusCards.filter((item) => isStepVisible(item.id));
+  const completeReviewStatusCount = visibleReviewStatusCards.filter((item) => stepComplete[item.id]).length;
+  const reviewCompletionPercentage = visibleReviewStatusCards.length > 0
+    ? Math.round((completeReviewStatusCount / visibleReviewStatusCards.length) * 100)
+    : 0;
+
+  const navigateFromReview = (stepId: Exclude<WizardStepId, "review">) => {
+    setActiveStep(stepId);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  };
+
+  const legacyResponsiblePerson = entitasRowsByKind.penanggungJawab;
+  const responsiblePerson = {
+    name: resolveResponsibleValue([formState.pengajuan.penanggungJawabNama, legacyResponsiblePerson?.Nama], "Andi Pratama"),
+    position: resolveResponsibleValue([formState.pengajuan.penanggungJawabJabatan, legacyResponsiblePerson?.Jabatan], "Direktur Operasional"),
+    city: resolveResponsibleValue([formState.pengajuan.penanggungJawabKota, legacyResponsiblePerson?.Kota], "Kota Jakarta Selatan"),
+    date: formatReviewDate(formState.pengajuan.penanggungJawabTanggal),
+  };
+
+  const navigateToResponsiblePerson = () => {
+    setActiveStep("pengajuan");
+    window.setTimeout(() => scrollToPengajuanSection("penanggung-jawab"), 0);
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6 px-3 py-4 sm:px-4 sm:py-5">
       <section className="rounded-2xl bg-gradient-to-br from-brand-primary-500 via-[#03306f] to-[#0756a7] p-5 text-white shadow-sm sm:p-6">
@@ -3488,6 +3658,7 @@ export function FormPage() {
           <div className="relative flex min-w-[920px] items-start pt-1">
               {visibleWizardSteps.map((step, index) => {
                 const stepId = step.id as WizardStepId;
+                const StepIcon = wizardStepIcons[stepId];
                 const active = stepId === activeStep;
                 const done = stepId === "review" ? reviewStatus : stepComplete[stepId];
                 const isLast = index === visibleWizardSteps.length - 1;
@@ -3520,7 +3691,14 @@ export function FormPage() {
                           .filter(Boolean)
                           .join(" ")}
                       >
-                        {done ? <CheckIcon /> : index + 1}
+                        <StepIcon className="h-4 w-4" />
+                        {done ? (
+                          <span className="absolute -bottom-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-success-500 text-white">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-2.5 w-2.5 fill-current">
+                              <path d="m9.2 16.2-3.7-3.7-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4-9.4 9.4Z" />
+                            </svg>
+                          </span>
+                        ) : null}
                       </span>
                       <span className="min-w-0">
                         <span className={["block text-[12px] font-semibold", active || done ? "text-brand-primary-700" : "text-neutral-700"].filter(Boolean).join(" ")}>
@@ -4374,63 +4552,118 @@ export function FormPage() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-border-primary bg-background-primary/20 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-brand-primary-600">Statistik Ringkas</div>
-                  <div className="mt-1 text-[14px] font-semibold text-neutral-800">Jumlah data per alur utama</div>
-                </div>
-              </div>
+          </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <SummaryCard label="Dokumen Lampiran" value={summaryCounts.dokumen} />
-                <SummaryCard label="Kemasan" value={summaryCounts.kemasan} />
-                <SummaryCard label="Kontainer" value={summaryCounts.kontainer} />
-                <SummaryCard label="Barang" value={summaryCounts.barang} />
+          <div className={`${sectionTone} bg-background-primary/20 p-4 sm:p-5`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.14em] text-brand-primary-600">Statistik Ringkas</div>
+                <div className="mt-1 text-[14px] font-semibold text-neutral-800">Jumlah data per alur utama</div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border-primary bg-white p-4">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Status Data</div>
-                <ul className="mt-3 space-y-2 text-[12px] text-neutral-700">
-                  {isStepVisible("pengajuan") ? <li className="flex items-center justify-between gap-3"><span>Pengajuan</span><span className={stepComplete.pengajuan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.pengajuan ? "Lengkap" : "Belum lengkap"}</span></li> : null}
-                  {isStepVisible("entitas") ? <li className="flex items-center justify-between gap-3"><span>Entitas</span><span className={stepComplete.entitas ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.entitas ? "Lengkap" : "Belum lengkap"}</span></li> : null}
-                  {isStepVisible("dokumen") ? <li className="flex items-center justify-between gap-3"><span>Dokumen Lampiran</span><span className={stepComplete.dokumen ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.dokumen ? "Lengkap" : "Belum lengkap"}</span></li> : null}
-                  {isStepVisible("kemasan") ? <li className="flex items-center justify-between gap-3"><span>Kemasan & Kontainer</span><span className={stepComplete.kemasan ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.kemasan ? "Lengkap" : "Belum lengkap"}</span></li> : null}
-                  {isStepVisible("barang") ? <li className="flex items-center justify-between gap-3"><span>Barang</span><span className={stepComplete.barang ? "font-semibold text-success-600" : "text-error-600"}>{stepComplete.barang ? "Lengkap" : "Belum lengkap"}</span></li> : null}
-                  {requiresQuarantine && getResolvedSection("barang", "karantina")?.enabled !== false ? (
-                    <li className="flex items-center justify-between gap-3">
-                      <span>Karantina</span>
-                      <span className={hasAnyRows(formState.karantina) ? "font-semibold text-success-600" : "text-error-600"}>{hasAnyRows(formState.karantina) ? "Lengkap" : "Belum lengkap"}</span>
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-brand-primary-100 bg-brand-primary-50/60 p-4">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-700">Prefill Smart Draft</div>
-                <div className="mt-3 space-y-2 text-[12px] text-neutral-700">
-                  <div>
-                    <span className="font-medium">Nama Perusahaan: </span>
-                    {draft?.namaPerusahaan || entitasRowsByKind.pengusahaImportir?.["Nama Perusahaan"] || "PT Contoh Nusantara"}
-                  </div>
-                  <div>
-                    <span className="font-medium">NPWP: </span>
-                    {draft?.npwp || "01.234.567.8-999.000"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Jenis Pengajuan: </span>
-                    {formState.pengajuan.jenisPib}
-                  </div>
-                  <div>
-                    <span className="font-medium">Keterangan: </span>
-                    {draft?.keterangan || "Pengajuan umum berdasarkan asistensi AI."}
-                  </div>
-                </div>
-              </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryCard label="Dokumen Lampiran" value={summaryCounts.dokumen} />
+              <SummaryCard label="Kemasan" value={summaryCounts.kemasan} />
+              <SummaryCard label="Kontainer" value={summaryCounts.kontainer} />
+              <SummaryCard label="Barang" value={summaryCounts.barang} />
             </div>
           </div>
+
+          <PungutanSummaryCard />
+
+          <section className={`${sectionTone} p-4 sm:p-5`}>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Status Data</div>
+                <p className="mt-1 text-[12px] leading-5 text-neutral-600">
+                  Pilih bagian yang perlu diperiksa kembali sebelum pengajuan dikirim.
+                </p>
+              </div>
+              <div className="w-full max-w-[320px]">
+                <div className="flex items-center justify-between gap-3 text-[11px]">
+                  <span className="font-medium text-neutral-700">Kelengkapan Form</span>
+                  <span className="font-semibold text-brand-primary-700">{reviewCompletionPercentage}%</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100">
+                  <div
+                    className="h-full rounded-full bg-success-500 transition-[width] duration-300"
+                    style={{ width: `${reviewCompletionPercentage}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 text-right text-[11px] text-neutral-600">
+                  {completeReviewStatusCount} dari {visibleReviewStatusCards.length} bagian sudah lengkap
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleReviewStatusCards.map((item) => {
+                const complete = stepComplete[item.id];
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`group relative flex min-h-[168px] flex-col overflow-hidden rounded-xl border border-border-primary bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary-300 ${complete ? "before:bg-success-500" : "before:bg-warning-500"} before:absolute before:inset-y-0 before:left-0 before:w-1`}
+                    onClick={() => navigateFromReview(item.id)}
+                  >
+                    <div className="flex w-full items-start justify-between gap-3">
+                      <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${complete ? "bg-success-50 text-success-600" : "bg-warning-50 text-warning-700"}`}>
+                        {item.icon}
+                      </span>
+                      <Badge variant={complete ? "success" : "warning"}>
+                        {complete ? "Lengkap" : "Belum Lengkap"}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 text-[14px] font-semibold text-neutral-900">{item.label}</div>
+                    <div className="mt-1 text-[12px] leading-5 text-neutral-600">{item.description}</div>
+                    <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[12px] font-semibold text-brand-primary-600 group-hover:text-brand-primary-700">
+                      {item.actionLabel}
+                      <ArrowRightIcon className="h-3.5 w-3.5" />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className={`${sectionTone} p-4 sm:p-5`}>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-600">
+                    <UserIcon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Pernyataan Akhir</div>
+                    <h3 className="mt-0.5 text-[16px] font-semibold text-neutral-900">Penanggung Jawab Pengajuan</h3>
+                  </div>
+                </div>
+                <p className="mt-4 max-w-2xl text-[12px] leading-6 text-neutral-600">
+                  Dengan mengirim pengajuan ini, penanggung jawab menyatakan bahwa seluruh data dan dokumen yang dicantumkan telah diperiksa dan dapat dipertanggungjawabkan.
+                </p>
+                <button
+                  type="button"
+                  className="mt-4 inline-flex w-fit items-center gap-1.5 text-[12px] font-semibold text-brand-primary-600 hover:text-brand-primary-700"
+                  onClick={navigateToResponsiblePerson}
+                >
+                  Periksa data Penanggung Jawab
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-border-primary bg-background-primary/15 px-5 py-4 text-center">
+                <div className="text-[12px] text-neutral-700">
+                  {responsiblePerson.city}, {responsiblePerson.date}
+                </div>
+                <div className="mt-1 text-[12px] font-medium text-neutral-700">{responsiblePerson.position}</div>
+                <div className="h-20" aria-label="Area tanda tangan" />
+                <div className="border-t border-neutral-400 pt-2">
+                  <div className="text-[13px] font-semibold text-neutral-900">{responsiblePerson.name}</div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <StepFooterActions
             step="review"
