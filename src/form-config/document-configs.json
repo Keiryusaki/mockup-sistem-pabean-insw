@@ -10,7 +10,26 @@
       "id": "BC20",
       "label": "BC 2.0",
       "defaultRequiresQuarantine": false,
-      "steps": { "pengajuan": { "sections": { "header-pengajuan": { "fields": { "kantorPabean": { "label": "Kantor Pabean" } } } } } }
+      "steps": {
+        "pengajuan": {
+          "sections": {
+            "header-pengajuan": {
+              "fields": {
+                "kantorPabean": {
+                  "label": "Kantor Pabean"
+                }
+              }
+            },
+            "transaksi": {
+              "fields": {
+                "jenisPembagi": {
+                  "enabled": true
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
       "id": "BC23",
@@ -21,8 +40,12 @@
           "sections": {
             "header-pengajuan": {
               "fields": {
-                "kantorPabean": { "label": "Kantor Pabean Bongkar" },
-                "kantorPabean2": { "label": "Kantor Pabean Pengawas" }
+                "kantorPabean": {
+                  "label": "Kantor Pabean Bongkar"
+                },
+                "kantorPabean2": {
+                  "label": "Kantor Pabean Pengawas"
+                }
               }
             }
           }
@@ -38,7 +61,19 @@
           "sections": {
             "header-pengajuan": {
               "fields": {
-                "kantorPabean": { "label": "Kantor Pabean Bongkar" }
+                "kantorPabean": {
+                  "label": "Kantor Pabean Bongkar"
+                }
+              }
+            },
+            "informasi-komponen-biaya": {
+              "enabled": false
+            },
+            "transaksi": {
+              "fields": {
+                "jenisPembagi": {
+                  "enabled": false
+                }
               }
             }
           }
@@ -49,13 +84,40 @@
       "id": "FTZ01",
       "label": "FTZ 01",
       "defaultRequiresQuarantine": false,
-      "steps": { "pengajuan": { "sections": { "header-pengajuan": { "fields": { "kantorPabean": { "label": "Kantor Pabean Asal" }, "kantorPabean2": { "label": "Kantor Pabean Tujuan" } } } } } }
+      "steps": {
+        "pengajuan": {
+          "sections": {
+            "header-pengajuan": {
+              "fields": {
+                "kantorPabean": {
+                  "label": "Kantor Pabean Asal"
+                },
+                "kantorPabean2": {
+                  "label": "Kantor Pabean Tujuan"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     {
       "id": "KEK_IN",
       "label": "KEK Pemasukan",
       "defaultRequiresQuarantine": false,
-      "steps": { "pengajuan": { "sections": { "header-pengajuan": { "fields": { "kantorPabean": { "label": "Kantor Pabean Pengawas" } } } } } }
+      "steps": {
+        "pengajuan": {
+          "sections": {
+            "header-pengajuan": {
+              "fields": {
+                "kantorPabean": {
+                  "label": "Kantor Pabean Pengawas"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

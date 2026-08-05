@@ -44,6 +44,14 @@ const entityFields = field(
   ["Tanggal Izin Badan Pengusaha", "Tanggal Izin Badan Pengusaha", "date", false, ["FTZ01"]],
 );
 
+const npwpPemusatanFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Nomor Identitas", "Nomor Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+);
+
 export const formConfigCatalog: FormStepCatalogItem[] = [
   {
     id: "pengajuan", label: "Pengajuan", description: "Header, transaksi, pengangkutan, pelabuhan, dan penanggung jawab.",
@@ -177,6 +185,7 @@ export const formConfigCatalog: FormStepCatalogItem[] = [
     id: "entitas", label: "Entitas", description: "Data pelaku usaha dan identitas entitas.",
     sections: [
       { id: "pengusahaImportir", label: "Pengusaha / Importir", description: "Identitas pengusaha atau importir yang mengajukan dokumen.", fields: entityFields },
+      { id: "npwpPemusatan", label: "NPWP Pemusatan", description: "NPWP lokasi pemusatan. Diisi bila importir mendapat fasilitas pemusatan.", fields: npwpPemusatanFields },
       { id: "ppjk", label: "PPJK", description: "Informasi perusahaan pengurusan jasa kepabeanan yang mewakili pengajuan.", fields: entityFields },
       { id: "penerima", label: "Penerima", description: "Identitas pihak yang menerima barang dalam transaksi.", fields: entityFields },
       { id: "pembeli", label: "Pembeli", description: "Identitas pembeli dan keterkaitannya dengan pihak penerima.", fields: entityFields },

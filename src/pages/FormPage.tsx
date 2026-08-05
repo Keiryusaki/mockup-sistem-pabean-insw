@@ -262,8 +262,8 @@ const mandatoryPengajuanFields: MandatoryKey[] = [
   "tempatTimbun",
 ];
 
-type EntityKind = "pengusahaImportir" | "ppjk" | "penerima" | "pembeli" | "penanggungJawab" | "barangEksporLcl";
-type EntityFieldType = "input" | "select" | "textarea";
+type EntityKind = "pengusahaImportir" | "npwpPemusatan" | "ppjk" | "penerima" | "pembeli" | "penanggungJawab" | "barangEksporLcl";
+type EntityFieldType = "input" | "select" | "textarea" | "identity";
 type EntityFieldOption = { label: string; value: string; description?: string };
 type EntityFieldConfig = {
   key: string;
@@ -278,6 +278,8 @@ type EntityFieldConfig = {
   lookup?: boolean;
   inputType?: string;
   required?: boolean;
+  /** Key of the paired field in the row, used by the "identity" composite type (code select + value input). */
+  pairKey?: string;
 };
 type EntityDefinition = {
   kind: EntityKind;
@@ -288,6 +290,8 @@ type EntityDefinition = {
   headerFields?: EntityFieldConfig[];
   bodyHeading?: string;
   toggle?: { key: string; label: string };
+  /** Header button that copies field values from another entity's row into this one. */
+  copyFrom?: { kind: EntityKind; label: string; map: Record<string, string> };
   fields: EntityFieldConfig[];
   requiredFields: string[];
   defaultValues: Row;
@@ -380,6 +384,47 @@ const entityDefinitions: EntityDefinition[] = [
       { key: "On Behalf", label: "On Behalf", placeholder: "Atas nama / perwakilan", span: 2 },
       { key: "Status", label: "Status", type: "select", options: statusOptions, span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat lengkap", span: 3 },
+    ],
+  },
+  {
+    kind: "npwpPemusatan",
+    title: "NPWP Pemusatan",
+    description: "NPWP lokasi pemusatan. Diisi bila importir mendapat fasilitas pemusatan.",
+    icon: BuildingsIcon,
+    requiredFields: ["Nomor Identitas", "NITKU", "Nama", "Alamat"],
+    copyFrom: {
+      kind: "pengusahaImportir",
+      label: "Salin Importir",
+      map: {
+        "Nomor Identitas": "No Identitas (16 Digit)",
+        NITKU: "6 Digit Terakhir NITKU",
+        Nama: "Nama Perusahaan",
+        Alamat: "Alamat",
+      },
+    },
+    emptyState: "NPWP pemusatan belum diisi.",
+    defaultValues: {
+      "Jenis Entitas": "NPWP Pemusatan",
+      "Jenis Identitas": "NPWP",
+      "Nomor Identitas": "",
+      NITKU: "",
+      Nama: "",
+      Alamat: "",
+    },
+    fields: [
+      {
+        key: "Nomor Identitas",
+        label: "Nomor Identitas",
+        type: "identity",
+        pairKey: "Jenis Identitas",
+        options: identityOptions,
+        placeholder: "Nomor identitas...",
+        span: 1,
+        required: true,
+      },
+      { key: "NITKU", label: "NITKU", placeholder: "NITKU...", span: 1, lookup: true, required: true },
+      { key: "Nama", label: "Nama", placeholder: "Masukkan nama...", span: 1, required: true },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Masukkan alamat...", span: 3, required: true },
     ],
   },
   {
@@ -508,7 +553,7 @@ const entityDefinitions: EntityDefinition[] = [
 
 const entityDefinitionMap = Object.fromEntries(entityDefinitions.map((definition) => [definition.kind, definition])) as Record<EntityKind, EntityDefinition>;
 
-const entityOrder: EntityKind[] = ["pengusahaImportir", "ppjk", "penerima", "pembeli", "penanggungJawab", "barangEksporLcl"];
+const entityOrder: EntityKind[] = ["pengusahaImportir", "npwpPemusatan", "ppjk", "penerima", "pembeli", "penanggungJawab", "barangEksporLcl"];
 
 const stepFieldGroups = [
   {
@@ -653,7 +698,7 @@ const getSectionColumns = (definition: EntityDefinition) => [
   "Jenis Entitas",
   ...(definition.headerFields?.map((field) => field.key) ?? []),
   ...(definition.toggle ? [definition.toggle.key] : []),
-  ...definition.fields.map((field) => field.key),
+  ...definition.fields.flatMap((field) => (field.pairKey ? [field.key, field.pairKey] : [field.key])),
 ];
 const isSectionComplete = (definition: EntityDefinition, row: Row | null, rows: Row[]) => {
   if (!row) return false;
@@ -760,7 +805,7 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
     },
     entitas: entityDefinitions.map((definition) =>
       createRow(
-        ["Jenis Entitas", ...(definition.headerFields?.map((field) => field.key) ?? []), ...definition.fields.map((field) => field.key), ...(definition.toggle ? [definition.toggle.key] : [])],
+        getSectionColumns(definition),
         {
           ...definition.defaultValues,
           ...(definition.kind === "pengusahaImportir"
@@ -945,12 +990,12 @@ function AccordionCard({
 
   return (
     <section className="rounded-2xl border border-border-primary bg-white shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
-      >
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="flex w-full items-center justify-between gap-4 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+        >
           {leadingIcon ? (
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">
               {leadingIcon}
@@ -984,14 +1029,20 @@ function AccordionCard({
             </div>
             {subtitle && <div className="mt-1 text-[12px] text-neutral-600">{subtitle}</div>}
           </div>
-        </div>
-        <div className="flex items-center gap-3">
+        </button>
+        <div className="flex shrink-0 items-center gap-3">
           {headerActions}
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background-primary text-brand-primary-600">
+          <button
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            aria-expanded={open}
+            aria-label={open ? "Ciutkan section" : "Buka section"}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background-primary text-brand-primary-600"
+          >
             <ChevronIcon open={open} />
-          </span>
+          </button>
         </div>
-      </button>
+      </div>
       {open && <div className="border-t border-border-primary px-4 py-4">{children}</div>}
     </section>
   );
@@ -1003,16 +1054,49 @@ function EntityFieldRenderer({
   onChange,
   disabled = false,
   onLookup,
+  pairValue,
+  onPairChange,
 }: {
   field: EntityFieldConfig;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   onLookup?: () => void;
+  pairValue?: string;
+  onPairChange?: (value: string) => void;
 }) {
   const widthClass = field.span === 3 ? "md:col-span-2 xl:col-span-3" : field.span === 2 ? "md:col-span-2" : "";
   const wrapperClass = ["flex flex-col gap-1.5", widthClass].filter(Boolean).join(" ");
   const isDisabled = disabled || field.readOnly || field.disabled;
+
+  if (field.type === "identity") {
+    return (
+      <label className={wrapperClass}>
+        <span className="text-[12px] font-medium text-neutral-700">
+          {field.label}
+          {field.required ? <span className="ml-1 text-error-500">*</span> : null}
+        </span>
+        <div className="flex items-center gap-2">
+          <Select
+            className="w-32 shrink-0"
+            value={pairValue ?? ""}
+            onValueChange={(next) => onPairChange?.(next)}
+            placeholder="Kode"
+            options={field.options ?? []}
+            disabled={isDisabled}
+          />
+          <Input
+            className="flex-1"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={field.placeholder ?? field.label}
+            readOnly={isDisabled}
+            disabled={isDisabled}
+          />
+        </div>
+      </label>
+    );
+  }
 
   if (field.lookup) {
     return (
@@ -1109,6 +1193,8 @@ function EntityCardContent({
           onChange={(value) => onChange(field.key, value)}
           disabled={disabled}
           onLookup={field.lookup ? () => onLookup?.(field.key) : undefined}
+          pairValue={field.pairKey ? row[field.pairKey] ?? "" : undefined}
+          onPairChange={field.pairKey ? (value) => onChange(field.pairKey!, value) : undefined}
         />
       ))}
     </div>
@@ -3847,9 +3933,12 @@ export function FormPage() {
                   className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
                 >
                   <AccordionCard title={group.label} subtitle={group.description ?? "Edit field secara langsung di bawah ini."} defaultOpen>
-                    {group.groups?.length ? (
-                      <div className="grid gap-4 xl:grid-cols-3">
-                        {group.groups.map((fieldGroup) => (
+                    {group.groups?.length ? (() => {
+                      const visibleFieldGroups = group.groups.filter((fieldGroup) => group.fields.some((field) => field.groupId === fieldGroup.id));
+                      const columnsClass = visibleFieldGroups.length === 2 ? "xl:grid-cols-2" : visibleFieldGroups.length === 1 ? "xl:grid-cols-1" : "xl:grid-cols-3";
+                      return (
+                      <div className={["grid gap-4", columnsClass].join(" ")}>
+                        {visibleFieldGroups.map((fieldGroup) => (
                           <div key={fieldGroup.id} className="rounded-2xl border border-border-primary bg-background-primary/15 p-4">
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                               <h3 className="text-[14px] font-semibold text-neutral-800">{fieldGroup.label}</h3>
@@ -3868,7 +3957,8 @@ export function FormPage() {
                           </div>
                         ))}
                       </div>
-                    ) : (
+                      );
+                    })() : (
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {group.fields.map((field) => (
                           <FormField key={field.id} label={field.label} value={formState.pengajuan[field.id] ?? field.defaultValue ?? ""} onChange={(value) => updatePengajuanField(field.id, value)} placeholder={field.label} mandatory={field.required} helperText={field.helperText} inputType={field.inputType} readOnly={field.readOnly} options={field.options} />
@@ -3963,7 +4053,7 @@ export function FormPage() {
                                 {status.label}
                               </Badge>
                             </span>
-                            <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{definition.description}</span>
+                            <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{config.description ?? definition.description}</span>
                           </span>
                         </button>
                       );
@@ -3978,7 +4068,7 @@ export function FormPage() {
                         content={
                           <div>
                             <div className="text-[12px] font-semibold text-neutral-800">{config.label}</div>
-                            <div className="mt-1 text-[11px] leading-5 text-neutral-600">{definition.description}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-neutral-600">{config.description ?? definition.description}</div>
                             <div
                               className={[
                                 "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -4047,7 +4137,7 @@ export function FormPage() {
                         ...base,
                         key: field.id,
                         label: field.label,
-                        type: field.inputType === "select" ? "select" : "input",
+                        type: base?.type === "textarea" || base?.type === "identity" ? base.type : field.inputType === "select" ? "select" : "input",
                         inputType: field.inputType === "date" ? "date" : field.inputType === "number" ? "number" : "text",
                         readOnly: field.readOnly || field.id === "Jenis Entitas",
                         required: field.required,
@@ -4078,7 +4168,26 @@ export function FormPage() {
                         subtitle={config.description ?? definition.description}
                         defaultOpen={definition.defaultOpen ?? false}
                         leadingIcon={<Icon className="h-5 w-5" />}
-                        headerActions={<SectionStatusBadge label={status.label} tone={status.tone} />}
+                        headerActions={
+                          <div className="flex items-center gap-2">
+                            {definition.copyFrom ? (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                  const sourceRow = entitasRowsByKind[definition.copyFrom!.kind];
+                                  if (!sourceRow) return;
+                                  Object.entries(definition.copyFrom!.map).forEach(([targetKey, sourceKey]) => {
+                                    updateEntityField(definition.kind, targetKey, sourceRow[sourceKey] ?? "");
+                                  });
+                                }}
+                              >
+                                {definition.copyFrom.label}
+                              </Button>
+                            ) : null}
+                            <SectionStatusBadge label={status.label} tone={status.tone} />
+                          </div>
+                        }
                       >
                         <div className="flex flex-col gap-4">
                           {configuredDefinition.headerFields?.length ? (
