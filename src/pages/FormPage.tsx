@@ -479,7 +479,6 @@ const entityDefinitions: EntityDefinition[] = [
     requiredFields: ["Nama", "Alamat", "Negara"],
     defaultValues: {
       "Jenis Entitas": "Pembeli",
-      "Sama dengan Penerima": "Ya",
       Nama: "testing",
       Alamat: "testing",
       Negara: "SG",
@@ -702,7 +701,7 @@ const getSectionColumns = (definition: EntityDefinition) => [
 ];
 const isSectionComplete = (definition: EntityDefinition, row: Row | null, rows: Row[]) => {
   if (!row) return false;
-  if (definition.toggle && !isTruthyValue(row[definition.toggle.key])) {
+  if (definition.toggle && definition.kind !== "pembeli" && !isTruthyValue(row[definition.toggle.key])) {
     return false;
   }
 
@@ -4152,7 +4151,7 @@ export function FormPage() {
                   const Icon = definition.icon;
                   const isToggleActive = configuredDefinition.toggle ? isTruthyValue(entityRow?.[configuredDefinition.toggle.key]) : true;
                   const isPembeliSame = definition.kind === "pembeli" && isTruthyValue(entityRow?.["Sama dengan Penerima"]);
-                  const isOptionalCollapsed = Boolean(configuredDefinition.toggle) && !isToggleActive;
+                  const isOptionalCollapsed = definition.kind !== "pembeli" && Boolean(configuredDefinition.toggle) && !isToggleActive;
 
                   return (
                     <div
@@ -4214,7 +4213,11 @@ export function FormPage() {
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-primary bg-background-primary/25 px-4 py-3">
                               <div className="min-w-0">
                                 <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">{configuredDefinition.toggle.label}</div>
-                                <div className="mt-1 text-[12px] leading-5 text-neutral-600">{isToggleActive ? "Section aktif dan siap diisi." : definition.emptyState}</div>
+                                <div className="mt-1 text-[12px] leading-5 text-neutral-600">
+                                  {definition.kind === "pembeli"
+                                    ? (isToggleActive ? definition.emptyState : "Section aktif dan siap diisi.")
+                                    : (isToggleActive ? "Section aktif dan siap diisi." : definition.emptyState)}
+                                </div>
                               </div>
                               <EntitasCheckbox
                                   label={configuredDefinition.toggle.label}
@@ -4228,7 +4231,7 @@ export function FormPage() {
 
                           {isOptionalCollapsed ? <SectionEmptyState text={definition.emptyState} /> : null}
 
-                          {(!configuredDefinition.toggle || isToggleActive) && !isOptionalCollapsed ? (
+                          {(!configuredDefinition.toggle || isToggleActive || definition.kind === "pembeli") && !isOptionalCollapsed ? (
                             <>
                               {definition.kind === "pembeli" && isPembeliSame ? (
                                 <EntitasSectionNote text="Data pembeli disamakan dengan penerima. Ubah ceklis bila ingin mengisi manual." />

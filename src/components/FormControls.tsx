@@ -283,8 +283,7 @@ export function Select({
         <div
           className={cn(
             "flex h-11 w-full overflow-hidden rounded-md border bg-white text-[12px] text-neutral-800 outline-none transition-colors",
-            inputStateClasses[currentState],
-            disabled && "cursor-not-allowed bg-neutral-50 text-neutral-500",
+            disabled ? "cursor-not-allowed border-border-primary/60 bg-neutral-50 text-neutral-500 opacity-70" : inputStateClasses[currentState],
           )}
         >
           <button

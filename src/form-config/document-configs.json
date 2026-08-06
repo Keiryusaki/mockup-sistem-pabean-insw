@@ -98,6 +98,16 @@
               }
             }
           }
+        },
+        "entitas": {
+          "sections": {
+            "penerima": {
+              "label": "Penerima Ftz01"
+            },
+            "pembeli": {
+              "label": "Pembeli Ftz01"
+            }
+          }
         }
       }
     },
@@ -114,6 +124,13 @@
                   "label": "Kantor Pabean Pengawas"
                 }
               }
+            }
+          }
+        },
+        "entitas": {
+          "sections": {
+            "ppjk": {
+              "enabled": false
             }
           }
         }

@@ -52,6 +52,85 @@ const npwpPemusatanFields = field(
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
 );
 
+const pemilikBarangFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Afiliasi", "Kode Afiliasi", "select", true, ["BC20", "FTZ01"]],
+  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+);
+
+const penjualFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+);
+
+const pengirimFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+);
+
+const pemasokFields = field(
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+);
+
+const penerimaFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+  ["Status", "Status", "select", true, CUSTOMS_NO_KEK],
+  ["Izin Badan Pengusaha", "Izin Badan Pengusaha", "text", false, ["FTZ01"]],
+);
+
+const pembeliFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
+);
+
+const eksportirKekFields = field(
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
+  ["Nama", "Nama", "text", true, ["KEK_IN"]],
+  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
+  ["Kode Negara", "Kode Negara", "select", true, ["KEK_IN"]],
+);
+
+const ppjkKekFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ["KEK_IN"]],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
+  ["NITKU", "NITKU", "text", true, ["KEK_IN"]],
+  ["Nama", "Nama", "text", true, ["KEK_IN"]],
+  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
+  ["Tanggal NP", "Tanggal NP", "date", false, ["KEK_IN"]],
+  ["NP PPJK", "NP PPJK", "text", false, ["KEK_IN"]],
+);
+
+const vendorKekFields = field(
+  ["Jenis Entitas", "Jenis Entitas", "select", true, ["KEK_IN"]],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
+  ["NITKU", "NITKU", "text", true, ["KEK_IN"]],
+  ["Nama", "Nama", "text", true, ["KEK_IN"]],
+  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
+  ["Telepon", "Telepon", "text", false, ["KEK_IN"]],
+  ["Email", "Email", "text", false, ["KEK_IN"]],
+);
+
 export const formConfigCatalog: FormStepCatalogItem[] = [
   {
     id: "pengajuan", label: "Pengajuan", description: "Header, transaksi, pengangkutan, pelabuhan, dan penanggung jawab.",
@@ -185,10 +264,17 @@ export const formConfigCatalog: FormStepCatalogItem[] = [
     id: "entitas", label: "Entitas", description: "Data pelaku usaha dan identitas entitas.",
     sections: [
       { id: "pengusahaImportir", label: "Pengusaha / Importir", description: "Identitas pengusaha atau importir yang mengajukan dokumen.", fields: entityFields },
+      { id: "pemilikBarang", label: "Pemilik Barang", description: "Identitas pihak yang memiliki barang dalam transaksi.", fields: pemilikBarangFields },
+      { id: "penjual", label: "Penjual", description: "Identitas pihak yang menjual barang dalam transaksi.", fields: penjualFields },
+      { id: "pengirim", label: "Pengirim", description: "Identitas pihak yang mengirim barang dalam transaksi.", fields: pengirimFields },
+      { id: "pemasok", label: "Pemasok", description: "Identitas pihak yang memasok barang dalam transaksi.", fields: pemasokFields },
       { id: "npwpPemusatan", label: "NPWP Pemusatan", description: "NPWP lokasi pemusatan. Diisi bila importir mendapat fasilitas pemusatan.", fields: npwpPemusatanFields },
       { id: "ppjk", label: "PPJK", description: "Informasi perusahaan pengurusan jasa kepabeanan yang mewakili pengajuan.", fields: entityFields },
-      { id: "penerima", label: "Penerima", description: "Identitas pihak yang menerima barang dalam transaksi.", fields: entityFields },
-      { id: "pembeli", label: "Pembeli", description: "Identitas pembeli dan keterkaitannya dengan pihak penerima.", fields: entityFields },
+      { id: "ppjkKek", label: "PPJK KEK", description: "Informasi perusahaan pengurusan jasa kepabeanan untuk dokumen KEK.", fields: ppjkKekFields },
+      { id: "penerima", label: "Penerima", description: "Identitas pihak yang menerima barang dalam transaksi.", fields: penerimaFields },
+      { id: "pembeli", label: "Pembeli", description: "Identitas pembeli dan keterkaitannya dengan pihak penerima.", fields: pembeliFields },
+      { id: "eksportirKek", label: "Eksportir KEK", description: "Identitas eksportir untuk dokumen KEK.", fields: eksportirKekFields },
+      { id: "vendorKek", label: "Vendor KEK", description: "Identitas vendor untuk dokumen KEK.", fields: vendorKekFields },
     ],
   },
   {
