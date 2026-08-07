@@ -82,6 +82,9 @@ type FormState = {
   barangVd: Row[];
   barangTarif: Row[];
   karantina: Row[];
+  karantinaHewan: Row;
+  karantinaIkan: Row;
+  karantinaTumbuhan: Row;
 };
 
 type BarangWorkspaceTab = "data-barang" | "compliance";
@@ -235,6 +238,7 @@ const barangTocItems = [
   { id: "barang-dokumen", title: "Dokumen Barang", description: "Dokumen yang terhubung ke seri barang." },
   { id: "barang-vd", title: "Barang VD", description: "Mock data barang VD." },
   { id: "barang-tarif", title: "Barang Tarif", description: "Pungutan dan tarif per seri." },
+  { id: "karantina", title: "Barang Karantina", description: "Data karantina yang melekat pada seri barang." },
 ];
 
 const complianceTocItems = [
@@ -243,8 +247,28 @@ const complianceTocItems = [
   { id: "compliance-masterlist", title: "Masterlist" },
   { id: "compliance-trq", title: "TRQ" },
   { id: "compliance-transportasi", title: "Transportasi" },
-  { id: "compliance-karantina", title: "Karantina" },
   { id: "compliance-pendukung", title: "Dokumen Pendukung" },
+];
+
+const barangStepTocItems: Array<{
+  id: string;
+  label: string;
+  description: string;
+  icon: typeof DocumentsIcon;
+  children?: Array<{ id: string; label: string; description: string; icon: typeof DocumentsIcon }>;
+}> = [
+  { id: "tabel-informasi-barang", label: "Tabel Informasi Barang", description: "Daftar seri barang dan aksi kelola detail.", icon: DocumentsIcon },
+  {
+    id: "karantina",
+    label: "Header Karantina",
+    description: "Data karantina untuk keseluruhan pengajuan.",
+    icon: CheckReadIcon,
+    children: [
+      { id: "karantina-hewan", label: "Header Karantina Hewan", description: "Kantor, tujuan, dan pemeriksaan karantina hewan.", icon: CheckReadIcon },
+      { id: "karantina-ikan", label: "Header Karantina Ikan", description: "Kantor, tujuan, dan pemeriksaan karantina ikan.", icon: CheckReadIcon },
+      { id: "karantina-tumbuhan", label: "Header Karantina Tumbuhan", description: "Kantor, tujuan, dan pemeriksaan karantina tumbuhan.", icon: CheckReadIcon },
+    ],
+  },
 ];
 
 const mandatoryPengajuanFields: MandatoryKey[] = [
@@ -262,7 +286,20 @@ const mandatoryPengajuanFields: MandatoryKey[] = [
   "tempatTimbun",
 ];
 
-type EntityKind = "pengusahaImportir" | "npwpPemusatan" | "ppjk" | "penerima" | "pembeli" | "penanggungJawab" | "barangEksporLcl";
+type EntityKind =
+  | "pengusahaImportir"
+  | "npwpPemusatan"
+  | "pemilikBarang"
+  | "penjual"
+  | "pengirim"
+  | "pemasok"
+  | "ppjk"
+  | "penerima"
+  | "pembeli"
+  | "eksportirKek"
+  | "vendorKek"
+  | "penanggungJawab"
+  | "barangEksporLcl";
 type EntityFieldType = "input" | "select" | "textarea" | "identity";
 type EntityFieldOption = { label: string; value: string; description?: string };
 type EntityFieldConfig = {
@@ -428,24 +465,88 @@ const entityDefinitions: EntityDefinition[] = [
     ],
   },
   {
+    kind: "pemilikBarang",
+    title: "Pemilik Barang",
+    description: "Identitas pihak yang memiliki barang dalam transaksi.",
+    icon: BuildingsIcon,
+    requiredFields: ["Jenis Identitas", "Nama", "Alamat", "Kode Afiliasi", "NITKU", "Kode Negara"],
+    emptyState: "Data pemilik barang belum diisi.",
+    defaultValues: { "Jenis Entitas": "Pemilik Barang" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas pemilik barang", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama pemilik barang", span: 1 },
+      { key: "Kode Afiliasi", label: "Kode Afiliasi", type: "select", span: 1 },
+      { key: "NITKU", label: "NITKU", placeholder: "NITKU pemilik barang", span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pemilik barang", span: 3 },
+    ],
+  },
+  {
+    kind: "penjual",
+    title: "Penjual",
+    description: "Identitas pihak yang menjual barang dalam transaksi.",
+    icon: BriefcaseIcon,
+    requiredFields: ["Jenis Identitas", "Nama", "Alamat", "Kode Negara"],
+    emptyState: "Data penjual belum diisi.",
+    defaultValues: { "Jenis Entitas": "Penjual" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas penjual", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama penjual", span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penjual", span: 3 },
+    ],
+  },
+  {
+    kind: "pengirim",
+    title: "Pengirim",
+    description: "Identitas pihak yang mengirim barang dalam transaksi.",
+    icon: TruckIcon,
+    requiredFields: ["Jenis Identitas", "Nama", "Alamat", "Kode Negara"],
+    emptyState: "Data pengirim belum diisi.",
+    defaultValues: { "Jenis Entitas": "Pengirim" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas pengirim", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama pengirim", span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pengirim", span: 3 },
+    ],
+  },
+  {
+    kind: "pemasok",
+    title: "Pemasok",
+    description: "Identitas pihak yang memasok barang dalam transaksi.",
+    icon: BuildingsIcon,
+    requiredFields: ["Jenis Identitas", "Nama", "Alamat", "Kode Negara"],
+    emptyState: "Data pemasok belum diisi.",
+    defaultValues: { "Jenis Entitas": "Pemasok" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas pemasok", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama pemasok", span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pemasok", span: 3 },
+    ],
+  },
+  {
     kind: "ppjk",
     title: "PPJK",
     description: "Gunakan bila pengurusan dilakukan melalui perantara kepabeanan.",
     icon: BriefcaseIcon,
     toggle: { key: "Menggunakan PPJK", label: "Menggunakan PPJK" },
-    requiredFields: ["Nama PPJK", "Nomor PPJK", "NPWP / NITKU", "Alamat"],
+    requiredFields: ["Jenis Identitas", "NITKU", "Nama", "Alamat"],
     defaultValues: {
       "Jenis Entitas": "PPJK",
       "Menggunakan PPJK": "",
-      "Nama PPJK": "",
-      "Nomor PPJK": "",
-      "NPWP / NITKU": "",
+      "Jenis Identitas": "",
+      NITKU: "",
+      Nama: "",
       Alamat: "",
     },
     fields: [
-      { key: "Nama PPJK", label: "Nama PPJK", placeholder: "Nama perusahaan PPJK", span: 1 },
-      { key: "Nomor PPJK", label: "Nomor PPJK", placeholder: "Nomor registrasi PPJK", span: 1 },
-      { key: "NPWP / NITKU", label: "NPWP / NITKU", placeholder: "NPWP atau NITKU", span: 1 },
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas PPJK", span: 1 },
+      { key: "NITKU", label: "NITKU", placeholder: "NITKU PPJK", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama PPJK", span: 1 },
+      { key: "Tanggal NP", label: "Tanggal NP", inputType: "date", span: 1 },
+      { key: "NP PPJK", label: "NP PPJK", placeholder: "Nomor NP PPJK", span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat PPJK", span: 3 },
     ],
     emptyState: "PPJK belum diaktifkan pada pengajuan ini.",
@@ -456,17 +557,18 @@ const entityDefinitions: EntityDefinition[] = [
     description: "Pihak penerima barang atau shipment.",
     icon: UserIcon,
     defaultOpen: true,
-    requiredFields: ["Nama", "Alamat", "Negara"],
+    requiredFields: ["Nama", "Alamat", "Kode Negara"],
     defaultValues: {
       "Jenis Entitas": "Penerima",
-      Nama: "testing",
-      Alamat: "testing",
-      Negara: "SG",
     },
     fields: [
       { key: "Nama", label: "Nama", placeholder: "Nama penerima", span: 2 },
-      { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat penerima", span: 3 },
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas penerima", span: 1 },
+      { key: "NITKU", label: "NITKU", placeholder: "NITKU penerima", span: 1 },
+      { key: "Status", label: "Status", type: "select", options: statusOptions, span: 1 },
+      { key: "Izin Badan Pengusaha", label: "Izin Badan Pengusaha", placeholder: "Nomor izin badan pengusaha", span: 1 },
     ],
     emptyState: "Data penerima belum diisi.",
   },
@@ -476,19 +578,49 @@ const entityDefinitions: EntityDefinition[] = [
     description: "Dapat disamakan dengan penerima jika datanya sama.",
     icon: DocumentsIcon,
     toggle: { key: "Sama dengan Penerima", label: "Sama dengan Penerima" },
-    requiredFields: ["Nama", "Alamat", "Negara"],
+    requiredFields: ["Nama", "Alamat", "Kode Negara"],
     defaultValues: {
       "Jenis Entitas": "Pembeli",
-      Nama: "testing",
-      Alamat: "testing",
-      Negara: "SG",
     },
     fields: [
       { key: "Nama", label: "Nama", placeholder: "Nama pembeli", span: 2 },
-      { key: "Negara", label: "Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
       { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat pembeli", span: 3 },
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas pembeli", span: 1 },
     ],
     emptyState: "Pembeli akan mengikuti data penerima.",
+  },
+  {
+    kind: "eksportirKek",
+    title: "Eksportir",
+    description: "Identitas eksportir untuk dokumen KEK.",
+    icon: PlainIcon,
+    requiredFields: ["Jenis Identitas", "Nama", "Alamat", "Kode Negara"],
+    emptyState: "Data eksportir belum diisi.",
+    defaultValues: { "Jenis Entitas": "Eksportir" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas eksportir", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama eksportir", span: 1 },
+      { key: "Kode Negara", label: "Kode Negara", type: "select", options: countryOptions, span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat eksportir", span: 3 },
+    ],
+  },
+  {
+    kind: "vendorKek",
+    title: "Vendor",
+    description: "Identitas vendor untuk dokumen KEK.",
+    icon: DocumentsIcon,
+    requiredFields: ["Jenis Identitas", "NITKU", "Nama", "Alamat"],
+    emptyState: "Data vendor belum diisi.",
+    defaultValues: { "Jenis Entitas": "Vendor" },
+    fields: [
+      { key: "Jenis Identitas", label: "Jenis Identitas", placeholder: "Jenis identitas vendor", span: 1 },
+      { key: "NITKU", label: "NITKU", placeholder: "NITKU vendor", span: 1 },
+      { key: "Nama", label: "Nama", placeholder: "Nama vendor", span: 1 },
+      { key: "Telepon", label: "Telepon", placeholder: "Nomor telepon vendor", span: 1 },
+      { key: "Email", label: "Email", placeholder: "email@domain.com", span: 1 },
+      { key: "Alamat", label: "Alamat", type: "textarea", placeholder: "Alamat vendor", span: 3 },
+    ],
   },
   {
     kind: "penanggungJawab",
@@ -674,7 +806,7 @@ const spesifikasiColumns = ["Seri Barang", "Nama Spesifikasi", "Nilai", "Satuan"
 const barangDokumenColumns = ["Seri Barang", "Seri Dokumen", "Jenis Dokumen", "Nomor Dokumen", "Tanggal", "Fasilitas", "No Urut Izin"];
 const barangVdColumns = ["Seri Barang", "Jenis VD", "Tanggal Jatuh Tempo", "Nilai", "Keterangan"];
 const barangTarifColumns = ["Seri Barang", "Jenis Pungutan", "Jenis Tarif", "Kode Satuan", "Jumlah Satuan", "Nilai Tarif", "Kode Fasilitas Tarif", "Nilai Tarif Fasilitas", "Penerbit SKA"];
-const karantinaColumns = ["Seri Barang", "Komoditas Karantina", "Jenis Karantina", "Nomor Dokumen", "Status"];
+const karantinaColumns = ["Seri Barang", "Komoditi", "Klasifikasi", "Jumlah", "Satuan", "Nama Umum", "Nama Latin"];
 
 const createRow = (columns: string[], values: Row = {}) =>
   columns.reduce<Row>((acc, column) => {
@@ -923,9 +1055,12 @@ const createInitialFormState = (draft: AiSubmissionDraft | null): FormState => {
       }),
     ],
     karantina: [
-      createRow(karantinaColumns, { "Seri Barang": "1", "Komoditas Karantina": "Hewan", "Jenis Karantina": "Hewan", "Nomor Dokumen": "KAR-001", Status: "Lulus" }),
-      createRow(karantinaColumns, { "Seri Barang": "3", "Komoditas Karantina": "Tumbuhan", "Jenis Karantina": "Tumbuhan", "Nomor Dokumen": "KAR-002", Status: "Menunggu" }),
+      createRow(karantinaColumns, { "Seri Barang": "1", Komoditi: "Hewan Hidup", Klasifikasi: "Mamalia", Jumlah: "10", Satuan: "Ekor", "Nama Umum": "Sapi", "Nama Latin": "Bos taurus" }),
+      createRow(karantinaColumns, { "Seri Barang": "3", Komoditi: "Tumbuhan Hidup", Klasifikasi: "Tanaman Hias", Jumlah: "5", Satuan: "Pot", "Nama Umum": "Anggrek", "Nama Latin": "Orchidaceae" }),
     ],
+    karantinaHewan: {},
+    karantinaIkan: {},
+    karantinaTumbuhan: {},
   };
 };
 
@@ -933,6 +1068,9 @@ const normalizeFormState = (state: FormState): FormState => ({
   ...state,
   dokumen: normalizeDokumenRows(state.dokumen),
   barangCukai: state.barangCukai ?? [],
+  karantinaHewan: state.karantinaHewan ?? {},
+  karantinaIkan: state.karantinaIkan ?? {},
+  karantinaTumbuhan: state.karantinaTumbuhan ?? {},
 });
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -1303,6 +1441,20 @@ function FormField({
 
   if (inputType === "alert") {
     return <div className="rounded-xl border border-warning-100 bg-warning-50 p-3 text-[12px] text-warning-800"><strong>{label}</strong><div className="mt-1">{value || helperText || "Hasil analisis akan tampil otomatis."}</div></div>;
+  }
+
+  if (inputType === "textarea") {
+    return (
+      <Textarea
+        label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        requiredMark={mandatory}
+        readOnly={readOnly}
+        rows={3}
+      />
+    );
   }
 
   return (
@@ -1894,11 +2046,14 @@ function BarangWorkspaceDrawer({
   const sourceItems = ["COO-001 - Certificate of Origin", "COO-002 - Preferential COO", "COO-003 - Origin Statement"];
   const filteredSourceItems = sourceItems.filter((entry) => entry.toLowerCase().includes(cooSearch.trim().toLowerCase()));
   const activeTocItems = activeTab === "data-barang"
-    ? barangTocItems.filter((item) => enabledSectionIds.includes(item.id)).map((item) => ({ ...item, title: sectionLabels[item.id] ?? item.title }))
-    : complianceTocItems.filter((item) => item.id !== "compliance-karantina" || requiresQuarantine);
+    ? barangTocItems
+        .filter((item) => enabledSectionIds.includes(item.id) && (item.id !== "karantina" || requiresQuarantine))
+        .map((item) => ({ ...item, title: sectionLabels[item.id] ?? item.title }))
+    : complianceTocItems;
   const hiddenSectionIds = [
-    ...barangTocItems.filter((item) => !enabledSectionIds.includes(item.id)).map((item) => item.id),
-    ...(!requiresQuarantine ? ["compliance-karantina"] : []),
+    ...barangTocItems
+      .filter((item) => !enabledSectionIds.includes(item.id) || (item.id === "karantina" && !requiresQuarantine))
+      .map((item) => item.id),
   ];
   const configuredMasterFields = masterFields
     .filter((field) => field.enabled)
@@ -1921,8 +2076,6 @@ function BarangWorkspaceDrawer({
     return configured?.filter((field) => field.enabled).map((field) => field.id).filter((field) => fallback.includes(field)) ?? fallback;
   };
   const getDetailLabels = (section: BarangDetailSection) => Object.fromEntries((detailFields[section] ?? []).map((field) => [field.id, field.label]));
-  const configuredKarantinaFields = (detailFields.karantina ?? []).filter((field) => field.enabled);
-  const karantinaPreviewValues: Row = { "Komoditas Karantina": "Tumbuhan", "Jenis Karantina": "Karantina Tumbuhan", "Nomor Dokumen": "KAR-001", Status: "Perlu Validasi" };
   const detailDraftColumns: Record<BarangDetailSection, string[]> = {
     cukai: barangCukaiColumns.slice(1),
     spesifikasi: spesifikasiColumns.slice(1),
@@ -2337,6 +2490,50 @@ function BarangWorkspaceDrawer({
                         />
                       </div>
                     </section>
+
+                    {requiresQuarantine ? (
+                      <section id="karantina" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
+                        <div className="flex flex-col gap-3 border-b border-border-primary pb-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels.karantina ?? "Barang Karantina"}</div>
+                            <p className="mt-1 text-[12px] text-neutral-600">Data karantina yang melekat pada seri barang ini.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => void 0}>
+                              Cek Relasi Importir
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => void 0}>
+                              Pilih Komoditas
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {(detailFields.karantina ?? [])
+                            .filter((field) => field.enabled)
+                            .map((field) => (
+                              <FormField
+                                key={field.id}
+                                label={field.label}
+                                value={detailRows.karantina[0]?.row[field.id] ?? ""}
+                                onChange={(value) => {
+                                  const existing = detailRows.karantina[0];
+                                  if (existing) {
+                                    onUpdateDetailRow("karantina", existing.index, field.id, value);
+                                  } else {
+                                    onAddDetailRow("karantina", { "Seri Barang": item.Seri || "1", [field.id]: value });
+                                  }
+                                }}
+                                placeholder={field.label}
+                                mandatory={field.required}
+                                helperText={field.helperText}
+                                inputType={field.inputType}
+                                readOnly={field.readOnly}
+                                options={field.options}
+                              />
+                            ))}
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="space-y-4 pt-4">
@@ -2443,15 +2640,6 @@ function BarangWorkspaceDrawer({
                         <Input label="Nomor Voyage / Flight / Trip" value="VY-0626" onChange={() => void 0} />
                         <Input label="Pelabuhan Muat" value="SGSIN" onChange={() => void 0} />
                         <Input label="Pelabuhan Tujuan" value="IDTPP" onChange={() => void 0} />
-                      </div>
-                    </section>
-
-                    <section id="compliance-karantina" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels.karantina ?? "Karantina"}</div>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        {configuredKarantinaFields.map((field) => (
-                          <Input key={field.id} label={field.label} value={karantinaPreviewValues[field.id] ?? ""} onChange={() => void 0} requiredMark={field.required} hint={field.helperText} />
-                        ))}
                       </div>
                     </section>
 
@@ -2669,12 +2857,15 @@ export function FormPage() {
   const [isPengajuanTocExpanded, setIsPengajuanTocExpanded] = useState(true);
   const [activeEntitasSection, setActiveEntitasSection] = useState<EntityKind>(entityDefinitions[0]?.kind ?? "pengusahaImportir");
   const [isEntitasTocExpanded, setIsEntitasTocExpanded] = useState(true);
+  const [activeBarangSection, setActiveBarangSection] = useState<string>("tabel-informasi-barang");
+  const [isBarangTocExpanded, setIsBarangTocExpanded] = useState(true);
   const pengajuanSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pengajuanScrollLockRef = useRef(false);
   const pengajuanScrollUnlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const entitasSectionRefs = useRef<Partial<Record<EntityKind, HTMLDivElement | null>>>({});
   const entitasScrollLockRef = useRef(false);
   const entitasScrollUnlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const barangSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (localConfiguratorEnabled) return;
@@ -2732,6 +2923,15 @@ export function FormPage() {
     [resolvedSteps],
   );
   const enabledBarangSectionIds = barangSectionConfig.map((section) => section.id);
+  const karantinaHeaderSectionIds = ["karantina-hewan", "karantina-ikan", "karantina-tumbuhan"] as const;
+  const visibleKarantinaHeaderSections = karantinaHeaderSectionIds
+    .map((id) => barangSectionConfig.find((section) => section.id === id))
+    .filter((section): section is ResolvedSectionConfig => Boolean(section));
+  const karantinaHeaderRowByKind: Record<string, Row> = {
+    "karantina-hewan": formState.karantinaHewan,
+    "karantina-ikan": formState.karantinaIkan,
+    "karantina-tumbuhan": formState.karantinaTumbuhan,
+  };
   const activeBarangColumns = (getResolvedSection("barang", "barang-info")?.fields ?? [])
     .filter((field) => field.enabled)
     .map((field) => field.id)
@@ -2903,7 +3103,7 @@ export function FormPage() {
       ...pembeliRow,
       Nama: penerimaRow.Nama ?? "",
       Alamat: penerimaRow.Alamat ?? "",
-      Negara: penerimaRow.Negara ?? "",
+      "Kode Negara": penerimaRow["Kode Negara"] ?? "",
     };
     return rows;
   };
@@ -3060,7 +3260,7 @@ export function FormPage() {
       karantina: {
         section: "karantina",
         columns: karantinaColumns,
-        template: { "Seri Barang": seri, "Komoditas Karantina": "", "Jenis Karantina": "", "Nomor Dokumen": "", Status: "" },
+        template: { "Seri Barang": seri, Komoditi: "", Klasifikasi: "", Jumlah: "", Satuan: "", "Nama Umum": "", "Nama Latin": "" },
       },
     };
     const config = map[section];
@@ -3487,6 +3687,24 @@ export function FormPage() {
     }));
   };
 
+  const karantinaHeaderStateKey: Record<string, "karantinaHewan" | "karantinaIkan" | "karantinaTumbuhan"> = {
+    "karantina-hewan": "karantinaHewan",
+    "karantina-ikan": "karantinaIkan",
+    "karantina-tumbuhan": "karantinaTumbuhan",
+  };
+
+  const updateKarantinaHeaderField = (sectionId: string, key: string, value: string) => {
+    const stateKey = karantinaHeaderStateKey[sectionId];
+    if (!stateKey) return;
+    setFormState((current) => ({
+      ...current,
+      [stateKey]: {
+        ...current[stateKey],
+        [key]: value,
+      },
+    }));
+  };
+
   const costValue = (key: string) => Number.parseFloat(costDraft[key] || "0") || 0;
   const costA = costValue("ikbHargaInvoice") + costValue("ikbPembayaranTidakLangsung");
   const costC = costA - costValue("ikbDiskon");
@@ -3520,7 +3738,7 @@ export function FormPage() {
             ...rows[rowIndex],
             Nama: penerimaRow.Nama ?? "",
             Alamat: penerimaRow.Alamat ?? "",
-            Negara: penerimaRow.Negara ?? "",
+            "Kode Negara": penerimaRow["Kode Negara"] ?? "",
             "Sama dengan Penerima": "Ya",
           };
         }
@@ -3593,6 +3811,12 @@ export function FormPage() {
     pengajuanScrollUnlockTimerRef.current = window.setTimeout(() => {
       pengajuanScrollLockRef.current = false;
     }, 650);
+  };
+
+  const scrollToBarangSection = (id: string) => {
+    setActiveBarangSection(id);
+    const target = barangSectionRefs.current[id];
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const reviewStatusCards: Array<{
@@ -4165,7 +4389,7 @@ export function FormPage() {
                       <AccordionCard
                         title={config.label}
                         subtitle={config.description ?? definition.description}
-                        defaultOpen={definition.defaultOpen ?? false}
+                        defaultOpen={definition.defaultOpen ?? true}
                         leadingIcon={<Icon className="h-5 w-5" />}
                         headerActions={
                           <div className="flex items-center gap-2">
@@ -4506,84 +4730,322 @@ export function FormPage() {
 
       {activeStep === "barang" && (
         <div className="flex flex-col gap-4">
-          <section className={`${sectionTone} p-4 sm:p-5`}>
-            <div className="flex flex-col gap-4 border-b border-border-primary pb-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Step Barang</div>
-                <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Daftar Barang</h2>
-                <p className="mt-2 max-w-4xl text-[12px] leading-6 text-neutral-600">
-                  Step ini hanya menampilkan tabel utama. Detail turunan tiap seri dikelola lewat drawer kanan melalui tombol Kelola Detail.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
-                  {formState.barang.length} barang
-                </span>
-                <span className="rounded-full bg-background-primary px-3 py-1 text-[12px] font-semibold text-neutral-700">
-                  Child data per seri
-                </span>
-              </div>
-            </div>
+          <div
+            className={[
+              "grid gap-4",
+              isBarangTocExpanded ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[84px_minmax(0,1fr)]",
+            ].join(" ")}
+          >
+            <aside className={tocStickyClass}>
+              <div className={[tocShellClass, isBarangTocExpanded ? "p-4" : "p-2"].join(" ")}>
+                <div className={["flex items-start gap-3", isBarangTocExpanded ? "justify-between" : "justify-center"].join(" ")}>
+                  {isBarangTocExpanded ? (
+                    <div className="min-w-0">
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Table of Content</div>
+                      <div className="mt-1 text-[12px] leading-5 text-neutral-600">Lompat ke section barang yang ingin ditinjau.</div>
+                    </div>
+                  ) : (
+                    <div className="sr-only">
+                      <div>Table of Content</div>
+                      <div>Lompat ke section barang yang ingin ditinjau.</div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsBarangTocExpanded((value) => !value)}
+                    aria-expanded={isBarangTocExpanded}
+                    aria-label={isBarangTocExpanded ? "Ciutkan TOC barang" : "Buka TOC barang"}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-white text-brand-primary-700 transition hover:border-brand-primary-200 hover:bg-brand-primary-50"
+                    title={isBarangTocExpanded ? "Ciutkan TOC" : "Buka TOC"}
+                  >
+                    {isBarangTocExpanded ? <ArrowLeftIcon className="h-4 w-4" /> : <ArrowRightIcon className="h-4 w-4" />}
+                  </button>
+                </div>
 
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openAddBarang}>
-                Tambah Barang
-              </Button>
-              <Button variant="outline" size="sm" onClick={openImportExcel}>
-                Import Excel
-              </Button>
-              <Button variant="error" size="sm" onClick={() => setClearBarangOpen(true)}>
-                Clear Data
-              </Button>
-            </div>
+                <div className={[tocScrollClass, "mt-4 flex flex-col gap-2", isBarangTocExpanded ? "" : "mt-3"].join(" ")}>
+                  {barangStepTocItems
+                    .filter((item) => item.id !== "karantina" || requiresQuarantine)
+                    .map((item) => {
+                      const Icon = item.icon;
+                      const active = activeBarangSection === item.id || (item.children?.some((child) => child.id === activeBarangSection) ?? false);
 
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-border-primary">
-              <table className="min-w-max table-fixed border-collapse text-left text-[12px]">
-                <thead className="bg-brand-primary-500 text-white">
-                  <tr>
-                    {activeBarangColumns.map((column) => (
-                      <th key={column} className="px-3 py-3 font-semibold whitespace-nowrap">
-                        {getConfiguredFieldLabel("barang", "barang-info", column)}
-                      </th>
-                    ))}
-                    <th className="w-[140px] px-3 py-3">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formState.barang.map((row, rowIndex) => (
-                    <tr key={row.Seri || rowIndex} className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
-                      {activeBarangColumns.map((column) => {
-                        if (column === "Status") {
-                          return (
-                            <td key={column} className="px-3 py-3">
-                              <MiniStatusPill value={row.Status || "Perlu Validasi"} />
+                      return (
+                        <div key={item.id} className="space-y-2">
+                          {isBarangTocExpanded ? (
+                            <button
+                              type="button"
+                              onClick={() => scrollToBarangSection(item.id)}
+                              aria-label={item.label}
+                              className={[
+                                "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                                "gap-3 px-3 py-3",
+                                active
+                                  ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                                  : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                              ].join(" ")}
+                            >
+                              <span
+                                className={[
+                                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                  active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                                ].join(" ")}
+                              >
+                                <Icon className="h-4.5 w-4.5" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="text-[12px] font-semibold text-neutral-800">{item.label}</span>
+                                <span className="mt-1 block text-[11px] leading-5 text-neutral-600">{item.description}</span>
+                              </span>
+                            </button>
+                          ) : (
+                            <Tooltip
+                              placement="right"
+                              offset={14}
+                              className="block w-full"
+                              content={
+                                <div>
+                                  <div className="text-[12px] font-semibold text-neutral-800">{item.label}</div>
+                                  <div className="mt-1 text-[11px] leading-5 text-neutral-600">{item.description}</div>
+                                </div>
+                              }
+                            >
+                              <button
+                                type="button"
+                                onClick={() => scrollToBarangSection(item.children?.length ? item.children[0].id : item.id)}
+                                aria-label={item.label}
+                                className={[
+                                  "group relative flex w-full items-start rounded-xl border text-left transition-colors",
+                                  "justify-center px-2 py-3",
+                                  active
+                                    ? "border-brand-primary-500 bg-brand-primary-50 shadow-sm"
+                                    : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/40",
+                                ].join(" ")}
+                              >
+                                <span
+                                  className={[
+                                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                    active ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                                  ].join(" ")}
+                                >
+                                  <Icon className="h-4.5 w-4.5" />
+                                </span>
+                              </button>
+                            </Tooltip>
+                          )}
+
+                          {item.children && isBarangTocExpanded ? (
+                            <div className="ml-4 space-y-2 border-l border-border-primary pl-3">
+                              {item.children.map((child) => {
+                                const childActive = activeBarangSection === child.id;
+                                const ChildIcon = child.icon;
+                                return (
+                                  <button
+                                    key={child.id}
+                                    type="button"
+                                    onClick={() => scrollToBarangSection(child.id)}
+                                    className={[
+                                      "flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors",
+                                      childActive
+                                        ? "border-brand-primary-400 bg-brand-primary-50/70"
+                                        : "border-border-primary bg-white hover:border-brand-primary-200 hover:bg-brand-primary-50/30",
+                                    ].join(" ")}
+                                  >
+                                    <span
+                                      className={[
+                                        "mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                                        childActive ? "bg-brand-primary-500 text-white" : "bg-background-primary text-brand-primary-600",
+                                      ].join(" ")}
+                                    >
+                                      <ChildIcon className="h-4 w-4" />
+                                    </span>
+                                    <span className="min-w-0">
+                                      <span className="block text-[11px] font-semibold text-neutral-800">{child.label}</span>
+                                      <span className="mt-0.5 block text-[10px] leading-4 text-neutral-600">{child.description}</span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </aside>
+
+            <div className="flex flex-col gap-4">
+              <div
+                ref={(node) => {
+                  barangSectionRefs.current["tabel-informasi-barang"] = node;
+                }}
+                id="tabel-informasi-barang"
+                className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
+              >
+                <section className={`${sectionTone} p-4 sm:p-5`}>
+                  <div className="flex flex-col gap-4 border-b border-border-primary pb-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-600">Step Barang</div>
+                      <h2 className="mt-1 text-[22px] font-semibold text-neutral-800">Daftar Barang</h2>
+                      <p className="mt-2 max-w-4xl text-[12px] leading-6 text-neutral-600">
+                        Step ini hanya menampilkan tabel utama. Detail turunan tiap seri dikelola lewat drawer kanan melalui tombol Kelola Detail.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
+                        {formState.barang.length} barang
+                      </span>
+                      <span className="rounded-full bg-background-primary px-3 py-1 text-[12px] font-semibold text-neutral-700">
+                        Child data per seri
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <Button variant="primary" size="sm" startIcon={<PlusIcon />} onClick={openAddBarang}>
+                      Tambah Barang
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={openImportExcel}>
+                      Import Excel
+                    </Button>
+                    <Button variant="error" size="sm" onClick={() => setClearBarangOpen(true)}>
+                      Clear Data
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto rounded-2xl border border-border-primary">
+                    <table className="min-w-max table-fixed border-collapse text-left text-[12px]">
+                      <thead className="bg-brand-primary-500 text-white">
+                        <tr>
+                          {activeBarangColumns.map((column) => (
+                            <th key={column} className="px-3 py-3 font-semibold whitespace-nowrap">
+                              {getConfiguredFieldLabel("barang", "barang-info", column)}
+                            </th>
+                          ))}
+                          <th className="w-[140px] px-3 py-3">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formState.barang.map((row, rowIndex) => (
+                          <tr key={row.Seri || rowIndex} className="border-t border-border-primary align-top hover:bg-brand-primary-50/20">
+                            {activeBarangColumns.map((column) => {
+                              if (column === "Status") {
+                                return (
+                                  <td key={column} className="px-3 py-3">
+                                    <MiniStatusPill value={row.Status || "Perlu Validasi"} />
+                                  </td>
+                                );
+                              }
+                              return (
+                                <td key={column} className="px-3 py-3 text-neutral-700">
+                                  {row[column] || "-"}
+                                </td>
+                              );
+                            })}
+                            <td className="px-3 py-3">
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                startIcon={<Pen2Icon className="h-4 w-4" />}
+                                className="whitespace-nowrap"
+                                onClick={() => openEditBarang(row)}
+                              >
+                                Kelola Detail
+                              </Button>
                             </td>
-                          );
-                        }
-                        return (
-                          <td key={column} className="px-3 py-3 text-neutral-700">
-                            {row[column] || "-"}
-                          </td>
-                        );
-                      })}
-              <td className="px-3 py-3">
-                <Button
-                  variant="warning"
-                  size="sm"
-                  startIcon={<Pen2Icon className="h-4 w-4" />}
-                  className="whitespace-nowrap"
-                  onClick={() => openEditBarang(row)}
-                >
-                  Kelola Detail
-                </Button>
-              </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
 
-          </section>
+              {requiresQuarantine
+                ? visibleKarantinaHeaderSections.map((section) => (
+                    <div
+                      key={section.id}
+                      ref={(node) => {
+                        barangSectionRefs.current[section.id] = node;
+                      }}
+                      id={section.id}
+                      className="scroll-mt-[calc(var(--shell-sticky-top)+24px)]"
+                    >
+                      <AccordionCard title={section.label} subtitle={section.description ?? "Edit field secara langsung di bawah ini."} defaultOpen={false}>
+                        <div className="mb-4 grid grid-cols-1 gap-4 border-b border-border-primary pb-4 sm:grid-cols-3">
+                          {[
+                            { label: "Nomor Pengajuan", value: formState.pengajuan.nomorPengajuan || "-", required: true },
+                            { label: "Nomor Pendaftaran", value: formState.pengajuan.nomorPendaftaran || "-" },
+                            { label: "Tanggal Pendaftaran", value: formState.pengajuan.tanggalPendaftaran || "-" },
+                          ].map((item) => (
+                            <div key={item.label}>
+                              <div className="text-[12px] font-medium text-neutral-700">
+                                {item.label}
+                                {item.required ? <span className="ml-1 text-error-500">*</span> : null}
+                              </div>
+                              <div className="mt-1.5 text-[13px] font-semibold text-neutral-800">{item.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {section.groups?.length
+                          ? (() => {
+                              const visibleFieldGroups = section.groups.filter((fieldGroup) => section.fields.some((field) => field.groupId === fieldGroup.id));
+                              const fieldColumnsClass: Record<string, string> = {
+                                "kantor-karantina": "sm:grid-cols-2",
+                                "informasi-tujuan": "sm:grid-cols-2",
+                                "informasi-impor": "sm:grid-cols-2",
+                                pengangkut: "sm:grid-cols-2",
+                                "pemeriksaan-karantina": "sm:grid-cols-3",
+                                "instalasi-karantina": "sm:grid-cols-3",
+                              };
+                              return (
+                                <div className="flex flex-col gap-5">
+                                  {visibleFieldGroups.map((fieldGroup) => (
+                                    <div key={fieldGroup.id} className="flex flex-col gap-4">
+                                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-primary pb-2">
+                                        <h3 className="text-[13px] font-semibold text-neutral-800">{fieldGroup.label}</h3>
+                                        {fieldGroup.id === "kantor-karantina" ? (
+                                          <Button variant="outline" size="sm" onClick={() => void 0}>
+                                            Cek Relasi Importir
+                                          </Button>
+                                        ) : null}
+                                        {fieldGroup.id === "pengangkut" ? (
+                                          <Button variant="outline" size="sm" onClick={() => void 0}>
+                                            Salin dari Data Pengangkutan
+                                          </Button>
+                                        ) : null}
+                                      </div>
+                                      <div className={["grid grid-cols-1 gap-4", fieldColumnsClass[fieldGroup.id] ?? "sm:grid-cols-2"].join(" ")}>
+                                        {section.fields
+                                          .filter((field) => field.groupId === fieldGroup.id)
+                                          .map((field) => (
+                                            <div key={field.id} className={field.inputType === "textarea" ? "sm:col-span-2" : undefined}>
+                                              <FormField
+                                                label={field.label}
+                                                value={karantinaHeaderRowByKind[section.id]?.[field.id] ?? field.defaultValue ?? ""}
+                                                onChange={(value) => updateKarantinaHeaderField(section.id, field.id, value)}
+                                                placeholder={field.label}
+                                                mandatory={field.required}
+                                                helperText={field.helperText}
+                                                inputType={field.inputType}
+                                                readOnly={field.readOnly}
+                                                options={field.options}
+                                              />
+                                            </div>
+                                          ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()
+                          : null}
+                      </AccordionCard>
+                    </div>
+                  ))
+                : null}
+            </div>
+          </div>
 
           <StepFooterActions
             step="barang"

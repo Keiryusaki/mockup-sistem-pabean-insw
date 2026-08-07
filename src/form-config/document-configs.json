@@ -130,7 +130,13 @@
         "entitas": {
           "sections": {
             "ppjk": {
-              "enabled": false
+              "label": "PPJK KEK"
+            },
+            "eksportirKek": {
+              "label": "Eksportir KEK"
+            },
+            "vendorKek": {
+              "label": "Vendor KEK"
             }
           }
         }

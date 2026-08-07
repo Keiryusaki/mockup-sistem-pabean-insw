@@ -4,7 +4,7 @@ export type FormFieldCatalogItem = {
   id: string;
   label: string;
   required?: boolean;
-  inputType?: "text" | "number" | "date" | "select" | "radio" | "checkbox" | "alert";
+  inputType?: "text" | "number" | "date" | "select" | "radio" | "checkbox" | "alert" | "textarea";
   documentTypes?: string[];
   groupId?: string;
   defaultValue?: string;

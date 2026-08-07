@@ -282,8 +282,10 @@ export function Select({
         {name ? <input type="hidden" name={name} value={selectedValue} /> : null}
         <div
           className={cn(
-            "flex h-11 w-full overflow-hidden rounded-md border bg-white text-[12px] text-neutral-800 outline-none transition-colors",
-            disabled ? "cursor-not-allowed border-border-primary/60 bg-neutral-50 text-neutral-500 opacity-70" : inputStateClasses[currentState],
+            "flex h-11 w-full overflow-hidden rounded-md border text-[12px] outline-none transition-colors",
+            disabled
+              ? "cursor-not-allowed border-border-primary/60 bg-neutral-50 text-neutral-500 opacity-70"
+              : cn("bg-white text-neutral-800", inputStateClasses[currentState]),
           )}
         >
           <button

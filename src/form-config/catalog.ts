@@ -21,8 +21,7 @@ const field = (...items: FieldSeed[]): FormFieldCatalogItem[] => items.map((item
   documentTypes: item[4], groupId: item[5], defaultValue: item[6], readOnly: item[7], condition: item[8], options: item[9],
 }));
 
-const entityFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
+const importirPengusahaFields = field(
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
@@ -36,24 +35,15 @@ const entityFields = field(
   ["Tanggal Izin TPB", "Tanggal Izin TPB", "date", false, ["BC23"]],
   ["Pelaku Usaha", "Pelaku Usaha", "text", true, ["KEK_IN"]],
   ["Nomor API", "Nomor API", "text", true, ["KEK_IN"]],
-  ["Negara", "Negara", "select", true, ALL_CUSTOMS_DOCS],
-  ["Kode Afiliasi", "Kode Afiliasi", "select", true, ["BC20", "FTZ01"]],
-  ["Tanggal NP", "Tanggal NP", "date", false, ["KEK_IN"]],
-  ["NP PPJK", "NP PPJK", "text", false, ["KEK_IN"]],
-  ["Izin Badan Pengusaha", "Izin Badan Pengusaha", "text", false, ["FTZ01"]],
-  ["Tanggal Izin Badan Pengusaha", "Tanggal Izin Badan Pengusaha", "date", false, ["FTZ01"]],
 );
 
 const npwpPemusatanFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
-  ["Nomor Identitas", "Nomor Identitas", "text", true, ALL_CUSTOMS_DOCS],
-  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
 );
 
 const pemilikBarangFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
@@ -63,7 +53,6 @@ const pemilikBarangFields = field(
 );
 
 const penjualFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
@@ -71,7 +60,6 @@ const penjualFields = field(
 );
 
 const pengirimFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
@@ -85,8 +73,16 @@ const pemasokFields = field(
   ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
 );
 
+const ppjkFields = field(
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Tanggal NP", "Tanggal NP", "date", false, ["KEK_IN"]],
+  ["NP PPJK", "NP PPJK", "text", false, ["KEK_IN"]],
+);
+
 const penerimaFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
@@ -97,7 +93,6 @@ const penerimaFields = field(
 );
 
 const pembeliFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ALL_CUSTOMS_DOCS],
   ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
   ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
   ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
@@ -105,30 +100,48 @@ const pembeliFields = field(
 );
 
 const eksportirKekFields = field(
-  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
-  ["Nama", "Nama", "text", true, ["KEK_IN"]],
-  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
-  ["Kode Negara", "Kode Negara", "select", true, ["KEK_IN"]],
-);
-
-const ppjkKekFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ["KEK_IN"]],
-  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
-  ["NITKU", "NITKU", "text", true, ["KEK_IN"]],
-  ["Nama", "Nama", "text", true, ["KEK_IN"]],
-  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
-  ["Tanggal NP", "Tanggal NP", "date", false, ["KEK_IN"]],
-  ["NP PPJK", "NP PPJK", "text", false, ["KEK_IN"]],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
+  ["Kode Negara", "Kode Negara", "select", true, ALL_CUSTOMS_DOCS],
 );
 
 const vendorKekFields = field(
-  ["Jenis Entitas", "Jenis Entitas", "select", true, ["KEK_IN"]],
-  ["Jenis Identitas", "Jenis Identitas", "text", true, ["KEK_IN"]],
-  ["NITKU", "NITKU", "text", true, ["KEK_IN"]],
-  ["Nama", "Nama", "text", true, ["KEK_IN"]],
-  ["Alamat", "Alamat", "text", true, ["KEK_IN"]],
+  ["Jenis Identitas", "Jenis Identitas", "text", true, ALL_CUSTOMS_DOCS],
+  ["NITKU", "NITKU", "text", true, ALL_CUSTOMS_DOCS],
+  ["Nama", "Nama", "text", true, ALL_CUSTOMS_DOCS],
+  ["Alamat", "Alamat", "text", true, ALL_CUSTOMS_DOCS],
   ["Telepon", "Telepon", "text", false, ["KEK_IN"]],
   ["Email", "Email", "text", false, ["KEK_IN"]],
+);
+
+const karantinaHeaderGroups = [
+  { id: "kantor-karantina", label: "Kantor Karantina" },
+  { id: "informasi-tujuan", label: "Informasi Tujuan" },
+  { id: "informasi-impor", label: "Informasi Impor" },
+  { id: "pengangkut", label: "Pengangkut" },
+  { id: "pemeriksaan-karantina", label: "Pemeriksaan Karantina" },
+  { id: "instalasi-karantina", label: "Instalasi Karantina" },
+];
+
+const karantinaHeaderFields = (jenis: string) => field(
+  ["kantorKarantina", `Kantor Karantina ${jenis}`, "select", true, undefined, "kantor-karantina"],
+  ["uptImpor", "UPT Impor", "select", false, undefined, "kantor-karantina"],
+  ["tujuanImpor", "Tujuan Impor", "select", false, undefined, "informasi-tujuan"],
+  ["daerahTujuan", "Daerah Tujuan", "select", true, undefined, "informasi-tujuan"],
+  ["tingkatPengolahan", "Tingkat Pengolahan", "select", false, undefined, "informasi-impor"],
+  ["peruntukan", "Peruntukan", "select", true, undefined, "informasi-impor"],
+  ["caraPengangkutan", "Cara Pengangkutan", "select", false, undefined, "pengangkut"],
+  ["namaSaranaAngkut", "Nama Sarana Angkut", "text", false, undefined, "pengangkut"],
+  ["nomorVoyFlightNopol", "Nomor Voy/Flight/Nopol", "text", false, undefined, "pengangkut"],
+  ["bendera", "Bendera", "select", false, undefined, "pengangkut"],
+  ["lokasiPemeriksa", "Lokasi Pemeriksa", "select", false, undefined, "pemeriksaan-karantina"],
+  ["tanggalPemeriksa", "Tanggal Pemeriksa", "date", false, undefined, "pemeriksaan-karantina"],
+  ["alamatPemeriksaan", "Alamat", "textarea", false, undefined, "pemeriksaan-karantina"],
+  ["lokasiInstalasi", "Lokasi Pemeriksa", "text", false, undefined, "instalasi-karantina"],
+  ["jenisTempat", "Jenis Tempat", "select", false, undefined, "instalasi-karantina"],
+  ["nomorRegistrasi", "Nomor Registrasi", "text", false, undefined, "instalasi-karantina"],
+  ["alamatInstalasi", "Alamat", "textarea", false, undefined, "instalasi-karantina"],
 );
 
 export const formConfigCatalog: FormStepCatalogItem[] = [
@@ -263,18 +276,17 @@ export const formConfigCatalog: FormStepCatalogItem[] = [
   {
     id: "entitas", label: "Entitas", description: "Data pelaku usaha dan identitas entitas.",
     sections: [
-      { id: "pengusahaImportir", label: "Pengusaha / Importir", description: "Identitas pengusaha atau importir yang mengajukan dokumen.", fields: entityFields },
+      { id: "pengusahaImportir", label: "Pengusaha / Importir", description: "Identitas pengusaha atau importir yang mengajukan dokumen.", fields: importirPengusahaFields },
       { id: "pemilikBarang", label: "Pemilik Barang", description: "Identitas pihak yang memiliki barang dalam transaksi.", fields: pemilikBarangFields },
       { id: "penjual", label: "Penjual", description: "Identitas pihak yang menjual barang dalam transaksi.", fields: penjualFields },
       { id: "pengirim", label: "Pengirim", description: "Identitas pihak yang mengirim barang dalam transaksi.", fields: pengirimFields },
       { id: "pemasok", label: "Pemasok", description: "Identitas pihak yang memasok barang dalam transaksi.", fields: pemasokFields },
       { id: "npwpPemusatan", label: "NPWP Pemusatan", description: "NPWP lokasi pemusatan. Diisi bila importir mendapat fasilitas pemusatan.", fields: npwpPemusatanFields },
-      { id: "ppjk", label: "PPJK", description: "Informasi perusahaan pengurusan jasa kepabeanan yang mewakili pengajuan.", fields: entityFields },
-      { id: "ppjkKek", label: "PPJK KEK", description: "Informasi perusahaan pengurusan jasa kepabeanan untuk dokumen KEK.", fields: ppjkKekFields },
+      { id: "ppjk", label: "PPJK", description: "Informasi perusahaan pengurusan jasa kepabeanan yang mewakili pengajuan.", fields: ppjkFields },
       { id: "penerima", label: "Penerima", description: "Identitas pihak yang menerima barang dalam transaksi.", fields: penerimaFields },
       { id: "pembeli", label: "Pembeli", description: "Identitas pembeli dan keterkaitannya dengan pihak penerima.", fields: pembeliFields },
-      { id: "eksportirKek", label: "Eksportir KEK", description: "Identitas eksportir untuk dokumen KEK.", fields: eksportirKekFields },
-      { id: "vendorKek", label: "Vendor KEK", description: "Identitas vendor untuk dokumen KEK.", fields: vendorKekFields },
+      { id: "eksportirKek", label: "Eksportir", description: "Identitas eksportir dalam transaksi.", fields: eksportirKekFields },
+      { id: "vendorKek", label: "Vendor", description: "Identitas vendor dalam transaksi.", fields: vendorKekFields },
     ],
   },
   {
@@ -352,10 +364,14 @@ export const formConfigCatalog: FormStepCatalogItem[] = [
         ["Nilai Tarif", "Nilai Tarif", "number", true, ALL_CUSTOMS_DOCS], ["Kode Fasilitas Tarif", "Kode Fasilitas Tarif", "select", true, ALL_CUSTOMS_DOCS],
         ["Nilai Tarif Fasilitas", "Nilai Tarif Fasilitas", "number", true, ALL_CUSTOMS_DOCS], ["Penerbit SKA", "Penerbit SKA", "select", true, ["FTZ01"]],
       ) },
-      { id: "karantina", label: "Karantina", fields: field(
-        ["Komoditas Karantina", "Komoditas Karantina", "text", true], ["Jenis Karantina", "Jenis Karantina", "text", true],
-        ["Nomor Dokumen", "Nomor Dokumen", "text", false], ["Status", "Status", "text", true],
+      { id: "karantina", label: "Barang Karantina", fields: field(
+        ["Komoditi", "Komoditi", "select", true], ["Klasifikasi", "Klasifikasi", "text", true],
+        ["Jumlah", "Jumlah", "number", true], ["Satuan", "Satuan", "select", true],
+        ["Nama Umum", "Nama Umum", "text", true], ["Nama Latin", "Nama Latin", "text", true],
       ) },
+      { id: "karantina-hewan", label: "Header Karantina Hewan", description: "Data karantina hewan untuk keseluruhan pengajuan.", groups: karantinaHeaderGroups, fields: karantinaHeaderFields("Hewan") },
+      { id: "karantina-ikan", label: "Header Karantina Ikan", description: "Data karantina ikan untuk keseluruhan pengajuan.", groups: karantinaHeaderGroups, fields: karantinaHeaderFields("Ikan") },
+      { id: "karantina-tumbuhan", label: "Header Karantina Tumbuhan", description: "Data karantina tumbuhan untuk keseluruhan pengajuan.", groups: karantinaHeaderGroups, fields: karantinaHeaderFields("Tumbuhan") },
     ],
   },
   { id: "review", label: "Review & Submit", description: "Ringkasan akhir sebelum submit.", sections: [{ id: "review-submit", label: "Review & Submit", fields: [] }] },
