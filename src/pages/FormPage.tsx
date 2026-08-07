@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "../components/Badge";
 import { Button, IconButton } from "../components/Button";
-import { Input, Select, Textarea } from "../components/FormControls";
+import { Input, Select, Switch, Textarea } from "../components/FormControls";
 import { Modal } from "../components/Surface";
 import { Tooltip } from "../components/Tooltip";
 import { FormConfigurationDrawer } from "../form-config/FormConfigurationDrawer";
@@ -3954,6 +3954,15 @@ export function FormPage() {
                 onValueChange={setDocumentType}
                 options={documentSelectOptions}
                 placeholder="Pilih jenis form"
+              />
+            </div>
+            <div className="w-full">
+              <Switch
+                label="Skenario Karantina"
+                checked={requiresQuarantine}
+                onChange={setRequiresQuarantine}
+                disabled={documentType === "ALL"}
+                className="py-1.5"
               />
             </div>
             <div className="w-fit rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">
