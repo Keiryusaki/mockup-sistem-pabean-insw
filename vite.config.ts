@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
@@ -56,7 +55,27 @@ function safeEqual(left: string, right: string) {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function localFormConfigWriter(unlockCode: string): Plugin {
+type FormDomain = "IMPORT" | "EXPORT";
+
+type DocumentConfigFile = {
+  version: number;
+  documents: unknown[];
+};
+
+type PublishedConfigPayload = {
+  ok: boolean;
+  revision?: number;
+  error?: string;
+  configs?: Record<FormDomain, DocumentConfigFile>;
+};
+
+function isDocumentConfigFile(value: unknown): value is DocumentConfigFile {
+  if (!value || typeof value !== "object") return false;
+  const config = value as Partial<DocumentConfigFile>;
+  return Number.isInteger(config.version) && Array.isArray(config.documents);
+}
+
+function formConfigPublisher(unlockCode: string, apiUrl: string, publishKey: string, publishedBy: string): Plugin {
   const accessTokens = new Set<string>();
   const failedAttempts = new Map<string, { count: number; resetAt: number }>();
 
@@ -67,7 +86,7 @@ function localFormConfigWriter(unlockCode: string): Plugin {
   const hasUnlockedSession = (request: IncomingMessage) => accessTokens.has(readBearerToken(request));
 
   return {
-    name: "local-form-config-writer",
+    name: "form-config-publisher",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use("/__form-config/unlock", async (request, response, next) => {
@@ -108,7 +127,7 @@ function localFormConfigWriter(unlockCode: string): Plugin {
         sendJson(response, 200, { unlocked: isLocalRequest(request) || hasUnlockedSession(request) });
       });
 
-      server.middlewares.use("/__form-config/apply", (request, response, next) => {
+      server.middlewares.use("/__form-config/publish", (request, response, next) => {
         if (request.method !== "POST") { next(); return; }
         const allowed = isSameOriginRequest(request) && (isLocalRequest(request) || hasUnlockedSession(request));
         if (!allowed) {
@@ -118,13 +137,44 @@ function localFormConfigWriter(unlockCode: string): Plugin {
 
         readJsonBody(request)
           .then(async (payload) => {
-            const parsed = payload as { version?: unknown; documents?: unknown };
-            if (!Number.isInteger(parsed.version) || !Array.isArray(parsed.documents)) throw new Error("Struktur konfigurasi tidak valid.");
-            const target = path.resolve(__dirname, "src/form-config/document-configs.json");
-            await writeFile(target, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
-            sendJson(response, 200, { message: "Konfigurasi berhasil ditulis ke src/form-config/document-configs.json." });
+            const parsed = payload as { domain?: unknown; config?: unknown; note?: unknown };
+            const domain = parsed.domain === "IMPORT" || parsed.domain === "EXPORT" ? parsed.domain : null;
+            if (!domain || !isDocumentConfigFile(parsed.config)) throw new Error("Struktur konfigurasi publish tidak valid.");
+            if (!apiUrl) throw new Error("VITE_FORM_CONFIG_API_URL belum tersedia di server.");
+            if (!publishKey) throw new Error("FORM_CONFIG_PUBLISH_KEY belum diatur di .env.local.");
+
+            const separator = apiUrl.includes("?") ? "&" : "?";
+            const publishedResponse = await fetch(`${apiUrl}${separator}action=config`, {
+              headers: { Accept: "application/json" },
+              cache: "no-store",
+            });
+            const published = await publishedResponse.json().catch(() => null) as PublishedConfigPayload | null;
+            if (!publishedResponse.ok || !published?.ok || !published.configs || !isDocumentConfigFile(published.configs.IMPORT) || !isDocumentConfigFile(published.configs.EXPORT)) {
+              throw new Error(published?.error || "Konfigurasi published saat ini tidak dapat dimuat.");
+            }
+
+            const publishResponse = await fetch(apiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain;charset=utf-8", Accept: "application/json" },
+              body: JSON.stringify({
+                action: "publish",
+                publishKey,
+                publishedBy: publishedBy || "INTRANET_CONFIGURATOR",
+                note: typeof parsed.note === "string" && parsed.note.trim() ? parsed.note.trim() : `Update konfigurasi ${domain} dari mockup INSW`,
+                configs: { ...published.configs, [domain]: parsed.config },
+              }),
+            });
+            const result = await publishResponse.json().catch(() => null) as PublishedConfigPayload | null;
+            if (!publishResponse.ok || !result?.ok || !Number.isInteger(result.revision)) {
+              throw new Error(result?.error || "Apps Script menolak publish konfigurasi.");
+            }
+
+            sendJson(response, 200, {
+              revision: result.revision,
+              message: `Konfigurasi ${domain === "IMPORT" ? "Impor" : "Ekspor"} revision ${result.revision} berhasil dipublikasikan.`,
+            });
           })
-          .catch((error) => sendJson(response, 400, { message: error instanceof Error ? error.message : "Konfigurasi tidak valid." }));
+          .catch((error) => sendJson(response, 400, { message: error instanceof Error ? error.message : "Konfigurasi gagal dipublikasikan." }));
       });
     },
   };
@@ -142,7 +192,12 @@ export default defineConfig(({ mode }) => {
     server: {
       allowedHosts: [".trycloudflare.com"],
     },
-    plugins: [react(), tailwindcss(), localFormConfigWriter(env.FORM_CONFIG_UNLOCK_CODE ?? "")],
+    plugins: [react(), tailwindcss(), formConfigPublisher(
+      env.FORM_CONFIG_UNLOCK_CODE ?? "",
+      env.VITE_FORM_CONFIG_API_URL ?? "",
+      env.FORM_CONFIG_PUBLISH_KEY ?? "",
+      env.FORM_CONFIG_PUBLISHED_BY ?? "",
+    )],
     resolve: {
       alias: {
         "@lnsw-ui/react": path.resolve(__dirname, "src/ui-shim"),

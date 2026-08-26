@@ -5,3 +5,7 @@ dist
 *.log
 *.tsbuildinfo
 .DS_Store
+
+# Artefak review dan catatan development lokal
+/ss/
+/revisi-*

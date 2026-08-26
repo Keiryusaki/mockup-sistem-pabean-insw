@@ -1,4 +1,4 @@
-import type { FormFieldCatalogItem, FormStepCatalogItem } from "./types";
+import type { FormFieldCatalogItem, FormStepCatalogItem } from "../shared/types";
 
 type InputType = NonNullable<FormFieldCatalogItem["inputType"]>;
 type FieldSeed = [
@@ -144,7 +144,7 @@ const karantinaHeaderFields = (jenis: string) => field(
   ["alamatInstalasi", "Alamat", "textarea", false, undefined, "instalasi-karantina"],
 );
 
-export const formConfigCatalog: FormStepCatalogItem[] = [
+export const importFormCatalog: FormStepCatalogItem[] = [
   {
     id: "pengajuan", label: "Pengajuan", description: "Header, transaksi, pengangkutan, pelabuhan, dan penanggung jawab.",
     sections: [
@@ -206,6 +206,7 @@ export const formConfigCatalog: FormStepCatalogItem[] = [
       },
       {
         id: "informasi-komponen-biaya", label: "Informasi Komponen Biaya", presentation: "modal", parentSectionId: "transaksi",
+        documentTypes: ["BC20"],
         groups: [
           { id: "harga-dibayar", label: "Harga yang sebenarnya atau yang seharusnya dibayar" },
           { id: "biaya-penambah", label: "Biaya-biaya yang ditambahkan dan belum termasuk dalam harga barang" },

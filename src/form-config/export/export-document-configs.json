@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "documents": [
+    { "id": "EXP_BC30", "label": "BC 3.0", "defaultRequiresQuarantine": false },
+    { "id": "EXP_KEK_TLDDP", "label": "KEK TLDDP", "defaultRequiresQuarantine": false },
+    { "id": "EXP_KEK_LDP", "label": "KEK LDP", "defaultRequiresQuarantine": false },
+    { "id": "EXP_KEK_FASILITAS", "label": "KEK Fasilitas", "defaultRequiresQuarantine": false },
+    { "id": "EXP_PKBE", "label": "PKBE", "defaultRequiresQuarantine": false },
+    { "id": "EXP_SURVEYOR", "label": "Surveyor", "defaultRequiresQuarantine": false }
+  ]
+}

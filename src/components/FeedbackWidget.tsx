@@ -9,7 +9,7 @@ import {
   type FeedbackAttachment,
   type FeedbackType,
 } from "../lib/feedbackFeed";
-import { unlockIntranetConfigurator } from "../form-config/config";
+import { unlockIntranetConfigurator } from "../form-config/shared/configurator-access";
 
 type MathChallenge = {
   left: number;

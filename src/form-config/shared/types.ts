@@ -1,3 +1,5 @@
+export type FormDomain = "IMPORT" | "EXPORT";
+
 export type DocumentTypeId = "ALL" | "BC20" | "BC23" | "BC27" | "BC16" | "OTHER" | (string & {});
 
 export type FormFieldCatalogItem = {
@@ -11,6 +13,12 @@ export type FormFieldCatalogItem = {
   readOnly?: boolean;
   condition?: string;
   options?: Array<{ label: string; value: string }>;
+  documentOverrides?: Record<string, {
+    label?: string;
+    inputType?: FormFieldCatalogItem["inputType"];
+    readOnly?: boolean;
+    required?: boolean;
+  }>;
 };
 
 export type FormGroupCatalogItem = {
@@ -23,6 +31,7 @@ export type FormSectionCatalogItem = {
   id: string;
   label: string;
   description?: string;
+  documentTypes?: string[];
   fields: FormFieldCatalogItem[];
   groups?: FormGroupCatalogItem[];
   presentation?: "inline" | "modal";
@@ -62,6 +71,7 @@ export type StepOverride = {
 export type DocumentFormConfig = {
   id: DocumentTypeId;
   label: string;
+  description?: string;
   archived?: boolean;
   defaultRequiresQuarantine: boolean;
   steps?: Record<string, StepOverride>;

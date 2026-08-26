@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "../components/Button";
-import { Select } from "../components/FormControls";
-import { formConfigCatalog } from "./catalog";
-import { applyConfigToRepository, clearConfigDraft, cloneConfigFile, initialDocumentConfigFile, writeConfigDraft } from "./config";
-import type { DocumentConfigFile, DocumentFormConfig, FieldOverride, SectionOverride, StepOverride } from "./types";
+import { Button } from "../../components/Button";
+import { Select } from "../../components/FormControls";
+import { cloneConfigFile } from "./resolver";
+import type { DocumentConfigFile, DocumentFormConfig, FieldOverride, FormStepCatalogItem, SectionOverride, StepOverride } from "./types";
 
 type SelectedNode =
   | { type: "step"; stepId: string }
@@ -19,6 +18,14 @@ type Props = {
   onClose: () => void;
   onMessage: (message: string) => void;
   allowLocalDraft: boolean;
+  catalog: FormStepCatalogItem[];
+  title?: string;
+  contextLabel?: string;
+  allowDocumentManagement?: boolean;
+  onSaveDraft: (config: DocumentConfigFile) => void;
+  onReset: () => void | Promise<void>;
+  onApply: (config: DocumentConfigFile) => Promise<string>;
+  resetLabel?: string;
 };
 
 const inputClass = "h-10 w-full rounded-md border border-border-primary bg-white px-3 text-[12px] text-neutral-800 outline-none focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100";
@@ -32,7 +39,7 @@ function Toggle({ checked, onChange, label, disabled = false }: { checked: boole
   );
 }
 
-export function FormConfigurationDrawer({ open, configFile, documentId, onChange, onDocumentChange, onClose, onMessage, allowLocalDraft }: Props) {
+export function FormConfigurationDrawer({ open, configFile, documentId, onChange, onDocumentChange, onClose, onMessage, allowLocalDraft, catalog, title = "Kelola Konfigurasi Form", contextLabel, allowDocumentManagement = true, onSaveDraft, onReset, onApply, resetLabel = "Reset ke Published" }: Props) {
   const [selected, setSelected] = useState<SelectedNode>({ type: "field", stepId: "pengajuan", sectionId: "header-pengajuan", fieldId: "nomorPengajuan" });
   const [rendered, setRendered] = useState(open);
   const [entered, setEntered] = useState(false);
@@ -55,11 +62,21 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
   };
 
   const selectedCatalog = useMemo(() => {
-    const step = formConfigCatalog.find((item) => item.id === selected.stepId);
+    const step = catalog.find((item) => item.id === selected.stepId);
     const section = selected.type === "step" ? undefined : step?.sections.find((item) => item.id === selected.sectionId);
     const field = selected.type === "field" ? section?.fields.find((item) => item.id === selected.fieldId) : undefined;
     return { step, section, field };
-  }, [selected]);
+  }, [catalog, selected]);
+
+  useEffect(() => {
+    if (selectedCatalog.step) return;
+    const firstStep = catalog[0];
+    const firstSection = firstStep?.sections[0];
+    const firstField = firstSection?.fields[0];
+    if (firstStep && firstSection && firstField) setSelected({ type: "field", stepId: firstStep.id, sectionId: firstSection.id, fieldId: firstField.id });
+    else if (firstStep && firstSection) setSelected({ type: "section", stepId: firstStep.id, sectionId: firstSection.id });
+    else if (firstStep) setSelected({ type: "step", stepId: firstStep.id });
+  }, [catalog, selectedCatalog.step]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,9 +115,15 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
   const selectedStepOverride = document.steps?.[selected.stepId] ?? {};
   const selectedSectionOverride = selected.type === "step" ? undefined : selectedStepOverride.sections?.[selected.sectionId] ?? {};
   const selectedFieldOverride = selected.type === "field" ? selectedSectionOverride?.fields?.[selected.fieldId] ?? {} : undefined;
+  const selectedSectionApplicable = selectedCatalog.section
+    ? document.id === "ALL" || !selectedCatalog.section.documentTypes?.length || selectedCatalog.section.documentTypes.includes(document.id)
+    : true;
   const selectedFieldApplicable = selectedCatalog.field
     ? document.id === "ALL" || !selectedCatalog.field.documentTypes?.length || selectedCatalog.field.documentTypes.includes(document.id)
     : true;
+  const selectedFieldBaseOverride = selectedCatalog.field?.documentOverrides?.[document.id] ?? {};
+  const selectedFieldBaseLabel = selectedFieldBaseOverride.label ?? selectedCatalog.field?.label ?? "";
+  const selectedFieldBaseRequired = selectedFieldBaseOverride.required ?? Boolean(selectedCatalog.field?.required);
 
   const addDocument = () => {
     const id = `DOC_${Date.now()}`;
@@ -131,12 +154,7 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
   };
 
   const resetToRepository = () => {
-    const repositoryConfig = cloneConfigFile(initialDocumentConfigFile);
-    clearConfigDraft();
-    onChange(repositoryConfig);
-    const activeDocumentStillExists = repositoryConfig.documents.some((item) => item.id === documentId && !item.archived);
-    if (!activeDocumentStillExists) onDocumentChange("BC20");
-    onMessage("Draft lokal dan perubahan sementara dibatalkan. Konfigurasi dimuat ulang dari file repository.");
+    void onReset();
   };
 
   return (
@@ -144,13 +162,13 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
       <div className={["flex h-full w-full max-w-[1120px] flex-col border-l border-border-primary bg-background-secondary shadow-2xl transition-transform duration-200 ease-out", entered ? "translate-x-0" : "translate-x-full"].join(" ")} onMouseDown={(event) => event.stopPropagation()}>
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border-primary bg-white px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-primary-600">{allowLocalDraft ? "Development tool · localhost" : "Development tool · intranet session"}</div>
-            <h2 className="mt-1 text-[20px] font-semibold text-neutral-800">Kelola Konfigurasi Form</h2>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-primary-600">{contextLabel ?? (allowLocalDraft ? "Development tool · localhost" : "Development tool · intranet session")}</div>
+            <h2 className="mt-1 text-[20px] font-semibold text-neutral-800">{title}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={() => { writeConfigDraft(configFile); onMessage("Draft konfigurasi disimpan di browser lokal."); }}>Simpan Draft Lokal</Button> : null}
-            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={resetToRepository}>Reset ke Repo</Button> : null}
-            <Button variant="primary" size="sm" onClick={async () => { try { onMessage(await applyConfigToRepository(configFile)); } catch (error) { onMessage(error instanceof Error ? error.message : "Gagal menerapkan konfigurasi."); } }}>Terapkan ke Repository</Button>
+            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={() => { onSaveDraft(configFile); onMessage("Draft konfigurasi disimpan di browser lokal."); }}>Simpan Draft Lokal</Button> : null}
+            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={resetToRepository}>{resetLabel}</Button> : null}
+            <Button variant="primary" size="sm" onClick={async () => { try { onMessage(await onApply(configFile)); } catch (error) { onMessage(error instanceof Error ? error.message : "Gagal memublikasikan konfigurasi."); } }}>Publikasikan Konfigurasi</Button>
             <Button variant="ghost" size="sm" onClick={onClose}>Tutup</Button>
           </div>
         </header>
@@ -166,14 +184,14 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
                 placeholder="Pilih jenis dokumen"
               />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            {allowDocumentManagement ? <div className="mt-3 flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={addDocument}>Tambah</Button>
               <Button variant="outline" size="sm" onClick={duplicateDocument}>Duplikasi</Button>
               <Button variant="error" size="sm" onClick={archiveDocument}>Archive</Button>
-            </div>
+            </div> : null}
 
             <div className="mt-5 space-y-3">
-              {formConfigCatalog.map((step) => {
+              {catalog.map((step) => {
                 const stepOverride = document.steps?.[step.id] ?? {};
                 return (
                   <div key={step.id} className="rounded-xl border border-border-primary bg-white p-2">
@@ -184,11 +202,12 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
                     <div className="ml-3 mt-2 space-y-2 border-l border-border-primary pl-3">
                       {step.sections.map((section) => {
                         const sectionOverride = stepOverride.sections?.[section.id] ?? {};
+                        const applicable = document.id === "ALL" || !section.documentTypes?.length || section.documentTypes.includes(document.id);
                         return (
-                          <div key={section.id}>
+                          <div key={section.id} title={applicable ? undefined : `Section khusus dokumen lain dan tidak tersedia untuk ${document.label}`}>
                             <div className="flex items-center gap-2">
-                              <input type="checkbox" checked={sectionOverride.enabled !== false} onChange={(event) => updateSection(step.id, section.id, (current) => ({ ...current, enabled: event.target.checked }))} className="h-3.5 w-3.5 accent-brand-primary-500" />
-                              <button type="button" onClick={() => setSelected({ type: "section", stepId: step.id, sectionId: section.id })} className="flex-1 text-left text-[11px] font-semibold text-neutral-700">{section.label}{section.presentation === "modal" ? " (Modal)" : ""}</button>
+                              <input type="checkbox" checked={applicable && sectionOverride.enabled !== false} disabled={!applicable} onChange={(event) => updateSection(step.id, section.id, (current) => ({ ...current, enabled: event.target.checked }))} className="h-3.5 w-3.5 accent-brand-primary-500 disabled:cursor-not-allowed" />
+                              <button type="button" onClick={() => setSelected({ type: "section", stepId: step.id, sectionId: section.id })} className="flex-1 text-left text-[11px] font-semibold text-neutral-700">{section.label}{section.presentation === "modal" ? " (Modal)" : ""}{applicable ? "" : " · di luar default"}</button>
                             </div>
                             {section.fields.length ? (
                               <div className="ml-3 mt-1.5 space-y-1 border-l border-border-primary pl-3">
@@ -198,7 +217,7 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
                                   return (
                                     <div key={field.id} className="flex items-center gap-2" title={applicable ? undefined : `Di luar mapping default ${document.label}; dapat diaktifkan manual`}>
                                       <input type="checkbox" checked={fieldOverride.enabled ?? applicable} onChange={(event) => updateField(step.id, section.id, field.id, (current) => ({ ...current, enabled: event.target.checked }))} className="h-3.5 w-3.5 accent-brand-primary-500" />
-                                      <button type="button" onClick={() => setSelected({ type: "field", stepId: step.id, sectionId: section.id, fieldId: field.id })} className="min-w-0 flex-1 truncate text-left text-[11px] text-neutral-600">{fieldOverride.label || field.label}{applicable ? "" : " · di luar default"}</button>
+                                      <button type="button" onClick={() => setSelected({ type: "field", stepId: step.id, sectionId: section.id, fieldId: field.id })} className="min-w-0 flex-1 truncate text-left text-[11px] text-neutral-600">{fieldOverride.label || field.documentOverrides?.[document.id]?.label || field.label}{applicable ? "" : " · di luar default"}</button>
                                     </div>
                                   );
                                 })}
@@ -241,7 +260,8 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
               ) : null}
               {selected.type === "section" && selectedCatalog.section && selectedSectionOverride ? (
                 <>
-                  <Toggle label="Tampilkan section" checked={selectedSectionOverride.enabled !== false} onChange={(checked) => updateSection(selected.stepId, selected.sectionId, (current) => ({ ...current, enabled: checked }))} />
+                  {!selectedSectionApplicable ? <div className="rounded-xl border border-warning-100 bg-warning-50 p-3 text-[11px] leading-5 text-warning-700">Section ini khusus jenis dokumen lain dan tidak dapat diaktifkan untuk {document.label}.</div> : null}
+                  <Toggle label="Tampilkan section" checked={selectedSectionApplicable && selectedSectionOverride.enabled !== false} disabled={!selectedSectionApplicable} onChange={(checked) => updateSection(selected.stepId, selected.sectionId, (current) => ({ ...current, enabled: checked }))} />
                   <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Custom Label</span><input className={inputClass} value={selectedSectionOverride.label ?? ""} placeholder={selectedCatalog.section.label} onChange={(event) => updateSection(selected.stepId, selected.sectionId, (current) => ({ ...current, label: event.target.value }))} /></label>
                   <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Deskripsi Card</span><textarea className="min-h-24 w-full rounded-md border border-border-primary bg-white p-3 text-[12px] outline-none focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100" value={selectedSectionOverride.description ?? ""} placeholder={selectedCatalog.section.description ?? "Tulis deskripsi singkat section ini."} onChange={(event) => updateSection(selected.stepId, selected.sectionId, (current) => ({ ...current, description: event.target.value }))} /></label>
                   <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Urutan</span><input type="number" className={inputClass} value={selectedSectionOverride.order ?? ""} onChange={(event) => updateSection(selected.stepId, selected.sectionId, (current) => ({ ...current, order: event.target.value === "" ? undefined : Number(event.target.value) }))} /></label>
@@ -252,8 +272,8 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
                   <div className="rounded-xl bg-background-primary p-3 text-[11px] text-neutral-600">Field ID: <strong className="text-neutral-800">{selected.fieldId}</strong></div>
                   {!selectedFieldApplicable ? <div className="rounded-xl border border-warning-100 bg-warning-50 p-3 text-[11px] leading-5 text-warning-700">Field ini berada di luar mapping default {document.label}. Aktifkan “Tampilkan field” untuk membuat override dan menampilkannya pada form dokumen ini.</div> : null}
                   <Toggle label="Tampilkan field" checked={selectedFieldOverride.enabled ?? selectedFieldApplicable} onChange={(checked) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, enabled: checked }))} />
-                  <Toggle label="Wajib diisi" checked={selectedFieldOverride.required ?? Boolean(selectedCatalog.field.required)} onChange={(checked) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, required: checked }))} />
-                  <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Custom Label</span><input className={inputClass} value={selectedFieldOverride.label ?? ""} placeholder={selectedCatalog.field.label} onChange={(event) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, label: event.target.value }))} /></label>
+                  <Toggle label="Wajib diisi" checked={selectedFieldOverride.required ?? selectedFieldBaseRequired} onChange={(checked) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, required: checked }))} />
+                  <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Custom Label</span><input className={inputClass} value={selectedFieldOverride.label ?? ""} placeholder={selectedFieldBaseLabel} onChange={(event) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, label: event.target.value }))} /></label>
                   <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Urutan</span><input type="number" className={inputClass} value={selectedFieldOverride.order ?? ""} onChange={(event) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, order: event.target.value === "" ? undefined : Number(event.target.value) }))} /></label>
                   <label className="block"><span className="mb-2 block text-[12px] text-neutral-700">Helper Text</span><textarea className="min-h-24 w-full rounded-md border border-border-primary bg-white p-3 text-[12px] outline-none focus:border-brand-primary-500" value={selectedFieldOverride.helperText ?? ""} onChange={(event) => updateField(selected.stepId, selected.sectionId, selected.fieldId, (current) => ({ ...current, helperText: event.target.value }))} /></label>
                 </>

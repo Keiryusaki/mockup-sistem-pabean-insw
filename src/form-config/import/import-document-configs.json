@@ -4,11 +4,13 @@
     {
       "id": "ALL",
       "label": "Semua Elemen Form",
+      "description": "Form demonstrasi yang menampilkan seluruh elemen pemberitahuan impor untuk kebutuhan peninjauan mockup.",
       "defaultRequiresQuarantine": true
     },
     {
       "id": "BC20",
       "label": "BC 2.0",
+      "description": "Form BC 2.0 digunakan untuk melengkapi data pemberitahuan impor barang.",
       "defaultRequiresQuarantine": false,
       "steps": {
         "pengajuan": {
@@ -34,6 +36,7 @@
     {
       "id": "BC23",
       "label": "BC 2.3",
+      "description": "Form BC 2.3 digunakan untuk melengkapi data pemasukan barang impor ke tempat penimbunan berikat.",
       "defaultRequiresQuarantine": true,
       "steps": {
         "pengajuan": {
@@ -55,6 +58,7 @@
     {
       "id": "BC16",
       "label": "BC 1.6",
+      "description": "Form BC 1.6 digunakan untuk melengkapi data pemberitahuan pabean pemasukan barang impor tertentu.",
       "defaultRequiresQuarantine": true,
       "steps": {
         "pengajuan": {
@@ -83,6 +87,7 @@
     {
       "id": "FTZ01",
       "label": "FTZ 01",
+      "description": "Form FTZ 01 digunakan untuk melengkapi data pemasukan barang ke kawasan perdagangan bebas.",
       "defaultRequiresQuarantine": false,
       "steps": {
         "pengajuan": {
@@ -114,6 +119,7 @@
     {
       "id": "KEK_IN",
       "label": "KEK Pemasukan",
+      "description": "Form KEK Pemasukan digunakan untuk melengkapi data pemasukan barang ke Kawasan Ekonomi Khusus.",
       "defaultRequiresQuarantine": false,
       "steps": {
         "pengajuan": {
