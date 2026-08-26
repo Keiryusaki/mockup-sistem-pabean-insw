@@ -19,19 +19,38 @@ function RecordEditor({ title, subtitle, fields, value, validationMessage, onCha
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const documentNumberField = fields.find((field) => field.id === "nomorDokumen");
+  const selectedFileName = documentNumberField ? value[documentNumberField.id] ?? "" : "";
+
   return (
-    <div className="rounded-xl border border-border-primary bg-background-primary/25 p-3">
+    <div className={`${documentNumberField ? "rounded-2xl bg-white p-4" : "rounded-xl bg-background-primary/25 p-3"} border border-border-primary`}>
       <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">{title}</div>
       {subtitle ? <p className="mt-1 text-[11px] leading-5 text-neutral-600">{subtitle}</p> : null}
+
+      {documentNumberField ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border-primary bg-white/80 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Input File</div>
+              <p className="mt-1 text-[12px] leading-5 text-neutral-600">Pilih file lampiran, lalu nama file akan otomatis masuk ke kolom Nomor Dokumen.</p>
+            </div>
+            <span className="inline-flex rounded-full bg-neutral-50 px-3 py-1 text-[11px] font-semibold text-neutral-600">
+              {selectedFileName || "Belum ada file"}
+            </span>
+          </div>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={(event) => onChange(documentNumberField.id, event.target.files?.[0]?.name ?? "")}
+            className="mt-3 block w-full text-[11px] text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:font-semibold file:text-white"
+          />
+          <div className="mt-2 text-[11px] text-neutral-500">{selectedFileName || "Nama file yang dipilih akan otomatis mengisi Nomor Dokumen."}</div>
+        </div>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {fields.map((field) => (
           <div key={field.id}>
-            {field.id === "nomorDokumen" ? (
-              <div className="mb-3 rounded-xl border border-dashed border-border-primary bg-white p-3">
-                <div className="text-[11px] font-semibold text-brand-primary-600">Input File</div>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={(event) => onChange(field.id, event.target.files?.[0]?.name ?? "")} className="mt-2 block w-full text-[11px] text-neutral-700 file:mr-3 file:rounded-md file:border-0 file:bg-brand-primary-500 file:px-3 file:py-2 file:font-semibold file:text-white" />
-              </div>
-            ) : null}
             <DynamicFormField field={field} value={value[field.id] ?? ""} onChange={(nextValue) => onChange(field.id, nextValue)} />
           </div>
         ))}

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { AnimatedDrawer } from "../../../components/AnimatedDrawer";
+import { DrawerTocIcon, DrawerTocLayout } from "../../../components/DrawerTocLayout";
 import { Badge } from "../../../components/Badge";
 import { Button } from "../../../components/Button";
 import { ConfigurableRecordTable, type ConfigurableRecord } from "../../../components/ConfigurableRecordTable";
@@ -41,6 +43,8 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
         ? { label: "Lengkap", tone: "success" as const }
         : { label: "Belum Lengkap", tone: "warning" as const };
   const [editor, setEditor] = useState<{ mode: "add" | "edit"; index: number; row: ConfigurableRecord } | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const discardDraftOnExitRef = useRef(false);
   const [activeDrawerTab, setActiveDrawerTab] = useState<"data-barang" | "compliance">("data-barang");
   const [tocOpen, setTocOpen] = useState(true);
   const [validationMessage, setValidationMessage] = useState("");
@@ -57,6 +61,7 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
     setActiveDrawerTab("data-barang");
     setTocOpen(true);
     setEditor({ mode: "add", index: barangRows.length, row });
+    setDrawerOpen(true);
   };
   const openEdit = (index: number) => {
     const source = barangRows[index];
@@ -64,6 +69,7 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
     setActiveDrawerTab("data-barang");
     setTocOpen(true);
     setEditor({ mode: "edit", index, row: { ...source, _recordId: source._recordId || `barang-${Date.now()}-${index}` } });
+    setDrawerOpen(true);
   };
   const saveBarang = () => {
     if (!editor) return;
@@ -76,7 +82,8 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
     if (editor.mode === "add") rows.push(editor.row); else rows[editor.index] = editor.row;
     onChangeSection(barangSection.id, rows);
     onMessage(`Barang berhasil ${editor.mode === "add" ? "ditambahkan" : "diperbarui"}.`);
-    setEditor(null);
+    discardDraftOnExitRef.current = false;
+    setDrawerOpen(false);
   };
   const clearBarangData = () => {
     childSections.forEach((section) => onChangeSection(section.id, []));
@@ -160,9 +167,13 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
   };
 
   const closeEditor = () => {
-    if (editor?.mode === "add") {
-      childSections.forEach((section) => updateScopedRows(section, []));
-    }
+    discardDraftOnExitRef.current = editor?.mode === "add";
+    setDrawerOpen(false);
+  };
+
+  const finishClosingEditor = () => {
+    if (discardDraftOnExitRef.current) childSections.forEach((section) => updateScopedRows(section, []));
+    discardDraftOnExitRef.current = false;
     setEditor(null);
   };
 
@@ -202,10 +213,38 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
       </section>
 
       {editor ? (
-        <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label="Kelola Detail Barang">
-          <button type="button" className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" aria-label="Tutup workspace barang" onClick={closeEditor} />
-          <div className="absolute inset-y-0 right-0 w-[min(58vw,860px)] max-w-[calc(100vw-0.5rem)] overflow-visible border-l border-border-primary bg-white shadow-[0_24px_70px_rgba(15,23,42,0.3)]">
-            <div className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-l-2xl">
+        <AnimatedDrawer
+          open={drawerOpen}
+          onClose={closeEditor}
+          onExited={finishClosingEditor}
+          ariaLabel="Kelola Detail Barang"
+          panelClassName="!w-[min(calc(58vw+280px),calc(100vw-0.5rem))] !max-w-none !border-0 !bg-transparent !shadow-none"
+          overflowVisible
+          deferContent={false}
+          renderContent={() => (
+            <DrawerTocLayout
+              open={tocOpen}
+              onOpenChange={setTocOpen}
+              compactItems={tocSections.map((section) => ({ id: section.id, label: section.label, icon: <DrawerTocIcon kind={section.id} />, status: drawerSectionStatus(section.id), onClick: () => jumpToSection(section.id) }))}
+              toc={(
+                <>
+                  <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-primary pb-2">
+                    <div><div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">TOC</div><div className="text-[11px] text-neutral-700">Lompat cepat</div></div>
+                    <button type="button" onClick={() => setTocOpen(false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-primary-500 text-brand-primary-600"><ArrowRightIcon className="h-3.5 w-3.5 rotate-180" /></button>
+                  </div>
+                  <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+                    {tocSections.map((section) => (
+                      <button key={section.id} type="button" onClick={() => jumpToSection(section.id)} className="relative flex w-full items-start gap-2.5 rounded-xl border border-border-primary bg-white px-2.5 py-2.5 text-left hover:border-brand-primary-300 hover:bg-brand-primary-50/60">
+                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary-50 text-brand-primary-600"><DrawerTocIcon kind={section.id} className="h-4 w-4" /></span>
+                        <span className="min-w-0 pr-7"><span className="block text-[11px] font-semibold text-neutral-800">{section.label}</span><span className="mt-0.5 block text-[10px] leading-4 text-neutral-600">{section.description}</span></span>
+                        <span className="absolute right-2 top-2"><SectionStatusIconBadge status={drawerSectionStatus(section.id)} /></span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            >
+            <div className="relative flex h-full min-h-0 flex-col bg-white">
               <div className="flex items-start justify-between gap-4 border-b border-border-primary px-5 py-4">
                 <div className="min-w-0">
                   <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-600">Workspace Barang</div>
@@ -216,26 +255,6 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
               </div>
 
               <div className="relative min-h-0 flex-1 overflow-visible">
-                <div className="pointer-events-none absolute left-0 top-28 z-50 hidden lg:block">
-                  {tocOpen ? (
-                    <div className="pointer-events-auto w-56 -translate-x-full rounded-2xl border border-border-primary bg-white/95 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur">
-                      <div className="flex items-center justify-between gap-2 border-b border-border-primary pb-2">
-                        <div><div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">TOC</div><div className="text-[11px] text-neutral-700">Lompat cepat</div></div>
-                        <button type="button" onClick={() => setTocOpen(false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-primary-500 text-brand-primary-600"><ArrowRightIcon className="h-3.5 w-3.5" /></button>
-                      </div>
-                      <div className="mt-2 max-h-[calc(100vh-220px)] space-y-1.5 overflow-auto pr-1">
-                        {tocSections.map((section) => (
-                          <button key={section.id} type="button" onClick={() => jumpToSection(section.id)} className="relative flex w-full items-start gap-2.5 rounded-xl border border-border-primary bg-white px-2.5 py-2.5 text-left hover:border-brand-primary-300 hover:bg-brand-primary-50/60">
-                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-primary-50 text-brand-primary-600"><ArrowRightIcon className="h-3.5 w-3.5" /></span>
-                            <span className="min-w-0 pr-7"><span className="block text-[11px] font-semibold text-neutral-800">{section.label}</span><span className="mt-0.5 block text-[10px] leading-4 text-neutral-600">{section.description}</span></span>
-                            <span className="absolute right-2 top-2"><SectionStatusIconBadge status={drawerSectionStatus(section.id)} /></span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : <button type="button" onClick={() => setTocOpen(true)} className="pointer-events-auto flex h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-brand-primary-200 bg-white px-3 text-[11px] font-semibold text-brand-primary-700 shadow-lg"><ArrowRightIcon className="h-3.5 w-3.5 rotate-180" /><span>TOC</span></button>}
-                </div>
-
                 <div className="export-drawer-scroll h-full min-h-0 overflow-y-auto px-4 pb-24 lg:px-5">
                   <div className="sticky top-0 z-20 border-b border-border-primary bg-white/95 backdrop-blur">
                     <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border-primary bg-white p-1">
@@ -266,8 +285,9 @@ export function ExportBarangWorkspace({ barangSection, childSections, rowsBySect
 
               <div className="absolute inset-x-0 bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-border-primary bg-white/95 px-5 py-4 backdrop-blur"><div className="text-[11px] text-error-600">{validationMessage}</div><div className="ml-auto flex gap-2"><Button variant="outline" size="sm" onClick={closeEditor}>Batal</Button><Button variant="primary" size="sm" onClick={saveBarang}>Simpan Barang</Button></div></div>
             </div>
-          </div>
-        </div>
+            </DrawerTocLayout>
+          )}
+        />
       ) : null}
     </>
   );

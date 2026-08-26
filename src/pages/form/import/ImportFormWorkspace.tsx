@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "../../../components/Badge";
+import { AnimatedDrawer } from "../../../components/AnimatedDrawer";
+import { DrawerTocIcon, DrawerTocLayout } from "../../../components/DrawerTocLayout";
 import { Button, IconButton } from "../../../components/Button";
 import { Input, Select, Switch, Textarea } from "../../../components/FormControls";
 import { Modal } from "../../../components/Surface";
@@ -1986,6 +1988,7 @@ function BarangWorkspaceDrawer({
   activeTab,
   onTabChange,
   onClose,
+  onExited,
   onSave,
   onUpdateMasterField,
   detailRows,
@@ -2009,6 +2012,7 @@ function BarangWorkspaceDrawer({
   activeTab: BarangWorkspaceTab;
   onTabChange: (tab: BarangWorkspaceTab) => void;
   onClose: () => void;
+  onExited: () => void;
   onSave: () => void;
   onUpdateMasterField: (column: string, value: string) => void;
   detailRows: Record<BarangDetailSection, BarangSectionRow[]>;
@@ -2026,43 +2030,24 @@ function BarangWorkspaceDrawer({
   detailFields: Partial<Record<BarangDetailSection, ResolvedFieldConfig[]>>;
   sectionLabels: Record<string, string>;
 }) {
-  const [rendered, setRendered] = useState(open);
-  const [animateOpen, setAnimateOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(true);
   const [cooSource, setCooSource] = useState<"service" | "upload" | "none">("service");
   const [cooSearch, setCooSearch] = useState("");
   const [supportFiles, setSupportFiles] = useState<string[]>([]);
   const [detailAddState, setDetailAddState] = useState<{ section: BarangDetailSection; row: Row } | null>(null);
-  const openFrameOne = useRef(0);
-  const openFrameTwo = useRef(0);
-
-  useEffect(() => {
-    if (open) {
-      setRendered(true);
-      openFrameOne.current = window.requestAnimationFrame(() => {
-        openFrameTwo.current = window.requestAnimationFrame(() => setAnimateOpen(true));
-      });
-      return () => {
-        window.cancelAnimationFrame(openFrameOne.current);
-        window.cancelAnimationFrame(openFrameTwo.current);
-      };
-    }
-    setAnimateOpen(false);
-    const timer = window.setTimeout(() => setRendered(false), 340);
-    return () => window.clearTimeout(timer);
-  }, [open]);
-
   useEffect(() => {
     if (!open) return;
-    setCooSource("service");
-    setCooSearch("");
-    setSupportFiles([]);
-    setTocOpen(true);
-    setDetailAddState(null);
-    onCancelDetailEdit();
+    const timer = window.setTimeout(() => {
+      setCooSource("service");
+      setCooSearch("");
+      setSupportFiles([]);
+      setDetailAddState(null);
+      onCancelDetailEdit();
+    }, 380);
+    return () => window.clearTimeout(timer);
   }, [open, item?.Seri]);
 
-  if (!rendered || !item) return null;
+  if (!item) return null;
 
   const seri = item.Seri || "-";
   const drawerTitle = mode === "add" ? "Tambah Barang" : `Barang Seri ${seri} - ${item["Uraian"] || "Tanpa uraian"}`;
@@ -2139,6 +2124,64 @@ function BarangWorkspaceDrawer({
     karantina: "Isi data baru lalu simpan untuk menambah record ke tabel.",
   };
 
+  const hasFieldValue = (value: unknown) => String(value ?? "").trim().length > 0;
+  const fieldStatus = (fields: EntityFieldConfig[], row: Row, sectionName: string): SectionStatus => {
+    const hasAnyValue = fields.some((field) => hasFieldValue(row[field.key]));
+    if (!hasAnyValue) {
+      return { label: "Belum Diisi", tone: "warning", detail: `${sectionName} belum mulai diisi.` };
+    }
+    const missingRequired = fields.filter((field) => field.required && !hasFieldValue(row[field.key]));
+    if (missingRequired.length > 0) {
+      return { label: "Wajib Dilengkapi", tone: "error", detail: `${missingRequired.length} field wajib pada ${sectionName} belum diisi.` };
+    }
+    const allFilled = fields.every((field) => hasFieldValue(row[field.key]));
+    return allFilled
+      ? { label: "Lengkap", tone: "success", detail: `Seluruh field ${sectionName} sudah diisi.` }
+      : { label: "Belum Lengkap", tone: "warning", detail: `Field wajib sudah terisi, tetapi masih ada field opsional yang kosong pada ${sectionName}.` };
+  };
+  const detailStatus = (section: BarangDetailSection, sectionName: string): SectionStatus => {
+    const rows = detailRows[section];
+    const fields = (detailFields[section] ?? []).filter((field) => field.enabled);
+    if (rows.length === 0) {
+      return { label: "Belum Diisi", tone: "warning", detail: `Belum ada record ${sectionName}.` };
+    }
+    const missingRequired = rows.some(({ row }) => fields.some((field) => field.required && !hasFieldValue(row[field.id])));
+    if (missingRequired) {
+      return { label: "Wajib Dilengkapi", tone: "error", detail: `Masih ada field wajib yang kosong pada record ${sectionName}.` };
+    }
+    const allFilled = fields.length === 0 || rows.every(({ row }) => fields.every((field) => hasFieldValue(row[field.id])));
+    return allFilled
+      ? { label: "Lengkap", tone: "success", detail: `${rows.length} record ${sectionName} sudah lengkap.` }
+      : { label: "Belum Lengkap", tone: "warning", detail: `Field wajib sudah terisi, tetapi masih ada field opsional yang kosong pada ${sectionName}.` };
+  };
+  const drawerSectionStatus = (sectionId: string): SectionStatus => {
+    const masterGroup = sectionId === "barang-identitas" ? "identity" : sectionId === "barang-kuantitas-kemasan" ? "quantity" : sectionId === "barang-nilai-harga" ? "value" : null;
+    if (masterGroup) {
+      const group = barangMasterPresentation[masterGroup];
+      return fieldStatus(masterFieldsByPresentation[masterGroup], item, group.title);
+    }
+    const detailSection = sectionId === "barang-cukai" ? "cukai" : sectionId === "barang-spesifikasi" ? "spesifikasi" : sectionId === "barang-dokumen" ? "dokumen" : sectionId === "barang-vd" ? "vd" : sectionId === "barang-tarif" ? "tarif" : sectionId === "karantina" ? "karantina" : null;
+    if (detailSection) {
+      const sectionName = activeTocItems.find((section) => section.id === sectionId)?.title ?? sectionId;
+      return detailStatus(detailSection, sectionName);
+    }
+    if (sectionId === "compliance-transportasi") {
+      return { label: "Lengkap", tone: "success", detail: "Data transportasi contoh sudah tersedia." };
+    }
+    if (sectionId === "compliance-pendukung") {
+      return supportFiles.length > 0
+        ? { label: "Lengkap", tone: "success", detail: `${supportFiles.length} dokumen pendukung tersedia.` }
+        : { label: "Belum Diisi", tone: "warning", detail: "Belum ada dokumen pendukung yang dipilih." };
+    }
+    if (sectionId === "compliance-coo" && cooSource === "none") {
+      return { label: "Tidak Digunakan", tone: "secondary", detail: "COO tidak digunakan untuk barang ini." };
+    }
+    if (sectionId === "compliance-lartas") {
+      return { label: "Wajib Dilengkapi", tone: "error", detail: "Hasil cek lartas masih memerlukan dokumen tambahan." };
+    }
+    return { label: "Belum Diisi", tone: "warning", detail: `${activeTocItems.find((section) => section.id === sectionId)?.title ?? "Section"} belum dilengkapi.` };
+  };
+
   const createDetailDraftRow = (section: BarangDetailSection, seriBarang: string) =>
     createRow(
       section === "cukai"
@@ -2195,21 +2238,64 @@ function BarangWorkspaceDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-[90]">
-      <button
-        type="button"
-        className={`absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
-        aria-label="Tutup workspace barang"
-        onClick={onClose}
-      />
-
-      <div
-        className={`absolute inset-y-0 right-0 w-[min(58vw,860px)] max-w-[calc(100vw-0.5rem)] overflow-visible border-l border-border-primary bg-white shadow-[0_24px_70px_rgba(15,23,42,0.3)] transition-transform duration-[340ms] ease-out transform-gpu ${
-          animateOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {hiddenSectionIds.length ? <style>{hiddenSectionIds.map((id) => `#${id}{display:none!important}`).join("")}</style> : null}
-        <div className="relative flex h-full min-h-0 flex-col rounded-none bg-white lg:rounded-l-2xl">
+    <AnimatedDrawer
+      open={open}
+      onClose={onClose}
+      onExited={onExited}
+      ariaLabel="Workspace Barang"
+      panelClassName="!w-[min(calc(58vw+280px),calc(100vw-0.5rem))] !max-w-none !overflow-visible !border-0 !bg-transparent !shadow-none"
+      overflowVisible
+      deferContent={false}
+      renderContent={() => (
+        <>
+          {hiddenSectionIds.length ? <style>{hiddenSectionIds.map((id) => `#${id}{display:none!important}`).join("")}</style> : null}
+          <DrawerTocLayout
+            open={tocOpen}
+            onOpenChange={setTocOpen}
+            compactItems={activeTocItems.map((section) => ({
+              id: section.id,
+              label: section.title,
+              icon: <DrawerTocIcon kind={section.id} />,
+              status: drawerSectionStatus(section.id),
+              onClick: () => jumpToSection(section.id),
+            }))}
+            toc={(
+              <>
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-primary pb-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">TOC</div>
+                    <div className="text-[11px] text-neutral-700">Lompat cepat</div>
+                  </div>
+                  <IconButton aria-label="Sembunyikan TOC" size="sm" variant="outline" onClick={() => setTocOpen(false)} className="h-8 w-8">
+                    <ArrowRightIcon className="h-3.5 w-3.5 rotate-180" />
+                  </IconButton>
+                </div>
+                <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+                  {activeTocItems.map((section) => {
+                    const sectionDescription = "description" in section ? (section as { description?: string }).description ?? "" : "";
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        onClick={() => jumpToSection(section.id)}
+                        className="relative flex w-full items-start gap-2.5 rounded-xl border border-border-primary bg-white px-2.5 py-2.5 pr-9 text-left transition-colors hover:border-brand-primary-300 hover:bg-brand-primary-50/60"
+                      >
+                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary-50 text-brand-primary-600">
+                          <DrawerTocIcon kind={section.id} className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[11px] font-semibold text-neutral-800">{section.title}</span>
+                          {sectionDescription ? <span className="mt-0.5 block text-[10px] leading-4 text-neutral-600">{sectionDescription}</span> : null}
+                        </span>
+                        <span className="absolute right-2 top-2"><SectionStatusIconBadge status={drawerSectionStatus(section.id)} /></span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          >
+        <div className="relative flex h-full min-h-0 flex-col bg-white">
             <div className="flex flex-col gap-4 border-b border-border-primary px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-neutral-600">Workspace Barang</div>
@@ -2227,53 +2313,6 @@ function BarangWorkspaceDrawer({
             </div>
 
             <div className="relative min-h-0 flex-1 overflow-visible">
-              <div className="pointer-events-none absolute left-0 top-28 z-50 hidden lg:block">
-                {tocOpen ? (
-                  <div className="pointer-events-auto w-56 -translate-x-full rounded-2xl border border-border-primary bg-white/95 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur">
-                    <div className="flex items-center justify-between gap-2 border-b border-border-primary pb-2">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-600">TOC</div>
-                        <div className="text-[11px] text-neutral-700">Lompat cepat</div>
-                      </div>
-                      <IconButton aria-label="Sembunyikan TOC" size="sm" variant="outline" onClick={() => setTocOpen(false)} className="h-8 w-8">
-                        <ArrowRightIcon className="h-3.5 w-3.5" />
-                      </IconButton>
-                    </div>
-                    <div className="mt-2 max-h-[calc(100vh-220px)] space-y-1.5 overflow-auto pr-1">
-                      {activeTocItems.map((section) => {
-                        const sectionDescription = "description" in section ? (section as { description?: string }).description ?? "" : "";
-                        return (
-                          <button
-                            key={section.id}
-                            type="button"
-                            onClick={() => jumpToSection(section.id)}
-                            className="flex w-full items-start gap-2.5 rounded-xl border border-border-primary bg-white px-2.5 py-2.5 text-left transition-colors hover:border-brand-primary-300 hover:bg-brand-primary-50/60"
-                          >
-                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-primary-50 text-brand-primary-600">
-                              <ArrowRightIcon className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block text-[11px] font-semibold text-neutral-800">{section.title}</span>
-                              {sectionDescription ? <span className="mt-0.5 block text-[10px] leading-4 text-neutral-600">{sectionDescription}</span> : null}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setTocOpen(true)}
-                    className="pointer-events-auto flex h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-brand-primary-200 bg-white px-3 py-2 text-[11px] font-semibold text-brand-primary-700 shadow-lg transition-colors hover:bg-brand-primary-50"
-                    aria-label="Buka TOC"
-                  >
-                    <ArrowRightIcon className="h-3.5 w-3.5 rotate-180" />
-                    <span className="whitespace-nowrap">TOC</span>
-                  </button>
-                )}
-              </div>
-
               <div className="drawer-scroll-area h-full min-h-0 overflow-y-auto px-4 pt-0 pb-4 lg:px-5">
                 <div className="sticky top-0 z-20 border-b border-border-primary bg-white/95 pt-0 backdrop-blur">
                   <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border-primary bg-white p-1">
@@ -2319,12 +2358,10 @@ function BarangWorkspaceDrawer({
                               <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{group.title}</div>
                               <p className="mt-1 text-[12px] text-neutral-600">{group.description}</p>
                             </div>
-                            {groupId === "identity" ? (
-                              <div className="flex flex-wrap gap-2">
-                                <MiniStatusPill value={item.Status || "Perlu Validasi"} />
-                                <span className="inline-flex rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">{item["Negara Asal"] || "-"}</span>
-                              </div>
-                            ) : null}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <SectionStatusTextBadge status={drawerSectionStatus(group.id)} />
+                              {groupId === "identity" ? <span className="inline-flex rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-700">{item["Negara Asal"] || "-"}</span> : null}
+                            </div>
                           </div>
                           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {fields.map((field) => (
@@ -2336,9 +2373,9 @@ function BarangWorkspaceDrawer({
                     })}
 
                     <section id="barang-cukai" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-cukai"] ?? "Barang Cukai"}</div>
-                        <p className="text-[12px] text-neutral-600">Rincian cukai yang melekat pada seri barang.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-cukai"] ?? "Barang Cukai"}</div><p className="mt-1 text-[12px] text-neutral-600">Rincian cukai yang melekat pada seri barang.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("barang-cukai")} />
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
@@ -2368,9 +2405,9 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="barang-spesifikasi" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-spesifikasi"] ?? "Spesifikasi Wajib"}</div>
-                        <p className="text-[12px] text-neutral-600">Editable mini table per seri. Jika kosong tampilkan empty state.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-spesifikasi"] ?? "Spesifikasi Wajib"}</div><p className="mt-1 text-[12px] text-neutral-600">Editable mini table per seri. Jika kosong tampilkan empty state.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("barang-spesifikasi")} />
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
@@ -2407,9 +2444,9 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="barang-dokumen" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-dokumen"] ?? "Dokumen Barang"}</div>
-                        <p className="text-[12px] text-neutral-600">Dokumen yang terhubung ke seri ini.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-dokumen"] ?? "Dokumen Barang"}</div><p className="mt-1 text-[12px] text-neutral-600">Dokumen yang terhubung ke seri ini.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("barang-dokumen")} />
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
@@ -2446,9 +2483,9 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="barang-vd" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-vd"] ?? "Barang VD"}</div>
-                        <p className="text-[12px] text-neutral-600">Mock data barang VD untuk seri ini.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-vd"] ?? "Barang VD"}</div><p className="mt-1 text-[12px] text-neutral-600">Mock data barang VD untuk seri ini.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("barang-vd")} />
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
@@ -2485,9 +2522,9 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="barang-tarif" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-tarif"] ?? "Barang Tarif"}</div>
-                        <p className="text-[12px] text-neutral-600">Pungutan dan tarif per seri barang.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">{sectionLabels["barang-tarif"] ?? "Barang Tarif"}</div><p className="mt-1 text-[12px] text-neutral-600">Pungutan dan tarif per seri barang.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("barang-tarif")} />
                       </div>
                       <div className="mt-4">
                         <CompactEditableTable
@@ -2531,6 +2568,7 @@ function BarangWorkspaceDrawer({
                             <p className="mt-1 text-[12px] text-neutral-600">Data karantina yang melekat pada seri barang ini.</p>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            <SectionStatusTextBadge status={drawerSectionStatus("karantina")} />
                             <Button variant="outline" size="sm" onClick={() => void 0}>
                               Cek Relasi Importir
                             </Button>
@@ -2570,9 +2608,9 @@ function BarangWorkspaceDrawer({
                 ) : (
                   <div className="space-y-4 pt-4">
                     <section id="compliance-lartas" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Lartas</div>
-                        <p className="text-[12px] text-neutral-600">Ringkasan hasil cek lartas dan rekomendasi dokumen.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Lartas</div><p className="mt-1 text-[12px] text-neutral-600">Ringkasan hasil cek lartas dan rekomendasi dokumen.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("compliance-lartas")} />
                       </div>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4">
@@ -2595,9 +2633,9 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-coo" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="flex flex-col gap-2 border-b border-border-primary pb-4">
-                        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">COO</div>
-                        <p className="text-[12px] text-neutral-600">Pilih sumber COO secara inline tanpa modal.</p>
+                      <div className="flex items-start justify-between gap-3 border-b border-border-primary pb-4">
+                        <div><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">COO</div><p className="mt-1 text-[12px] text-neutral-600">Pilih sumber COO secara inline tanpa modal.</p></div>
+                        <SectionStatusTextBadge status={drawerSectionStatus("compliance-coo")} />
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button variant={cooSource === "service" ? "primary" : "outline"} size="sm" onClick={() => setCooSource("service")}>
@@ -2641,7 +2679,7 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-masterlist" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Masterlist</div>
+                      <div className="flex items-start justify-between gap-3"><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Masterlist</div><SectionStatusTextBadge status={drawerSectionStatus("compliance-masterlist")} /></div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button variant="outline" size="sm">
                           Gunakan Masterlist tersedia
@@ -2656,7 +2694,7 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-trq" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">TRQ</div>
+                      <div className="flex items-start justify-between gap-3"><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">TRQ</div><SectionStatusTextBadge status={drawerSectionStatus("compliance-trq")} /></div>
                       <div className="mt-4 grid gap-4 md:grid-cols-3">
                         <Input label="Nomor TRQ" value="TRQ-001" onChange={() => void 0} />
                         <Input label="Tanggal" value="2026-07-04" onChange={() => void 0} />
@@ -2665,7 +2703,7 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-transportasi" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Transportasi</div>
+                      <div className="flex items-start justify-between gap-3"><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Transportasi</div><SectionStatusTextBadge status={drawerSectionStatus("compliance-transportasi")} /></div>
                       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <Input label="Moda Transportasi" value="Laut" onChange={() => void 0} />
                         <Input label="Nama Sarana Angkut" value="MV Contoh Nusantara" onChange={() => void 0} />
@@ -2676,7 +2714,7 @@ function BarangWorkspaceDrawer({
                     </section>
 
                     <section id="compliance-pendukung" className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Dokumen Pendukung</div>
+                      <div className="flex items-start justify-between gap-3"><div className="text-[11px] uppercase tracking-[0.16em] text-brand-primary-600">Dokumen Pendukung</div><SectionStatusTextBadge status={drawerSectionStatus("compliance-pendukung")} /></div>
                       <div className="mt-4 rounded-2xl border border-dashed border-border-primary bg-background-primary/30 p-4">
                         <input
                           type="file"
@@ -2712,8 +2750,10 @@ function BarangWorkspaceDrawer({
               </div>
             </div>
           </div>
-        </div>
-    </div>
+          </DrawerTocLayout>
+        </>
+      )}
+    />
   );
 }
 
@@ -5084,8 +5124,8 @@ export function ImportFormWorkspace({ onDomainChange }: { onDomainChange: (domai
             mode={barangWorkspaceMode}
             activeTab={barangWorkspaceTab}
             onTabChange={setBarangWorkspaceTab}
-            onClose={() => {
-              setBarangWorkspaceOpen(false);
+            onClose={() => setBarangWorkspaceOpen(false)}
+            onExited={() => {
               setBarangWorkspaceMode("edit");
               setBarangDraftRow(null);
               setBarangDetailEditState(null);

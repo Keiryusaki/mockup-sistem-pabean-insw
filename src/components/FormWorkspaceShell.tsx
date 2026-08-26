@@ -52,7 +52,7 @@ export function DemoFormSelector({
   technicalBadges,
 }: DemoFormSelectorProps) {
   return (
-    <section className="rounded-2xl border border-dashed border-brand-primary-200 bg-brand-primary-50/35 p-4 shadow-sm sm:p-5">
+    <section className="rounded-2xl border-[3px] border-dashed border-[crimson] bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

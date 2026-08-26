@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/Button";
 import { Select } from "../../components/FormControls";
+import { AnimatedDrawer } from "../../components/AnimatedDrawer";
 import { cloneConfigFile } from "./resolver";
 import type { DocumentConfigFile, DocumentFormConfig, FieldOverride, FormStepCatalogItem, SectionOverride, StepOverride } from "./types";
 
@@ -41,8 +42,7 @@ function Toggle({ checked, onChange, label, disabled = false }: { checked: boole
 
 export function FormConfigurationDrawer({ open, configFile, documentId, onChange, onDocumentChange, onClose, onMessage, allowLocalDraft, catalog, title = "Kelola Konfigurasi Form", contextLabel, allowDocumentManagement = true, onSaveDraft, onReset, onApply, resetLabel = "Reset ke Published" }: Props) {
   const [selected, setSelected] = useState<SelectedNode>({ type: "field", stepId: "pengajuan", sectionId: "header-pengajuan", fieldId: "nomorPengajuan" });
-  const [rendered, setRendered] = useState(open);
-  const [entered, setEntered] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const document = configFile.documents.find((item) => item.id === documentId) ?? configFile.documents[0];
 
   const updateDocument = (updater: (current: DocumentFormConfig) => DocumentFormConfig) => {
@@ -77,40 +77,6 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
     else if (firstStep && firstSection) setSelected({ type: "section", stepId: firstStep.id, sectionId: firstSection.id });
     else if (firstStep) setSelected({ type: "step", stepId: firstStep.id });
   }, [catalog, selectedCatalog.step]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    let prepareFrame = 0;
-    let enterFrame = 0;
-    let unmountTimer: ReturnType<typeof window.setTimeout> | undefined;
-
-    if (open) {
-      setRendered(true);
-      setEntered(false);
-      prepareFrame = window.requestAnimationFrame(() => {
-        enterFrame = window.requestAnimationFrame(() => setEntered(true));
-      });
-    } else {
-      setEntered(false);
-      unmountTimer = window.setTimeout(() => setRendered(false), 220);
-    }
-
-    return () => {
-      if (prepareFrame) window.cancelAnimationFrame(prepareFrame);
-      if (enterFrame) window.cancelAnimationFrame(enterFrame);
-      if (unmountTimer) window.clearTimeout(unmountTimer);
-    };
-  }, [open]);
-
-  if (!rendered) return null;
 
   const selectedStepOverride = document.steps?.[selected.stepId] ?? {};
   const selectedSectionOverride = selected.type === "step" ? undefined : selectedStepOverride.sections?.[selected.sectionId] ?? {};
@@ -157,21 +123,56 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
     void onReset();
   };
 
+  const publishConfiguration = async () => {
+    if (isPublishing) return;
+    setIsPublishing(true);
+    try {
+      onMessage(await onApply(configFile));
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Gagal memublikasikan konfigurasi.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   return (
-    <div className={["fixed inset-0 z-[90] flex justify-end transition-colors duration-200", entered ? "bg-slate-950/30 backdrop-blur-[2px]" : "bg-slate-950/0 backdrop-blur-none"].join(" ")} role="dialog" aria-modal="true" aria-label="Kelola Konfigurasi Form" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className={["flex h-full w-full max-w-[1120px] flex-col border-l border-border-primary bg-background-secondary shadow-2xl transition-transform duration-200 ease-out", entered ? "translate-x-0" : "translate-x-full"].join(" ")} onMouseDown={(event) => event.stopPropagation()}>
+    <AnimatedDrawer
+      open={open}
+      onClose={onClose}
+      ariaLabel="Kelola Konfigurasi Form"
+      busy={isPublishing}
+      dismissible={!isPublishing}
+      panelClassName="max-w-[1120px] bg-background-secondary"
+      duration={340}
+      renderContent={() => (
+        <div className="flex h-full min-h-0 flex-col bg-background-secondary">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border-primary bg-white px-5 py-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-primary-600">{contextLabel ?? (allowLocalDraft ? "Development tool · localhost" : "Development tool · intranet session")}</div>
             <h2 className="mt-1 text-[20px] font-semibold text-neutral-800">{title}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={() => { onSaveDraft(configFile); onMessage("Draft konfigurasi disimpan di browser lokal."); }}>Simpan Draft Lokal</Button> : null}
-            {allowLocalDraft ? <Button variant="outline" size="sm" onClick={resetToRepository}>{resetLabel}</Button> : null}
-            <Button variant="primary" size="sm" onClick={async () => { try { onMessage(await onApply(configFile)); } catch (error) { onMessage(error instanceof Error ? error.message : "Gagal memublikasikan konfigurasi."); } }}>Publikasikan Konfigurasi</Button>
-            <Button variant="ghost" size="sm" onClick={onClose}>Tutup</Button>
+            {allowLocalDraft ? <Button variant="outline" size="sm" disabled={isPublishing} onClick={() => { onSaveDraft(configFile); onMessage("Draft konfigurasi disimpan di browser lokal."); }}>Simpan Draft Lokal</Button> : null}
+            {allowLocalDraft ? <Button variant="outline" size="sm" disabled={isPublishing} onClick={resetToRepository}>{resetLabel}</Button> : null}
+            <Button variant="primary" size="sm" disabled={isPublishing} onClick={() => void publishConfiguration()}>
+              {isPublishing ? "Memublikasikan..." : "Publikasikan Konfigurasi"}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={isPublishing} onClick={onClose}>Tutup</Button>
           </div>
         </header>
+
+        {isPublishing ? (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/75 px-5 backdrop-blur-[2px]" role="status" aria-live="polite">
+            <div className="flex max-w-sm flex-col items-center rounded-2xl border border-brand-primary-100 bg-white px-7 py-6 text-center shadow-2xl">
+              <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9 animate-spin text-brand-primary-600" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              <div className="mt-4 text-[14px] font-semibold text-neutral-800">Memublikasikan konfigurasi</div>
+              <p className="mt-1 text-[12px] leading-5 text-neutral-600">Data sedang dikirim ke Apps Script dan disimpan sebagai revision baru. Mohon jangan menutup halaman.</p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid min-h-0 flex-1 lg:grid-cols-[300px_minmax(0,1fr)_330px]">
           <aside className="overflow-y-auto border-r border-border-primary bg-white p-4">
@@ -281,7 +282,8 @@ export function FormConfigurationDrawer({ open, configFile, documentId, onChange
             </div>
           </aside>
         </div>
-      </div>
-    </div>
+        </div>
+      )}
+    />
   );
 }

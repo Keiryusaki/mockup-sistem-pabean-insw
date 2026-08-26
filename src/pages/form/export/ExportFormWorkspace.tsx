@@ -504,7 +504,7 @@ export function ExportFormWorkspace({ onDomainChange }: { onDomainChange: (domai
         requiresQuarantine={requiresQuarantine}
         onRequiresQuarantineChange={setRequiresQuarantine}
         quarantineDisabled={!supportsQuarantine || documentId === "EXP_ALL"}
-        technicalBadges={["Domain: Ekspor", `${resolvedSteps.length} step`, `${totalVisibleFields} field aktif`, `Mapping Workbook v${repositoryExportMapping.version}`]}
+        technicalBadges={["Domain: Ekspor", `${resolvedSteps.length} step`, `${totalVisibleFields} field aktif`, `Mapping ${activeDocumentLabel}`]}
       />
 
       <section className={`${sectionTone} p-4 pb-6 sm:p-5 sm:pb-7`}>

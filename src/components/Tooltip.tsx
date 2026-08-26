@@ -36,7 +36,7 @@ export function Tooltip({
   const tooltipClassName = useMemo(
     () =>
       [
-        "fixed z-[80] max-w-[280px] rounded-xl border border-border-primary bg-white px-3 py-2 text-left text-[11px] leading-5 text-neutral-700 shadow-xl",
+        "fixed z-[200] max-w-[280px] rounded-xl border border-border-primary bg-white px-3 py-2 text-left text-[11px] leading-5 text-neutral-700 shadow-xl",
         contentClassName ?? "",
       ].join(" "),
     [contentClassName],
