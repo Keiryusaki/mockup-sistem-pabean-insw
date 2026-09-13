@@ -1,716 +1,288 @@
-import { createPortal } from "react-dom";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Viewer, Worker } from "@react-pdf-viewer/core";
-import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../../components/Button";
-import {
-  ACTIVITY_OPTIONS,
-  ANALYSIS_CHECKLIST,
-  INITIAL_PROMPT,
-  STEP_LABELS,
-  TRIAGE_QUESTION,
-  buildAiDraftFromAnalysis,
-  getActivityLabel,
-  getAnalysisResult,
-  getAnswerLabel,
-  getBranchChoice,
-  getQuestionFlow,
-  toSubmissionDraft,
-  type ActivityChoice,
-  type AiDraft,
-  type AiSubmissionDraft,
-  type ConversationMessage,
-  type FlowQuestion,
-  type WizardStep,
-} from "./aiWizardData";
-import {
-  buildUploadNotice,
-  createDefaultOcrSlots,
-  createUploadSlot,
-  OCR_UPLOAD_DEFAULTS,
-  type UploadSlot,
-} from "./submissionLauncherData";
-import { ParsingReviewSection, type ParsingReviewRow } from "./ParsingReviewSection";
-import { useAiWizardSession } from "./useAiWizardSession";
+import { Select } from "../../components/FormControls";
+import { STEP_LABELS, type AiSubmissionDraft, type UserScope, type WizardStep } from "./aiWizardData";
 import { ModalCancelButton } from "./SubmissionModalShared";
 
-type AiWizardSnapshot = {
-  stage: WizardStep;
-  selectedActivity: ActivityChoice | null;
-  branchActivity: Exclude<ActivityChoice, "tidak_yakin"> | null;
-  questionIndex: number;
-  answers: Record<string, string | string[]>;
-  messages: ConversationMessage[];
-  analysisReady: boolean;
-  docSelection: string[];
-  pdfStatus: "loading" | "ready" | "missing";
-  pdfRevision: number;
+type UploadFileState = { selected: string | null; uploaded: string | null };
+type DataPhase = "excel" | "excel-result" | "ocr-upload" | "ocr-result";
+type PermitChoice = "existing" | "manual" | "skipped" | null;
+type ConversationEntry = { role: "assistant" | "user"; text: string };
+type AssistantState = {
+  userScope: UserScope;
+  identificationAnswers: Record<string, string>;
+  identifiedSubmissionType: string | null;
+  excel: { skipped: boolean; file: UploadFileState; parsed: boolean };
+  ocr: { files: Record<string, UploadFileState>; hsCodes: Record<string, string> };
+  permits: { choice: PermitChoice; selected: string[] | string | null; manual: Record<string, string> };
+  attachments: Record<string, UploadFileState>;
 };
 
-const AI_DRAFT_STORAGE_KEY = "insw-ai-submission-draft";
-const AI_WIZARD_STORAGE_KEY = "insw-smart-submission-assistant-draft";
-const BASE_URL = (((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/$/, "") || "/");
-const SAMPLE_DRAFT_PDF = `${BASE_URL}/sample-smart-draft.pdf`;
-const PDF_WORKER_URL = pdfWorkerUrl;
+const USER_SCOPE: UserScope = {
+  allowedFlow: "EXPORT",
+  allowedDocuments: ["BC 2.3", "BC 2.7"],
+  companyName: "PT Contoh Nusantara",
+  npwp: "01.234.567.8-999.000",
+  nib: "1234567890123",
+};
+const EMPTY_FILE: UploadFileState = { selected: null, uploaded: null };
+const GOODS = [
+  { seri: "1", name: "Laptop Computer", hs: "8471.30.10", qty: "10", unit: "PCE", permit: true },
+  { seri: "2", name: "AC/DC Power Adapter", hs: "8504.40.90", qty: "10", unit: "PCE", permit: false },
+];
+const SOURCE_DOCUMENTS = [
+  { id: "invoice", label: "Invoice", required: true },
+  { id: "packing-list", label: "Packing List", required: true },
+  { id: "bill-of-lading", label: "Bill of Lading", required: false },
+];
+const ATTACHMENT_DOCUMENTS = [
+  ...SOURCE_DOCUMENTS.map((item) => ({ ...item, required: true })),
+  { id: "coo", label: "Certificate of Origin (COO)", required: false },
+  { id: "support", label: "Dokumen pendukung lain", required: false },
+];
+const PERMIT_GROUPS = [
+  {
+    hs: "8471.30.10",
+    item: "Laptop Computer",
+    permits: [
+      { id: "pi", name: "Perizinan Elektronik", detail: "PI-ELK-2026-00881 · Aktif · Berlaku sampai 31 Desember 2026 · Kementerian Perdagangan" },
+      { id: "masterlist", name: "Masterlist Fasilitas", detail: "ML-00123 · Aktif · Berlaku sampai 30 Juni 2027 · BKPM" },
+      { id: "sni", name: "Persetujuan SNI Elektronik", detail: "SNI-2026-1138 · Aktif · Berlaku sampai 15 Mei 2027 · BSN" },
+    ],
+  },
+  {
+    hs: "8504.40.90",
+    item: "AC/DC Power Adapter",
+    permits: [{ id: "lspro", name: "Sertifikat Produk", detail: "SPPT-2026-4409 · Aktif · Berlaku sampai 8 Agustus 2027 · LSPro" }],
+  },
+];
 
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-      <path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5Z" />
-    </svg>
-  );
+function makeFiles(items: Array<{ id: string }>) {
+  return Object.fromEntries(items.map((item) => [item.id, { ...EMPTY_FILE }])) as Record<string, UploadFileState>;
 }
-
+function initialState(): AssistantState {
+  return {
+    userScope: USER_SCOPE,
+    identificationAnswers: {},
+    identifiedSubmissionType: null,
+    excel: { skipped: false, file: { ...EMPTY_FILE }, parsed: false },
+    ocr: { files: makeFiles(SOURCE_DOCUMENTS), hsCodes: {} },
+    permits: { choice: null, selected: [], manual: {} },
+    attachments: makeFiles(ATTACHMENT_DOCUMENTS),
+  };
+}
 function BotIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 fill-current">
-      <path d="M12 3.5A1.5 1.5 0 0 1 13.5 5v1H16a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-6a4 4 0 0 1 4-4h2.5V5A1.5 1.5 0 0 1 12 3.5Zm-1 3.5V6h2v1h-2Zm-2 3.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm6 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM9 15c0-1.1 1.34-2 3-2s3 .9 3 2H9Z" />
-    </svg>
-  );
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 fill-current"><path d="M12 3.5A1.5 1.5 0 0 1 13.5 5v1H16a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-6a4 4 0 0 1 4-4h2.5V5A1.5 1.5 0 0 1 12 3.5Zm-1 3.5V6h2v1h-2Zm-2 3.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm6 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM9 15c0-1.1 1.34-2 3-2s3 .9 3 2H9Z" /></svg>;
+}
+function AssistantMessage({ children }: { children: ReactNode }) {
+  return <div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600 shadow-sm"><BotIcon /></div><div className="max-w-[760px] rounded-2xl rounded-tl-md border border-border-primary bg-white px-4 py-3 text-[12px] leading-6 text-neutral-800 shadow-sm">{children}</div></div>;
+}
+function SectionCard({ eyebrow, title, description, children }: { eyebrow: string; title: string; description?: string; children: ReactNode }) {
+  return <section className="rounded-[24px] border border-border-primary bg-white p-4 shadow-sm sm:p-5"><div className="text-[11px] uppercase tracking-[0.18em] text-brand-primary-600">{eyebrow}</div><h4 className="mt-2 text-[20px] font-semibold text-neutral-800">{title}</h4>{description && <p className="mt-2 max-w-3xl text-[12px] leading-6 text-neutral-600">{description}</p>}<div className="mt-4">{children}</div></section>;
+}
+function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "success" | "warning" | "info" }) {
+  const tones = { neutral: "bg-neutral-100 text-neutral-600", success: "bg-success-50 text-success-700", warning: "bg-amber-50 text-amber-800", info: "bg-brand-primary-50 text-brand-primary-700" };
+  return <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${tones[tone]}`}>{children}</span>;
+}
+function FileRow({ label, required, value, accept, onPick, onUpload }: { label: string; required: boolean; value: UploadFileState; accept?: string; onPick: (name: string | null) => void; onUpload: () => void }) {
+  return <div className="rounded-2xl border border-border-primary bg-background-primary/25 p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-neutral-800">{label}<StatusBadge tone={required ? "warning" : "neutral"}>{required ? "Wajib" : "Pendukung"}</StatusBadge></div><div className="mt-1 text-[11px] text-neutral-500">{value.uploaded ?? value.selected ?? "Belum ada file dipilih"}</div></div><div className="flex flex-wrap items-center gap-2"><label className="cursor-pointer rounded-lg border border-brand-primary-300 bg-white px-3 py-2 text-[12px] font-semibold text-brand-primary-700 hover:bg-brand-primary-50">Pilih File<input className="sr-only" type="file" accept={accept} onChange={(event) => onPick(event.target.files?.[0]?.name ?? null)} /></label><Button variant="primary" size="sm" disabled={!value.selected || Boolean(value.uploaded)} onClick={onUpload}>Upload</Button>{value.uploaded && <StatusBadge tone="success">Berhasil</StatusBadge>}</div></div></div>;
+}
+function ChoiceButton({ selected, title, description, onClick }: { selected?: boolean; title: string; description?: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary-300 ${selected ? "border-brand-primary-500 bg-brand-primary-50" : "border-border-primary bg-white"}`}><div className="text-[14px] font-semibold text-neutral-800">{title}</div>{description && <p className="mt-2 text-[12px] leading-5 text-neutral-600">{description}</p>}</button>;
 }
 
-function FileIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 fill-current">
-      <path d="M14 2H7a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V8l-6-6Zm1 7V4.5L19.5 9H15a.5.5 0 0 1-.5-.5ZM8 12h8v1.5H8V12Zm0 3h8v1.5H8V15Z" />
-    </svg>
-  );
+function ConversationHistory({ entries, expanded, onToggle }: { entries: ConversationEntry[]; expanded: boolean; onToggle: () => void }) {
+  const visible = expanded ? entries : entries.slice(-2);
+  return <section className="rounded-2xl border border-brand-primary-100 bg-white/70 p-3 shadow-sm"><div className="mb-3 flex items-center justify-between gap-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-primary-700">Riwayat Percakapan</div>{entries.length > 2 && <button type="button" onClick={onToggle} className="text-[11px] font-semibold text-brand-primary-700">{expanded ? "Ringkas riwayat" : `Lihat ${entries.length} pesan sebelumnya`}</button>}</div><div className="space-y-2">{visible.map((entry, index) => <div key={`${entry.role}-${index}-${entry.text}`} className={`flex ${entry.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[78%] rounded-xl px-3 py-2 text-[11px] leading-5 ${entry.role === "user" ? "bg-brand-primary-500 text-white" : "border border-border-primary bg-white text-neutral-700"}`}>{entry.text}</div></div>)}</div></section>;
 }
 
-function UploadIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 fill-current">
-      <path d="M12 3 7.5 7.5l1.4 1.4L11 6.8V16h2V6.8l2.1 2.1 1.4-1.4L12 3ZM5 19h14v2H5v-2Z" />
-    </svg>
-  );
-}
+export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (draft: AiSubmissionDraft) => void }) {
+  const [stage, setStage] = useState<WizardStep>("identifikasi");
+  const [state, setState] = useState<AssistantState>(initialState);
+  const [identificationQuestion, setIdentificationQuestion] = useState(0);
+  const [dataPhase, setDataPhase] = useState<DataPhase>("excel");
+  const [permitChecking, setPermitChecking] = useState(false);
+  const [showAttachmentUpload, setShowAttachmentUpload] = useState(false);
+  const [analyzingDocuments, setAnalyzingDocuments] = useState(false);
+  const [conversation, setConversation] = useState<ConversationEntry[]>([
+    { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." },
+    { role: "assistant", text: "Apa tujuan pengiriman barang?" },
+  ]);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
+  const [openPermitGroups, setOpenPermitGroups] = useState<Record<string, boolean>>({ "8471.30.10": true, "8504.40.90": true });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const visibleSteps = STEP_LABELS.filter((item) => !state.excel.skipped || item.key !== "lampiran").slice(0, state.excel.skipped ? 4 : 5);
+  const activeStageKey = stage === "perizinan-v2" ? "perizinan" : stage;
+  const activeStepIndex = Math.max(0, visibleSteps.findIndex((item) => item.key === activeStageKey));
+  const selectedPermitIds = Array.isArray(state.permits.selected) ? state.permits.selected : state.permits.selected ? [state.permits.selected] : [];
+  const source = state.excel.skipped ? "OCR" : "Excel";
+  const selectedHs = state.excel.skipped ? Object.values(state.ocr.hsCodes) : GOODS.map((item) => item.hs);
+  const uploadedAttachments = Object.values(state.attachments).flatMap((file) => file.uploaded ? [file.uploaded] : []);
+  const uploadedSourceDocs = Object.values(state.ocr.files).flatMap((file) => file.uploaded ? [file.uploaded] : []);
+  const reviewDocuments = Array.from(new Set([...uploadedSourceDocs, ...uploadedAttachments]));
 
-function PlusSmallIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-      <path d="M11 5h2v14h-2z" />
-      <path d="M5 11h14v2H5z" />
-    </svg>
-  );
-}
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+  useEffect(() => {
+    if (open) return;
+    setStage("identifikasi");
+    setState(initialState());
+    setIdentificationQuestion(0);
+    setDataPhase("excel");
+    setPermitChecking(false);
+    setShowAttachmentUpload(false);
+    setAnalyzingDocuments(false);
+    setConversation([
+      { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." },
+      { role: "assistant", text: "Apa tujuan pengiriman barang?" },
+    ]);
+    setHistoryExpanded(true);
+  }, [open]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [stage, dataPhase, identificationQuestion, permitChecking, showAttachmentUpload]);
 
-export function AiStepModal({
-  open,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (draft: AiSubmissionDraft) => void;
-}) {
-  const {
-    stage,
-    selectedActivity,
-    branchActivity,
-    questionIndex,
-    answers,
-    messages,
-    analysisReady,
-    docSelection,
-    excelSlot,
-    ocrSlots,
-    customCounter,
-    selectedParseRow,
-    parseRevision,
-    pdfStatus,
-    pdfRevision,
-    previewOpen,
-    dismissConfirmOpen,
-    scrollContainerRef,
-    draftPdfUrl,
-    renderPdfToolbar,
-    uploadedFiles,
-    activeQuestion,
-    analysis,
-    requiredDocuments,
-    requiredDocumentsKey,
-    smartDraft,
-    stepIndex,
-    parseSources,
-    parseRows,
-    parseConfidence,
-    parseConfidenceLabel,
-    notice,
-    selectedParseFile,
-    setPreviewOpen,
-    setSelectedParseRow,
-    setParseRevision,
-    setDismissConfirmOpen,
-    setDocSelection,
-    setStage,
-    setPdfRevision,
-    setPdfStatus,
-    setAnswers,
-    setMessages,
-    setAnalysisReady,
-    setSelectedActivity,
-    setBranchActivity,
-    setQuestionIndex,
-    setExcelSlot,
-    setOcrSlots,
-    setCustomCounter,
-    handleSingleSelect,
-    handleMultiToggle,
-    confirmMultiSelection,
-    beginActivity,
-    handleExcelPick,
-    handleExcelUpload,
-    handleOcrPick,
-    handleOcrUpload,
-    addOcrSlot,
-    resetConversation,
-    handleDismissRequest,
-    handleConfirmExit,
-    handleContinue,
-    handleContinueToParsing,
-  } = useAiWizardSession({ open, onClose, onSubmit });
-
+  const updateFile = (area: "ocr" | "attachments", id: string, patch: Partial<UploadFileState>) => {
+    setState((current) => area === "ocr"
+      ? { ...current, ocr: { ...current.ocr, files: { ...current.ocr.files, [id]: { ...current.ocr.files[id], ...patch } } } }
+      : { ...current, attachments: { ...current.attachments, [id]: { ...current.attachments[id], ...patch } } });
+  };
+  const answerIdentification = (key: string, value: string) => {
+    setState((current) => ({ ...current, identificationAnswers: { ...current.identificationAnswers, [key]: value } }));
+    setConversation((current) => [...current, { role: "user", text: value }, { role: "assistant", text: "Siapa pihak yang mengajukan ekspor?" }]);
+    setIdentificationQuestion((current) => current + 1);
+  };
+  const finishIdentification = (value: string) => {
+    setState((current) => ({ ...current, identificationAnswers: { ...current.identificationAnswers, pelaku: value }, identifiedSubmissionType: "BC 2.7 - Pemberitahuan Ekspor Barang (PEB)" }));
+    setConversation((current) => [...current, { role: "user", text: value }, { role: "assistant", text: "Pengajuan teridentifikasi sebagai BC 2.7 - Pemberitahuan Ekspor Barang (PEB)." }]);
+    setIdentificationQuestion(2);
+  };
+  const enterPermits = () => {
+    setStage("perizinan-v2");
+    setConversation((current) => [...current, { role: "assistant", text: "HS Code tersedia. Saya akan mencocokkan kebutuhan izin dengan data INSW Anda." }]);
+    setPermitChecking(true);
+    window.setTimeout(() => setPermitChecking(false), 700);
+  };
+  const canAnalyzeOcr = uploadedSourceDocs.length > 0;
+  const canContinueOcr = GOODS.every((item) => {
+    const hs = state.ocr.hsCodes[item.seri];
+    return Boolean(hs);
+  });
+  const downloadTemplate = () => {
+    const link = document.createElement("a");
+    link.href = `${import.meta.env.BASE_URL}template-upload-barang.xlsx`;
+    link.download = "template-upload-barang.xlsx";
+    link.click();
+  };
+  const missingRequiredAttachments = ATTACHMENT_DOCUMENTS.filter((item) => item.required && !state.attachments[item.id].uploaded);
+  const canAnalyzeAttachments = uploadedAttachments.length > 0;
+  const missingRequiredOcr = SOURCE_DOCUMENTS.filter((item) => item.required && !state.ocr.files[item.id].uploaded);
+  const continueToReview = () => {
+    setAnalyzingDocuments(true);
+    window.setTimeout(() => { setAnalyzingDocuments(false); setStage("review"); }, 700);
+  };
+  const continueAfterPermits = (choice: Exclude<PermitChoice, null>) => {
+    setState((current) => ({ ...current, permits: { ...current.permits, choice } }));
+    setConversation((current) => [...current, { role: "user", text: choice === "existing" ? `${selectedPermitIds.length} perizinan terpilih` : choice === "manual" ? "Input perizinan manual" : "Lewati perizinan" }, { role: "assistant", text: state.excel.skipped ? "Dokumen OCR akan digunakan sekaligus sebagai lampiran. Silakan review hasil data." : "Apakah Anda ingin mengunggah dokumen lampiran wajib maupun pendukung?" }]);
+    setStage(state.excel.skipped ? "review" : "lampiran");
+  };
+  const submitDraft = () => {
+    const documents = Array.from(new Set([...uploadedSourceDocs, ...uploadedAttachments]));
+    onSubmit({ jenisPengajuan: state.identifiedSubmissionType ?? "BC 2.7 - Pemberitahuan Ekspor Barang (PEB)", namaPerusahaan: state.userScope.companyName, npwp: state.userScope.npwp, nib: state.userScope.nib, keterangan: `Data disiapkan melalui Smart Submission Assistant. Sumber utama: ${source}. HS Code: ${selectedHs.join(", ")}.`, dokumen: documents });
+    onClose();
+  };
+  const resetIdentification = () => { setState(initialState()); setIdentificationQuestion(0); setDataPhase("excel"); setConversation([{ role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." }, { role: "assistant", text: "Apa tujuan pengiriman barang?" }]); };
   if (!open) return null;
 
-  const renderMessage = (message: ConversationMessage, index: number) =>
-    message.role === "assistant" ? (
-      <div key={`${message.role}-${index}`} className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600 shadow-sm">
-          <BotIcon />
-        </div>
-        <div className="max-w-[680px] rounded-2xl rounded-tl-md border border-border-primary bg-white px-4 py-3 text-[12px] leading-6 text-neutral-800 shadow-sm">
-          {message.text}
-        </div>
-      </div>
-    ) : (
-      <div key={`${message.role}-${index}`} className="flex justify-end">
-        <div className="max-w-[680px] rounded-2xl rounded-tr-md bg-brand-primary-500 px-4 py-3 text-[12px] leading-6 text-white shadow-sm">
-          {message.text}
-        </div>
-      </div>
-    );
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6"><div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-3rem)]">
+    <header className="border-b border-border-primary bg-white px-5 py-5 sm:px-8"><h3 className="text-[24px] font-semibold text-neutral-800">Smart Submission Assistant</h3><p className="mt-1 text-[12px] text-neutral-600 sm:text-[13px]">Asisten terpandu untuk menyiapkan data pengajuan berdasarkan akses dan dokumen Anda.</p><div className={`mt-6 grid gap-1 sm:gap-3 ${state.excel.skipped ? "grid-cols-4" : "grid-cols-5"}`}>{visibleSteps.map((step, index) => { const active = index === activeStepIndex; const done = index < activeStepIndex; return <div key={step.key} className="relative flex min-w-0 flex-col items-center">{index < visibleSteps.length - 1 && <div className="absolute left-1/2 top-4 h-px w-full bg-border-primary" />}<div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold sm:h-10 sm:w-10 ${active || done ? "border-brand-primary-500 bg-brand-primary-500 text-white" : "border-border-primary bg-white text-neutral-500"}`}>{done ? "✓" : step.icon}</div><div className={`mt-2 truncate text-center text-[9px] font-medium sm:text-[11px] ${active || done ? "text-brand-primary-700" : "text-neutral-500"}`}>{step.label}</div></div>; })}</div></header>
+    <main ref={scrollRef} className="flex-1 overflow-y-auto bg-gradient-to-b from-brand-primary-50 to-brand-primary-100/60 px-4 py-5 sm:px-8"><div className="space-y-4">
+      <ConversationHistory entries={conversation} expanded={historyExpanded} onToggle={() => setHistoryExpanded((current) => !current)} />
+      {stage === "data-barang" && dataPhase === "ocr-upload" && canAnalyzeOcr && missingRequiredOcr.length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">Beberapa dokumen wajib belum diunggah. Anda tetap dapat melanjutkan dan melengkapinya pada Form Pengajuan.</div>}
+      {stage === "lampiran" && showAttachmentUpload && canAnalyzeAttachments && missingRequiredAttachments.length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">Beberapa dokumen wajib belum diunggah. Anda tetap dapat melanjutkan dan melengkapinya pada Form Pengajuan.</div>}
+      {stage === "review" && reviewDocuments.length > 0 && <SectionCard eyebrow="Dokumen Digunakan" title={state.excel.skipped ? "Dokumen OCR sekaligus menjadi lampiran" : "Dokumen lampiran hasil analisis"} description={state.excel.skipped ? "File berikut dipakai sebagai sumber identifikasi barang dan tidak perlu diunggah ulang." : "Excel tetap menjadi sumber utama; dokumen digunakan untuk validasi dan pelengkap."}><div className="flex flex-wrap gap-2">{reviewDocuments.map((file) => <StatusBadge key={file} tone="success">{file}</StatusBadge>)}</div></SectionCard>}
+      {stage === "perizinan-v2" && <>
+        <AssistantMessage>Saya memeriksa HS Code, regulasi terkait, dan perizinan yang telah terdaftar pada akun INSW Anda.</AssistantMessage>
+        {permitChecking ? <SectionCard eyebrow="Identifikasi Perizinan" title="Mencocokkan perizinan user…"><div className="space-y-2 text-[12px] text-neutral-700"><div>✓ Memeriksa HS Code</div><div>✓ Mengidentifikasi regulasi</div><div className="animate-pulse">● Mencocokkan perizinan user</div></div></SectionCard> : <SectionCard eyebrow="Hasil Perizinan" title="Perizinan dikelompokkan berdasarkan HS Code" description={`${selectedPermitIds.length} dari ${PERMIT_GROUPS.reduce((total, group) => total + group.permits.length, 0)} perizinan dipilih`}>
+          <div className="max-h-[390px] space-y-3 overflow-y-auto pr-1">{PERMIT_GROUPS.map((group) => {
+            const selectedInGroup = group.permits.filter((permit) => selectedPermitIds.includes(permit.id)).length;
+            const opened = openPermitGroups[group.hs] ?? false;
+            return <div key={group.hs} className="overflow-hidden rounded-2xl border border-border-primary"><button type="button" onClick={() => setOpenPermitGroups((current) => ({ ...current, [group.hs]: !opened }))} className="flex w-full items-center justify-between gap-3 bg-background-primary/35 px-4 py-3 text-left"><div><div className="text-[13px] font-semibold text-neutral-800">HS {group.hs} — {group.item}</div><div className="mt-1 text-[11px] text-neutral-500">{group.permits.length} perizinan ditemukan · {selectedInGroup} dipilih</div></div><span className="text-brand-primary-700">{opened ? "▴" : "▾"}</span></button>{opened && <div className="space-y-2 p-3">{group.permits.map((permit) => { const checked = selectedPermitIds.includes(permit.id); return <label key={permit.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${checked ? "border-brand-primary-400 bg-brand-primary-50" : "border-border-primary bg-white"}`}><input type="checkbox" checked={checked} onChange={() => setState((current) => { const selected = Array.isArray(current.permits.selected) ? current.permits.selected : []; return { ...current, permits: { ...current.permits, selected: checked ? selected.filter((id) => id !== permit.id) : [...selected, permit.id], choice: null } }; })} className="mt-1 h-4 w-4 accent-blue-700" /><span><span className="block text-[13px] font-semibold text-neutral-800">{permit.name}</span><span className="mt-1 block text-[11px] leading-5 text-neutral-600">{permit.detail}</span></span></label>; })}</div>}</div>;
+          })}</div>
+          {state.permits.choice === "manual" && <ManualPermit state={state.permits.manual} onChange={(key, value) => setState((current) => ({ ...current, permits: { ...current.permits, manual: { ...current.permits.manual, [key]: value } } }))} />}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><StatusBadge tone="info">{selectedPermitIds.length} perizinan dipilih</StatusBadge><div className="flex flex-wrap gap-3"><Button variant="outline" size="sm" onClick={() => continueAfterPermits("skipped")}>Lewati</Button><Button variant="outline" size="sm" onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, choice: "manual" } }))}>Input Manual</Button>{state.permits.choice === "manual" ? <Button variant="primary" size="sm" onClick={() => continueAfterPermits("manual")}>Simpan dan Lanjut</Button> : <Button variant="primary" size="sm" disabled={!selectedPermitIds.length} onClick={() => continueAfterPermits("existing")}>Gunakan Perizinan Terpilih</Button>}</div></div>
+        </SectionCard>}
+      </>}
+      {stage === "identifikasi" && <>
+        <AssistantMessage>Halo! Akses SSO Anda sudah dikenali. Saya hanya akan menampilkan pilihan pengajuan yang sesuai dengan scope akun.</AssistantMessage>
+        <div className="rounded-2xl border border-brand-primary-100 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Scope dari SSO</div><div className="mt-1 text-[14px] font-semibold text-neutral-800">Pengeluaran / Ekspor</div></div><div className="flex gap-2">{state.userScope.allowedDocuments.map((item) => <StatusBadge key={item} tone="info">{item}</StatusBadge>)}</div></div></div>
+        {identificationQuestion === 0 && <SectionCard eyebrow="Pertanyaan Identifikasi" title="Apa tujuan pengiriman barang?" description="Pilihan pemasukan tidak ditampilkan karena tidak termasuk scope akun Anda."><div className="grid gap-3 md:grid-cols-3">{["Penjualan", "Sample / Pameran", "Perbaikan / Pengembalian"].map((item) => <ChoiceButton key={item} title={item} onClick={() => answerIdentification("tujuan", item)} />)}</div></SectionCard>}
+        {identificationQuestion === 1 && <SectionCard eyebrow="Pertanyaan Identifikasi" title="Siapa pihak yang mengajukan ekspor?"><div className="grid gap-3 md:grid-cols-3">{["Eksportir sendiri", "PPJK mewakili eksportir", "Instansi pemerintah"].map((item) => <ChoiceButton key={item} title={item} onClick={() => finishIdentification(item)} />)}</div></SectionCard>}
+        {identificationQuestion >= 2 && state.identifiedSubmissionType && <SectionCard eyebrow="Hasil Identifikasi" title={state.identifiedSubmissionType} description="Jenis pengajuan disimpulkan dari scope SSO dan jawaban yang Anda berikan."><div className="grid gap-3 md:grid-cols-2"><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Ringkasan jawaban</b><br />Tujuan: {state.identificationAnswers.tujuan}<br />Pengaju: {state.identificationAnswers.pelaku}</div><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Dokumen yang mungkin diperlukan</b><br />Invoice, Packing List, Bill of Lading, dan dokumen perizinan terkait.</div></div><div className="mt-4 flex justify-end gap-3"><Button variant="outline" size="sm" onClick={resetIdentification}>Ubah Jawaban</Button><Button variant="primary" size="sm" onClick={() => setStage("data-barang")}>Lanjut ke Data Barang</Button></div></SectionCard>}
+      </>}
 
-  const uploadStatusTone =
-    excelSlot.status === "uploaded"
-      ? "bg-success-50 text-success-700"
-      : excelSlot.status === "picked"
-        ? "bg-brand-primary-50 text-brand-primary-700"
-        : excelSlot.status === "failed"
-          ? "bg-error-50 text-error-700"
-          : "bg-neutral-100 text-neutral-500";
-  const uploadStatusLabel =
-    excelSlot.status === "uploaded" ? "Uploaded" : excelSlot.status === "picked" ? "Dipilih" : excelSlot.status === "failed" ? "Gagal" : "Belum dipilih";
-  const selectedUploadSlots = [excelSlot, ...ocrSlots].filter((slot) => slot.status !== "empty");
-  const hasPendingUploads = selectedUploadSlots.some((slot) => slot.status === "picked" || slot.status === "failed");
-  const canContinueToParsing = selectedUploadSlots.length > 0 && selectedUploadSlots.every((slot) => slot.status === "uploaded") && !hasPendingUploads;
+      {stage === "data-barang" && dataPhase === "excel" && <><AssistantMessage>Unggah Excel sebagai sumber utama data barang. Jika tidak tersedia, Anda dapat menggunakan dokumen untuk identifikasi barang.</AssistantMessage><SectionCard eyebrow="Data Barang" title="Upload Excel Data Barang" description="Gunakan template Excel data barang untuk mempercepat pengisian dan pemetaan data."><FileRow label="Template data barang" required value={state.excel.file} accept=".xls,.xlsx" onPick={(name) => setState((current) => ({ ...current, excel: { ...current.excel, file: { selected: name, uploaded: null } } }))} onUpload={() => setState((current) => ({ ...current, excel: { ...current.excel, file: { ...current.excel.file, uploaded: current.excel.file.selected } } }))} /><div className="mt-4 flex flex-wrap justify-between gap-3"><Button variant="outline" size="sm" onClick={downloadTemplate}>Download Template</Button><div className="flex gap-3"><Button variant="outline" size="sm" onClick={() => { setState((current) => ({ ...current, excel: { ...current.excel, skipped: true } })); setDataPhase("ocr-upload"); }}>Lewati Upload Excel</Button><Button variant="primary" size="sm" disabled={!state.excel.file.uploaded} onClick={() => { setState((current) => ({ ...current, excel: { ...current.excel, parsed: true } })); setDataPhase("excel-result"); }}>Analisis Data Barang</Button></div></div></SectionCard></>}
+      {stage === "data-barang" && dataPhase === "excel-result" && <><AssistantMessage>File selesai dibaca, struktur tervalidasi, dan field data barang sudah dipetakan.</AssistantMessage><SectionCard eyebrow="Analisis Data Barang" title="Hasil Analisis Data Barang" description="2 barang dan 12 field berhasil terbaca dari Excel. Satu HS Code terindikasi memiliki perizinan terkait."><div className="mb-4 flex flex-wrap gap-2">{["Membaca file", "Validasi struktur", "Parsing data", "Mapping field"].map((item) => <StatusBadge key={item} tone="success">{item} ✓</StatusBadge>)}</div><GoodsTable source="Excel" review={false} hsCodes={{}} onHsChange={() => undefined} /></SectionCard><SectionCard eyebrow="Validasi HS Code" title="HS Code dan indikasi perizinan"><div className="space-y-2">{GOODS.map((item) => <div key={item.seri} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-primary p-4 text-[12px]"><div><b>Seri {item.seri} · {item.name}</b><div className="mt-1 text-neutral-600">HS {item.hs}</div></div><StatusBadge tone={item.permit ? "warning" : "success"}>{item.permit ? "Perizinan terdeteksi" : "Tidak ada indikasi izin"}</StatusBadge></div>)}</div><div className="mt-4 flex justify-end"><Button variant="primary" size="sm" onClick={enterPermits}>Lanjut Identifikasi Perizinan</Button></div></SectionCard></>}
+      {stage === "data-barang" && dataPhase === "ocr-upload" && <><AssistantMessage>Excel dilewati. Unggah dokumen agar OCR dapat mengidentifikasi barang dan menyiapkan kandidat HS Code.</AssistantMessage><SectionCard eyebrow="Identifikasi Barang" title="Upload Dokumen untuk Identifikasi Barang" description="Format yang didukung pada mockup: PDF, JPG, dan PNG."><div className="space-y-3">{SOURCE_DOCUMENTS.map((item) => <FileRow key={item.id} label={item.label} required={item.required} value={state.ocr.files[item.id]} accept=".pdf,.jpg,.jpeg,.png" onPick={(name) => updateFile("ocr", item.id, { selected: name, uploaded: null })} onUpload={() => updateFile("ocr", item.id, { uploaded: state.ocr.files[item.id].selected })} />)}</div><div className="mt-4 flex justify-end"><Button variant="primary" size="sm" disabled={!canAnalyzeOcr} onClick={() => setDataPhase("ocr-result")}>Analisis Dokumen</Button></div></SectionCard></>}
+      {stage === "data-barang" && dataPhase === "ocr-result" && <><AssistantMessage>Dokumen selesai dibaca. Pilih atau konfirmasi HS Code untuk setiap barang sebelum melanjutkan.</AssistantMessage><SectionCard eyebrow="Barang Terdeteksi" title="Rekomendasi HS Code" description="Rekomendasi AI membantu pencarian dan bukan keputusan klasifikasi final."><GoodsTable source={uploadedSourceDocs[0] ?? "Invoice.pdf"} review hsCodes={state.ocr.hsCodes} onHsChange={(seri, hs) => setState((current) => ({ ...current, ocr: { ...current.ocr, hsCodes: { ...current.ocr.hsCodes, [seri]: hs } } }))} /><div className="mt-4 flex justify-end"><Button variant="primary" size="sm" disabled={!canContinueOcr} onClick={enterPermits}>Lanjut Identifikasi Perizinan</Button></div></SectionCard></>}
 
+      {stage === "perizinan" && <><AssistantMessage>Saya memeriksa HS Code, regulasi terkait, dan perizinan yang telah terdaftar pada akun INSW Anda.</AssistantMessage>{permitChecking ? <SectionCard eyebrow="Identifikasi Perizinan" title="Mencocokkan perizinan user…"><div className="space-y-2 text-[12px] text-neutral-700"><div>✓ Memeriksa HS Code</div><div>✓ Mengidentifikasi regulasi</div><div className="animate-pulse">● Mencocokkan perizinan user</div></div></SectionCard> : <SectionCard eyebrow="Hasil Perizinan" title="2 perizinan ditemukan" description="HS 8471.30.10 · Laptop Computer"><div className="grid gap-3 md:grid-cols-2">{[{ id: "pi", name: "Perizinan Elektronik", detail: "PI-ELK-2026-00881 · Aktif · Berlaku sampai 31 Desember 2026 · Kementerian Perdagangan" }, { id: "masterlist", name: "Masterlist Fasilitas", detail: "ML-00123 · Aktif · Berlaku sampai 30 Juni 2027 · BKPM" }].map((permit) => <ChoiceButton key={permit.id} selected={state.permits.selected === permit.id} title={permit.name} description={permit.detail} onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, selected: permit.id } }))} />)}</div>{state.permits.choice === "manual" && <ManualPermit state={state.permits.manual} onChange={(key, value) => setState((current) => ({ ...current, permits: { ...current.permits, manual: { ...current.permits.manual, [key]: value } } }))} />}<div className="mt-4 flex flex-wrap justify-end gap-3"><Button variant="outline" size="sm" onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, choice: "skipped", selected: null } }))}>Lewati</Button><Button variant="outline" size="sm" onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, choice: "manual", selected: null } }))}>Input Manual</Button><Button variant="primary" size="sm" disabled={!state.permits.selected && state.permits.choice !== "manual" && state.permits.choice !== "skipped"} onClick={() => { setState((current) => ({ ...current, permits: { ...current.permits, choice: current.permits.choice ?? "existing" } })); setStage("lampiran"); }}>Lanjut ke Dokumen Lampiran</Button></div>{state.permits.choice === "skipped" && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">Perizinan terindikasi relevan. Pastikan kelengkapannya ditinjau kembali sebelum submit.</div>}</SectionCard>}</>}
+
+      {stage === "lampiran" && <><AssistantMessage>Apakah Anda ingin mengunggah dokumen lampiran wajib maupun pendukung?</AssistantMessage>{!showAttachmentUpload ? <SectionCard eyebrow="Dokumen Lampiran" title="Lengkapi dokumen pengajuan" description="Dokumen akan dianalisis dan dipetakan tanpa menimpa data Excel secara otomatis."><div className="flex justify-end gap-3"><Button variant="outline" size="sm" onClick={() => setStage("review")}>Lewati</Button><Button variant="primary" size="sm" onClick={() => setShowAttachmentUpload(true)}>Upload Dokumen</Button></div></SectionCard> : <SectionCard eyebrow="Dokumen Lampiran" title="Dokumen Wajib dan Pendukung"><div className="space-y-3">{ATTACHMENT_DOCUMENTS.map((item) => <FileRow key={item.id} label={item.label} required={item.required} value={state.attachments[item.id]} accept=".pdf,.jpg,.jpeg,.png" onPick={(name) => updateFile("attachments", item.id, { selected: name, uploaded: null })} onUpload={() => updateFile("attachments", item.id, { uploaded: state.attachments[item.id].selected })} />)}</div>{analyzingDocuments && <div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50 p-3 text-[12px] text-brand-primary-700">OCR dokumen → Parsing data → Mapping field → {source === "Excel" ? "Cross-check dengan Excel" : "Normalisasi hasil OCR"}</div>}<div className="mt-4 flex justify-end"><Button variant="primary" size="sm" disabled={!canAnalyzeAttachments || analyzingDocuments} onClick={continueToReview}>Lanjut ke Analisis Dokumen</Button></div></SectionCard>}</>}
+
+      {stage === "review" && <><AssistantMessage>Semua sumber sudah dinormalisasi. Tinjau hasil mapping sebelum data diteruskan untuk mengisi Form Pengajuan.</AssistantMessage><SectionCard eyebrow="Review Data" title="Ringkasan Hasil"><div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">{[["Barang", 2], ["HS Code", 2], ["Perizinan", state.permits.choice === "existing" ? selectedPermitIds.length : state.permits.choice === "manual" ? 1 : 0], ["Dokumen", uploadedAttachments.length + uploadedSourceDocs.length], ["Field dipetakan", 18], ["Perlu ditinjau", state.excel.skipped ? 2 : 1]].map(([label, value]) => <div key={label} className="rounded-2xl border border-border-primary p-3"><div className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</div><div className="mt-2 text-[22px] font-semibold text-neutral-800">{value}</div></div>)}</div></SectionCard><SectionCard eyebrow="Hasil Mapping" title="Normalized data siap diteruskan"><FinalTable source={source} permit={state.permits.choice === "existing" ? `${selectedPermitIds.length} izin terpilih` : state.permits.choice === "manual" ? "Input manual" : "Belum dipilih"} documents={uploadedAttachments.length + uploadedSourceDocs.length} hsCodes={state.ocr.hsCodes} /><div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50 p-3 text-[12px] leading-5 text-brand-primary-800">Data berikut akan diisi otomatis berdasarkan hasil Smart Submission Assistant. Pengguna tetap dapat melakukan koreksi sebelum submit.</div><div className="mt-4 flex flex-wrap justify-end gap-3"><Button variant="outline" size="sm" onClick={() => setStage("data-barang")}>Kembali Periksa Data</Button><Button variant="primary" size="sm" onClick={submitDraft}>Lanjut ke Form Pengajuan</Button></div></SectionCard></>}
+    </div></main>
+    <footer className="border-t border-border-primary bg-[#f8fbff] px-5 py-4 sm:px-8"><div className="flex items-center justify-between gap-3"><span className="text-[12px] text-neutral-600">Data Anda aman dan hanya digunakan untuk keperluan pengajuan.</span><ModalCancelButton onClick={onClose} /></div></footer>
+  </div></div>;
+}
+
+function GoodsTable({ source, review, hsCodes, onHsChange }: { source: string; review: boolean; hsCodes: Record<string, string>; onHsChange: (seri: string, hs: string) => void }) {
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
-        <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-3rem)]">
-          <div className="border-b border-border-primary px-5 py-5 sm:px-8">
-            <div className="flex items-start gap-3 pr-12">
-              <div className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-500">
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v6h5v2h-7V7h2Z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-[24px] font-semibold text-neutral-800">Smart Submission Assistant</h3>
-                <p className="mt-1 max-w-2xl text-[12px] text-neutral-600 sm:text-[13px]">
-                  Asisten cerdas untuk membantu Anda menentukan jenis pengajuan yang tepat.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
-              {STEP_LABELS.map((step, index) => {
-                const active = index === stepIndex;
-                const done = index < stepIndex;
-                return (
-                  <div key={step.key} className="relative flex flex-col items-center">
-                    {index < STEP_LABELS.length - 1 && <div className="absolute left-1/2 top-5 h-px w-[calc(100%+0.75rem)] bg-border-primary" />}
-                    <div className={["relative z-10 flex h-10 w-10 items-center justify-center rounded-full border text-[12px] font-semibold", active || done ? "border-brand-primary-500 bg-brand-primary-500 text-white" : "border-border-primary bg-white text-neutral-500"].join(" ")}>
-                      {done ? "✓" : step.icon}
-                    </div>
-                    <div className={["mt-2 text-center text-[11px] font-medium sm:text-[12px]", active || done ? "text-brand-primary-700" : "text-neutral-500"].join(" ")}>
-                      {step.label}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto bg-gradient-to-b from-brand-primary-50 to-brand-primary-100/60 px-4 py-5 sm:px-8"
-          >
-            <div className="flex flex-col gap-4">
-              {messages.map(renderMessage)}
-
-              {stage === "identifikasi" && !analysisReady && !activeQuestion && (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {ACTIVITY_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => beginActivity(option.key)}
-                      className="group rounded-2xl border border-border-primary bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-primary-300 hover:shadow-md"
-                    >
-                      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary-50 text-brand-primary-500 transition-colors group-hover:bg-brand-primary-500 group-hover:text-white">
-                        <PlusSmallIcon />
-                      </div>
-                      <div className="mt-4 text-[14px] font-semibold text-neutral-800">{option.title}</div>
-                      <p className="mt-2 text-[12px] leading-5 text-neutral-600">{option.description}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {stage === "identifikasi" && !analysisReady && activeQuestion && (
-                <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">
-                    {selectedActivity === "tidak_yakin" && !branchActivity ? "Triage Identifikasi" : "Pertanyaan Identifikasi"}
-                  </div>
-                  <div className="mt-2 text-[14px] font-semibold text-neutral-800">{activeQuestion.prompt}</div>
-
-                  {!activeQuestion.multi ? (
-                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {activeQuestion.options.map((option) => (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => handleSingleSelect(option.key)}
-                          className="rounded-2xl border border-border-primary bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-primary-300 hover:shadow-md"
-                        >
-                          <div className="text-[14px] font-semibold text-neutral-800">{option.label}</div>
-                          {option.description && <div className="mt-2 text-[12px] leading-5 text-neutral-600">{option.description}</div>}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {activeQuestion.options.map((option) => {
-                          const selected = docSelection.includes(option.key);
-                          return (
-                            <button
-                              key={option.key}
-                              type="button"
-                              onClick={() => handleMultiToggle(option.key)}
-                              className={["rounded-2xl border p-4 text-left shadow-sm transition-all", selected ? "border-brand-primary-500 bg-brand-primary-50" : "border-border-primary bg-white hover:-translate-y-0.5 hover:border-brand-primary-300 hover:shadow-md"].join(" ")}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="text-[14px] font-semibold text-neutral-800">{option.label}</div>
-                                <div className={["inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-semibold", selected ? "border-brand-primary-500 bg-brand-primary-500 text-white" : "border-border-primary text-transparent"].join(" ")}>
-                                  ✓
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-                        <Button variant="outline" size="sm" onClick={() => setDocSelection([])}>
-                          Reset Pilihan
-                        </Button>
-                        <Button variant="primary" size="sm" onClick={confirmMultiSelection}>
-                          Lanjut
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {stage === "identifikasi" && analysisReady && analysis && (
-                <div className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-                  <div className="flex items-start justify-between gap-4 border-b border-border-primary pb-4">
+    <div className="overflow-x-auto rounded-2xl border border-border-primary">
+      <table className="min-w-full text-left text-[12px]">
+        <thead className="bg-background-primary/50 text-neutral-600">
+          <tr>{["Seri", "Uraian Barang", "HS Code", "Qty", "Satuan", "Sumber Data", "Status Mapping"].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}</tr>
+        </thead>
+        <tbody>
+          {GOODS.map((item) => {
+            const hs = hsCodes[item.seri] ?? "";
+            const alternativeHs = item.seri === "1" ? "8471.30.90" : "8504.40.19";
+            return (
+              <tr key={item.seri} className="border-t border-border-primary">
+                <td className="px-4 py-3 font-semibold">{item.seri}</td>
+                <td className="px-4 py-3">{item.name}</td>
+                <td className="min-w-[240px] px-4 py-3">
+                  {review ? (
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Analisis Identifikasi</div>
-                      <h4 className="mt-1 text-[18px] font-semibold text-neutral-800">{analysis.jenisPengajuan}</h4>
-                      <p className="mt-2 max-w-3xl text-[12px] leading-6 text-neutral-700">{analysis.rekomendasi}</p>
+                      <StatusBadge tone="info">Rekomendasi AI</StatusBadge>
+                      <Select
+                        className="mt-2"
+                        value={hs}
+                        placeholder="Pilih HS Code"
+                        options={[{ label: item.hs, value: item.hs }, { label: alternativeHs, value: alternativeHs }]}
+                        onValueChange={(value) => onHsChange(item.seri, value)}
+                      />
                     </div>
-                    <div className="rounded-full bg-brand-primary-50 px-3 py-1 text-[12px] font-semibold text-brand-primary-600">
-                      Selesai
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-                    <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Progress Analisis</div>
-                      <div className="mt-3 space-y-2">
-                        {ANALYSIS_CHECKLIST.map((item) => (
-                          <div key={item} className="flex items-center gap-2 text-[12px] text-neutral-800">
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-300/25 text-success-600">
-                              ✓
-                            </span>
-                            <span>{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border-primary bg-background-primary/50 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Ringkasan Identifikasi</div>
-                      <div className="mt-2 text-[12px] leading-6 text-neutral-800">{analysis.ringkasan}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-brand-primary-100 bg-brand-primary-50/50 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-brand-primary-600">Dokumen yang perlu diunggah</div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {requiredDocuments.map((document) => (
-                        <span key={document} className="rounded-full border border-brand-primary-100 bg-white px-3 py-1 text-[12px] font-medium text-brand-primary-700">
-                          {document}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-                    <Button variant="outline" size="sm" onClick={resetConversation}>
-                      Ubah Jawaban
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleContinue}>
-                      Lewati Upload Dokumen
-                    </Button>
-                    <Button variant="primary" size="sm" onClick={() => setStage("dokumen")}>
-                      Lanjut ke Upload Dokumen
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {stage === "dokumen" && (
-                <div className="space-y-4">
-                  <section className="rounded-[24px] border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-[12px] uppercase tracking-[0.18em] text-brand-primary-600">Upload Data Barang</div>
-                        <div className="mt-2 text-[20px] font-semibold text-neutral-800">Pilih file Excel untuk data barang</div>
-                      </div>
-                      <div className={["rounded-full px-3 py-1 text-[12px] font-semibold", uploadStatusTone].join(" ")}>{uploadStatusLabel}</div>
-                    </div>
-
-                    <div className="my-4 border-t border-border-primary" />
-
-                    <div
-                      className="rounded-[24px] border border-dashed border-border-primary bg-background-primary/20 p-4 sm:p-5"
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const file = event.dataTransfer.files?.[0] ?? null;
-                        if (file) handleExcelPick(file);
-                      }}
-                    >
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-start gap-4">
-                          <div className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-background-primary text-brand-primary-600">
-                            <UploadIcon />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[18px] font-semibold text-neutral-800">Upload Data Barang</div>
-                            <p className="mt-1 max-w-3xl text-[12px] leading-5 text-neutral-600">
-                              File Excel digunakan sebagai sumber data utama untuk pengisian barang secara langsung.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                          <div>
-                            <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Selected file</div>
-                            <div className="mt-1 text-[14px] font-semibold text-neutral-800">{excelSlot.selectedFile ?? "Belum ada file"}</div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button variant="outline" size="sm" asChild>
-                              <label className="cursor-pointer">
-                                Pilih File
-                                <input
-                                  className="hidden"
-                                  type="file"
-                                  accept=".xlsx,.xls"
-                                  onChange={(event) => handleExcelPick(event.target.files?.[0] ?? null)}
-                                />
-                              </label>
-                            </Button>
-                            <Button variant="primary" size="sm" onClick={handleExcelUpload} disabled={!excelSlot.selectedFile}>
-                              Upload
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="rounded-[24px] border border-border-primary bg-white p-4 shadow-sm sm:p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-[12px] uppercase tracking-[0.18em] text-brand-primary-600">Upload OCR</div>
-                        <div className="mt-2 text-[20px] font-semibold text-neutral-800">Upload dokumen dasar satu per satu</div>
-                      </div>
-                    </div>
-
-                    <div className="my-4 border-t border-border-primary" />
-
-                    <div className="space-y-3">
-                      {ocrSlots.map((slot) => {
-                        const inputId = `ai-ocr-upload-${slot.id}`;
-                        const slotStatusTone =
-                          slot.status === "uploaded"
-                            ? "bg-success-50 text-success-700"
-                            : slot.status === "picked"
-                              ? "bg-brand-primary-50 text-brand-primary-700"
-                              : slot.status === "failed"
-                                ? "bg-error-50 text-error-700"
-                                : "bg-neutral-100 text-neutral-500";
-                        const slotStatusLabel = slot.status === "uploaded" ? "Uploaded" : slot.status === "picked" ? "Dipilih" : slot.status === "failed" ? "Gagal" : "Belum dipilih";
-
-                        return (
-                          <div
-                            key={slot.id}
-                            className="rounded-[20px] border border-border-primary bg-white p-4 shadow-sm"
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const file = event.dataTransfer.files?.[0] ?? null;
-                              if (file) handleOcrPick(slot.id, file);
-                            }}
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-background-primary text-brand-primary-600">
-                                    <FileIcon />
-                                  </div>
-                                  <div>
-                                    <div className="text-[13px] font-semibold text-neutral-800">{slot.label}</div>
-                                    <div className="mt-1 text-[12px] leading-5 text-neutral-600">{slot.description}</div>
-                                  </div>
-                                  {slot.required ? (
-                                    <span className="rounded-full bg-error-50 px-2 py-0.5 text-[10px] font-semibold text-error-600">Wajib</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div className={["rounded-full px-3 py-1 text-[12px] font-semibold", slotStatusTone].join(" ")}>{slotStatusLabel}</div>
-                            </div>
-
-                            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                              <div>
-                                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Selected file</div>
-                                <div className="mt-1 text-[14px] font-semibold text-neutral-800">{slot.selectedFile ?? "Belum ada file"}</div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <label htmlFor={inputId} className="cursor-pointer">
-                                    Pilih File
-                                  </label>
-                                </Button>
-                                <input
-                                  id={inputId}
-                                  type="file"
-                                  accept=".pdf,.png,.jpg,.jpeg"
-                                  className="hidden"
-                                  onChange={(event) => handleOcrPick(slot.id, event.target.files?.[0] ?? null)}
-                                />
-                                <Button variant="primary" size="sm" onClick={() => handleOcrUpload(slot.id)} disabled={!slot.selectedFile}>
-                                  Upload
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4">
-                      <Button variant="outline" size="sm" onClick={addOcrSlot} startIcon={<PlusSmallIcon />}>
-                        Tambah Dokumen
-                      </Button>
-                    </div>
-                  </section>
-
-                  <div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-5 text-neutral-700">{notice}</div>
-
-                  <div className="rounded-[20px] border border-border-primary bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-end gap-3">
-                      <Button variant="outline" size="sm" onClick={handleContinue}>
-                        Lewati
-                      </Button>
-                      <Button variant="primary" size="sm" onClick={handleContinueToParsing} disabled={!canContinueToParsing}>
-                        Lanjut ke Data Parsing
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {stage === "parsing" && (
-                <ParsingReviewSection
-                  parseConfidence={parseConfidence}
-                  parseConfidenceLabel={parseConfidenceLabel}
-                  parseConfidenceTone={parseConfidence >= 95 ? "border-success-200 bg-success-50 text-success-700" : parseConfidence >= 60 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-error-200 bg-error-50 text-error-700"}
-                  parseSummaryTone={parseConfidence >= 95 ? "border-success-200 bg-success-50/70 text-success-800" : parseConfidence >= 60 ? "border-amber-200 bg-amber-50 text-amber-900" : "border-error-200 bg-error-50/70 text-error-800"}
-                  parseConfidenceHint={
-                    parseConfidence >= 95
-                      ? "Confidence sudah aman untuk lanjut ke form."
-                      : parseConfidence >= 60
-                        ? "Hasil parsing cukup baik, tapi tetap disarankan cek beberapa bagian."
-                        : "Hasil parsing belum stabil. Sebaiknya parse ulang sebelum lanjut."
-                  }
-                  rows={parseRows as ParsingReviewRow[]}
-                  barangCount={parseRows.length}
-                  supportCount={uploadedFiles.length ? 1 : 0}
-                  mappedFields={parseConfidence >= 95 ? 18 : parseConfidence >= 60 ? 12 : 0}
-                  onReparse={() => setParseRevision((current) => current + 1)}
-                  onOpenRow={(row) =>
-                    setSelectedParseRow({
-                      seri: row.seri,
-                      uraian: row.uraian,
-                      hsCode: row.hsCode,
-                      quantity: row.quantity,
-                      source: {
-                        id: row.source.id ?? row.seri,
-                        ...row.source,
-                        kind: row.source.kind ?? (row.source.fileName.toLowerCase().endsWith(".pdf") ? "pdf" : "image"),
-                      },
-                    })
-                  }
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-border-primary bg-[#f8fbff] px-5 py-4 sm:px-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex items-center gap-2 text-[12px] text-neutral-600">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary-50 text-brand-primary-600">
-                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v6h5v2h-7V7h2Z" />
-                  </svg>
-                </span>
-                <span>Data Anda aman dan hanya digunakan untuk keperluan pengajuan.</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <ModalCancelButton onClick={handleDismissRequest} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {dismissConfirmOpen && typeof document !== "undefined"
-          ? createPortal(
-              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
-                <div className="w-full max-w-[520px] rounded-[24px] border border-white/70 bg-white p-5 shadow-[0_32px_90px_rgba(15,23,42,0.35)]">
-                  <div className="flex items-start gap-3">
-                    <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-500/10 text-error-600">
-                      <CloseIcon />
-                    </div>
-                    <div>
-                      <h3 className="text-[20px] font-semibold text-neutral-800">Konfirmasi keluar?</h3>
-                      <p className="mt-1 text-[12px] leading-5 text-neutral-600">
-                        Data parsing sudah tersedia. Apakah Anda yakin ingin keluar dari proses ini?
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <Button variant="outline" size="sm" onClick={() => setDismissConfirmOpen(false)}>
-                      Tidak
-                    </Button>
-                    <Button variant="error" size="sm" onClick={handleConfirmExit}>
-                      Ya
-                    </Button>
-                  </div>
-                </div>
-              </div>,
-              document.body,
-            )
-          : null}
-
-        {selectedParseRow && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6" onClick={(event) => event.target === event.currentTarget && setSelectedParseRow(null)}>
-            <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-3rem)]">
-              <button type="button" className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900" aria-label="Tutup preview detail" onClick={() => setSelectedParseRow(null)}>
-                <CloseIcon />
-              </button>
-
-              <div className="border-b border-border-primary px-5 py-5 pr-16 sm:px-8">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-600">Detail Mapping</div>
-                <h3 className="mt-1 text-[24px] font-semibold text-neutral-800">Seri {selectedParseRow.seri}</h3>
-                <p className="mt-1 max-w-3xl text-[12px] text-neutral-600 sm:text-[13px]">
-                  Lihat data barang yang dipetakan AI beserta sumber OCR yang dipakai untuk baris ini.
-                </p>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
-                  <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                    <div className="border-b border-border-primary pb-3">
-                      <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Data Barang</div>
-                      <div className="mt-1 text-[13px] font-semibold text-neutral-800">Hasil parse untuk seri {selectedParseRow.seri}</div>
-                    </div>
-                    <div className="mt-4 grid gap-2 text-[12px]">
-                      {[
-                        { label: "Seri", value: selectedParseRow.seri },
-                        { label: "Uraian Barang", value: selectedParseRow.uraian },
-                        { label: "HS Code", value: selectedParseRow.hsCode },
-                        { label: "Qty", value: selectedParseRow.quantity },
-                        { label: "Sumber", value: selectedParseRow.source.label },
-                        { label: "File", value: selectedParseRow.source.fileName },
-                      ].map((item) => (
-                        <div key={item.label} className="flex items-start justify-between gap-3 rounded-xl border border-border-primary px-3 py-2">
-                          <span className="text-neutral-600">{item.label}</span>
-                          <span className="text-right font-semibold text-neutral-800">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 rounded-xl border border-brand-primary-100 bg-brand-primary-50/70 p-3 text-[12px] leading-5 text-brand-primary-800">
-                      Confidence parsing global: <span className="font-semibold">{parseConfidence}%</span> {parseConfidenceLabel}
-                    </div>
-                  </section>
-
-                  <section className="rounded-2xl border border-border-primary bg-white p-4 shadow-sm">
-                    <div className="border-b border-border-primary pb-3">
-                      <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-primary-600">Preview Sumber OCR</div>
-                      <div className="mt-1 text-[13px] font-semibold text-neutral-800">{selectedParseRow.source.label}</div>
-                    </div>
-                    <div className="mt-4 h-[520px] overflow-hidden rounded-2xl border border-border-primary bg-background-primary/30">
-                      {selectedParseRow.source.kind === "pdf" ? (
-                        <Worker workerUrl={PDF_WORKER_URL}>
-                          <Viewer fileUrl={`${SAMPLE_DRAFT_PDF}?v=${parseRevision}`} />
-                        </Worker>
-                      ) : (
-                        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600 shadow-sm">
-                            <FileIcon />
-                          </div>
-                          <div className="mt-4 text-[14px] font-semibold text-neutral-800">{selectedParseRow.source.fileName}</div>
-                          <p className="mt-2 max-w-sm text-[12px] leading-5 text-neutral-600">
-                            Preview visual sumber ada pada dokumen OCR yang dipakai AI untuk memetakan baris ini.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                </div>
-              </div>
-
-              <div className="border-t border-border-primary px-5 py-4 sm:px-8">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[12px] text-neutral-600">Tutup detail untuk kembali ke tabel mapping.</div>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedParseRow(null)}>
-                    Tutup
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+                  ) : item.hs}
+                </td>
+                <td className="px-4 py-3">{item.qty}</td>
+                <td className="px-4 py-3">{item.unit}</td>
+                <td className="px-4 py-3">{source}</td>
+                <td className="px-4 py-3"><StatusBadge tone={review && !hs ? "warning" : "success"}>{review && !hs ? "Perlu dicek" : "Sesuai"}</StatusBadge></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
+}
+function ManualPermit({ state, onChange }: { state: Record<string, string>; onChange: (key: string, value: string) => void }) {
+  const fields = [["type", "Jenis Perizinan"], ["number", "Nomor"], ["date", "Tanggal"], ["agency", "Instansi Penerbit"], ["valid", "Masa Berlaku"], ["hs", "HS Code terkait"]];
+  return <div className="mt-4 rounded-2xl border border-brand-primary-100 bg-brand-primary-50/40 p-4"><div className="text-[13px] font-semibold text-neutral-800">Input Manual Perizinan</div><div className="mt-3 grid gap-3 md:grid-cols-2">{fields.map(([key, label]) => <label key={key} className="text-[11px] font-medium text-neutral-600">{label}<input value={state[key] ?? ""} onChange={(event) => onChange(key, event.target.value)} className="mt-1 w-full rounded-lg border border-border-primary bg-white px-3 py-2 text-[12px] text-neutral-800" /></label>)}</div></div>;
+}
+function FinalTable({ source, permit, documents, hsCodes }: { source: string; permit: string; documents: number; hsCodes: Record<string, string> }) {
+  return <div className="overflow-x-auto rounded-2xl border border-border-primary"><table className="min-w-full text-left text-[12px]"><thead className="bg-background-primary/50"><tr>{["Seri", "Uraian Barang", "HS Code", "Sumber Utama", "Perizinan", "Dokumen", "Status"].map((item) => <th key={item} className="px-4 py-3 font-semibold text-neutral-600">{item}</th>)}</tr></thead><tbody>{GOODS.map((item, index) => <tr key={item.seri} className="border-t border-border-primary"><td className="px-4 py-3">{item.seri}</td><td className="px-4 py-3 font-semibold">{item.name}</td><td className="px-4 py-3">{hsCodes[item.seri] || item.hs}</td><td className="px-4 py-3">{source}</td><td className="px-4 py-3">{index === 0 ? permit : "Tidak terindikasi"}</td><td className="px-4 py-3">{documents} file</td><td className="px-4 py-3"><StatusBadge tone={permit === "Belum dipilih" && index === 0 ? "warning" : "success"}>{permit === "Belum dipilih" && index === 0 ? "Perlu Ditinjau" : "Siap"}</StatusBadge></td></tr>)}</tbody></table></div>;
 }

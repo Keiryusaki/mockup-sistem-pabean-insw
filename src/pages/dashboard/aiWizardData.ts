@@ -1,6 +1,14 @@
 import { ASSISTED_WIZARD_TREE } from "./aiWizardTree";
 
-export type WizardStep = "identifikasi" | "dokumen" | "parsing";
+export type WizardStep = "identifikasi" | "data-barang" | "perizinan" | "perizinan-v2" | "lampiran" | "review" | "dokumen" | "parsing";
+
+export type UserScope = {
+  allowedFlow: "IMPORT" | "EXPORT" | "KEK";
+  allowedDocuments: string[];
+  companyName: string;
+  npwp: string;
+  nib: string;
+};
 export type NeedChoice = "pemasukan" | "pengeluaran" | "lainnya";
 export type DetailChoice =
   | "impor_barang"
@@ -51,8 +59,10 @@ export type WizardAnalysis = {
 
 export const STEP_LABELS: Array<{ key: WizardStep; label: string; icon: string }> = [
   { key: "identifikasi", label: "Identifikasi", icon: "1" },
-  { key: "dokumen", label: "Upload Data Barang", icon: "2" },
-  { key: "parsing", label: "Data Parsing", icon: "3" },
+  { key: "data-barang", label: "Data Barang", icon: "2" },
+  { key: "perizinan", label: "Perizinan", icon: "3" },
+  { key: "lampiran", label: "Dokumen Lampiran", icon: "4" },
+  { key: "review", label: "Review Data", icon: "5" },
 ];
 
 export const INITIAL_PROMPT = "Halo! Saya Smart Submission Assistant INSW. Untuk memulai, apa yang ingin Anda lakukan?";

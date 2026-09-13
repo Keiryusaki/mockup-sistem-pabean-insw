@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -7,6 +8,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 
 const cn = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
 
@@ -206,6 +208,8 @@ export function Select({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, width: 0 });
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
   const [rememberedOptions, setRememberedOptions] = useState(options);
@@ -250,7 +254,8 @@ export function Select({
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -265,6 +270,26 @@ export function Select({
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      const trigger = rootRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const viewportPadding = 8;
+      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - width - viewportPadding);
+      setMenuPosition({ top: rect.bottom + 8, left, width });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   const commitValue = (nextValue: string, blurAfterCommit = false) => {
     if (!isControlled) setInternalValue(nextValue);
@@ -337,8 +362,8 @@ export function Select({
           </button>
         </div>
 
-        {open ? (
-          <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-[min(100%,288px)] overflow-hidden rounded-md border border-border-primary bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+        {open ? createPortal(
+          <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }} className="fixed z-[200] overflow-hidden rounded-md border border-border-primary bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
             {searchable ? (
               <div className="border-b border-border-primary bg-white p-2">
                 <input
@@ -407,7 +432,8 @@ export function Select({
                 <div className="px-4 py-3 text-[12px] text-neutral-600">No options found.</div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body,
         ) : null}
       </div>
     </FieldShell>
