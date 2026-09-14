@@ -33,11 +33,10 @@ const GOODS = [
 const SOURCE_DOCUMENTS = [
   { id: "invoice", label: "Invoice", required: true },
   { id: "packing-list", label: "Packing List", required: true },
-  { id: "bill-of-lading", label: "Bill of Lading", required: false },
+  { id: "bill-of-lading", label: "Bill of Lading", required: true },
 ];
 const ATTACHMENT_DOCUMENTS = [
   ...SOURCE_DOCUMENTS.map((item) => ({ ...item, required: true })),
-  { id: "coo", label: "Certificate of Origin (COO)", required: false },
   { id: "support", label: "Dokumen pendukung lain", required: false },
 ];
 const PERMIT_GROUPS = [
@@ -188,6 +187,12 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
     setConversation((current) => [...current, { role: "user", text: choice === "existing" ? `${selectedPermitIds.length} perizinan terpilih` : choice === "manual" ? "Input perizinan manual" : "Lewati perizinan" }, { role: "assistant", text: state.excel.skipped ? "Dokumen OCR akan digunakan sekaligus sebagai lampiran. Silakan review hasil data." : "Apakah Anda ingin mengunggah dokumen lampiran wajib maupun pendukung?" }]);
     setStage(state.excel.skipped ? "review" : "lampiran");
   };
+  const returnToHsValidation = () => {
+    setPermitChecking(false);
+    setDataPhase(state.excel.skipped ? "ocr-result" : "excel-result");
+    setStage("data-barang");
+    setConversation((current) => [...current, { role: "user", text: "Kembali ke Validasi HS Code" }, { role: "assistant", text: state.excel.skipped ? "Silakan periksa kembali pilihan HS Code hasil OCR." : "Silakan periksa kembali hasil validasi HS Code dari Excel." }]);
+  };
   const submitDraft = () => {
     const documents = Array.from(new Set([...uploadedSourceDocs, ...uploadedAttachments]));
     onSubmit({ jenisPengajuan: state.identifiedSubmissionType ?? "BC 2.7 - Pemberitahuan Ekspor Barang (PEB)", namaPerusahaan: state.userScope.companyName, npwp: state.userScope.npwp, nib: state.userScope.nib, keterangan: `Data disiapkan melalui Smart Submission Assistant. Sumber utama: ${source}. HS Code: ${selectedHs.join(", ")}.`, dokumen: documents });
@@ -212,7 +217,7 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
             return <div key={group.hs} className="overflow-hidden rounded-2xl border border-border-primary"><button type="button" onClick={() => setOpenPermitGroups((current) => ({ ...current, [group.hs]: !opened }))} className="flex w-full items-center justify-between gap-3 bg-background-primary/35 px-4 py-3 text-left"><div><div className="text-[13px] font-semibold text-neutral-800">HS {group.hs} — {group.item}</div><div className="mt-1 text-[11px] text-neutral-500">{group.permits.length} perizinan ditemukan · {selectedInGroup} dipilih</div></div><span className="text-brand-primary-700">{opened ? "▴" : "▾"}</span></button>{opened && <div className="space-y-2 p-3">{group.permits.map((permit) => { const checked = selectedPermitIds.includes(permit.id); return <label key={permit.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${checked ? "border-brand-primary-400 bg-brand-primary-50" : "border-border-primary bg-white"}`}><input type="checkbox" checked={checked} onChange={() => setState((current) => { const selected = Array.isArray(current.permits.selected) ? current.permits.selected : []; return { ...current, permits: { ...current.permits, selected: checked ? selected.filter((id) => id !== permit.id) : [...selected, permit.id], choice: null } }; })} className="mt-1 h-4 w-4 accent-blue-700" /><span><span className="block text-[13px] font-semibold text-neutral-800">{permit.name}</span><span className="mt-1 block text-[11px] leading-5 text-neutral-600">{permit.detail}</span></span></label>; })}</div>}</div>;
           })}</div>
           {state.permits.choice === "manual" && <ManualPermit state={state.permits.manual} onChange={(key, value) => setState((current) => ({ ...current, permits: { ...current.permits, manual: { ...current.permits.manual, [key]: value } } }))} />}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><StatusBadge tone="info">{selectedPermitIds.length} perizinan dipilih</StatusBadge><div className="flex flex-wrap gap-3"><Button variant="outline" size="sm" onClick={() => continueAfterPermits("skipped")}>Lewati</Button><Button variant="outline" size="sm" onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, choice: "manual" } }))}>Input Manual</Button>{state.permits.choice === "manual" ? <Button variant="primary" size="sm" onClick={() => continueAfterPermits("manual")}>Simpan dan Lanjut</Button> : <Button variant="primary" size="sm" disabled={!selectedPermitIds.length} onClick={() => continueAfterPermits("existing")}>Gunakan Perizinan Terpilih</Button>}</div></div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap items-center gap-3"><Button variant="outline" size="sm" onClick={returnToHsValidation}>Kembali ke Validasi HS Code</Button><StatusBadge tone="info">{selectedPermitIds.length} perizinan dipilih</StatusBadge></div><div className="flex flex-wrap gap-3"><Button variant="outline" size="sm" onClick={() => continueAfterPermits("skipped")}>Lewati</Button><Button variant="outline" size="sm" onClick={() => setState((current) => ({ ...current, permits: { ...current.permits, choice: "manual" } }))}>Input Manual</Button>{state.permits.choice === "manual" ? <Button variant="primary" size="sm" onClick={() => continueAfterPermits("manual")}>Simpan dan Lanjut</Button> : <Button variant="primary" size="sm" disabled={!selectedPermitIds.length} onClick={() => continueAfterPermits("existing")}>Gunakan Perizinan Terpilih</Button>}</div></div>
         </SectionCard>}
       </>}
       {stage === "identifikasi" && <>
@@ -280,8 +285,27 @@ function GoodsTable({ source, review, hsCodes, onHsChange }: { source: string; r
   );
 }
 function ManualPermit({ state, onChange }: { state: Record<string, string>; onChange: (key: string, value: string) => void }) {
-  const fields = [["type", "Jenis Perizinan"], ["number", "Nomor"], ["date", "Tanggal"], ["agency", "Instansi Penerbit"], ["valid", "Masa Berlaku"], ["hs", "HS Code terkait"]];
-  return <div className="mt-4 rounded-2xl border border-brand-primary-100 bg-brand-primary-50/40 p-4"><div className="text-[13px] font-semibold text-neutral-800">Input Manual Perizinan</div><div className="mt-3 grid gap-3 md:grid-cols-2">{fields.map(([key, label]) => <label key={key} className="text-[11px] font-medium text-neutral-600">{label}<input value={state[key] ?? ""} onChange={(event) => onChange(key, event.target.value)} className="mt-1 w-full rounded-lg border border-border-primary bg-white px-3 py-2 text-[12px] text-neutral-800" /></label>)}</div></div>;
+  return (
+    <div className="mt-4 rounded-2xl border border-brand-primary-100 bg-brand-primary-50/40 p-4">
+      <div className="text-[13px] font-semibold text-neutral-800">Input Manual Perizinan</div>
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <Select
+          label="Jenis Perizinan"
+          value={state.type ?? ""}
+          placeholder="Pilih jenis perizinan"
+          options={[
+            { label: "Perizinan Elektronik", value: "perizinan_elektronik" },
+            { label: "Masterlist Fasilitas", value: "masterlist_fasilitas" },
+            { label: "Sertifikat Produk", value: "sertifikat_produk" },
+            { label: "Perizinan Lainnya", value: "lainnya" },
+          ]}
+          onValueChange={(value) => onChange("type", value)}
+        />
+        <label className="text-[11px] font-medium text-neutral-600">Nomor<input value={state.number ?? ""} onChange={(event) => onChange("number", event.target.value)} className="mt-1.5 h-11 w-full rounded-md border border-border-primary bg-white px-3 text-[12px] text-neutral-800 outline-none focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100" /></label>
+        <label className="text-[11px] font-medium text-neutral-600">Tanggal<input type="date" value={state.date ?? ""} onChange={(event) => onChange("date", event.target.value)} className="mt-1.5 h-11 w-full rounded-md border border-border-primary bg-white px-3 text-[12px] text-neutral-800 outline-none focus:border-brand-primary-500 focus:ring-2 focus:ring-brand-primary-100" /></label>
+      </div>
+    </div>
+  );
 }
 function FinalTable({ source, permit, documents, hsCodes }: { source: string; permit: string; documents: number; hsCodes: Record<string, string> }) {
   return <div className="overflow-x-auto rounded-2xl border border-border-primary"><table className="min-w-full text-left text-[12px]"><thead className="bg-background-primary/50"><tr>{["Seri", "Uraian Barang", "HS Code", "Sumber Utama", "Perizinan", "Dokumen", "Status"].map((item) => <th key={item} className="px-4 py-3 font-semibold text-neutral-600">{item}</th>)}</tr></thead><tbody>{GOODS.map((item, index) => <tr key={item.seri} className="border-t border-border-primary"><td className="px-4 py-3">{item.seri}</td><td className="px-4 py-3 font-semibold">{item.name}</td><td className="px-4 py-3">{hsCodes[item.seri] || item.hs}</td><td className="px-4 py-3">{source}</td><td className="px-4 py-3">{index === 0 ? permit : "Tidak terindikasi"}</td><td className="px-4 py-3">{documents} file</td><td className="px-4 py-3"><StatusBadge tone={permit === "Belum dipilih" && index === 0 ? "warning" : "success"}>{permit === "Belum dipilih" && index === 0 ? "Perlu Ditinjau" : "Siap"}</StatusBadge></td></tr>)}</tbody></table></div>;
