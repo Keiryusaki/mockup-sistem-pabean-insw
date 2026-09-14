@@ -19,11 +19,25 @@ type AssistantState = {
 };
 
 const USER_SCOPE: UserScope = {
-  allowedFlow: "EXPORT",
-  allowedDocuments: ["BC 2.3", "BC 2.7"],
+  allowedFlow: "IMPORT",
+  allowedDocuments: ["BC 1.6", "BC 2.0", "BC 2.3", "FTZ-01", "Pengusaha KEK"],
   companyName: "PT Contoh Nusantara",
   npwp: "01.234.567.8-999.000",
   nib: "1234567890123",
+};
+const DOCUMENT_OPTIONS = [
+  { code: "BC 1.6", title: "BC 1.6", description: "Dokumen pengajuan pemasukan sesuai fasilitas BC 1.6." },
+  { code: "BC 2.0", title: "BC 2.0", description: "Pemberitahuan Impor Barang · Form default" },
+  { code: "BC 2.3", title: "BC 2.3", description: "Dokumen pemasukan barang ke Tempat Penimbunan Berikat." },
+  { code: "FTZ-01", title: "FTZ-01", description: "Pengajuan pemasukan barang untuk kawasan perdagangan bebas." },
+  { code: "Pengusaha KEK", title: "Pengusaha KEK", description: "Pengajuan pemasukan untuk pelaku usaha di Kawasan Ekonomi Khusus." },
+];
+const DOCUMENT_SUBMISSION_LABELS: Record<string, string> = {
+  "BC 1.6": "BC 1.6 - Pengajuan Pemasukan Barang",
+  "BC 2.0": "BC 2.0 - Pemberitahuan Impor Barang (PIB)",
+  "BC 2.3": "BC 2.3 - Pemasukan Barang ke Tempat Penimbunan Berikat",
+  "FTZ-01": "FTZ-01 - Pemasukan Barang ke Kawasan Bebas",
+  "Pengusaha KEK": "Pengajuan Pemasukan Pengusaha KEK",
 };
 const EMPTY_FILE: UploadFileState = { selected: null, uploaded: null };
 const GOODS = [
@@ -104,8 +118,8 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
   const [showAttachmentUpload, setShowAttachmentUpload] = useState(false);
   const [analyzingDocuments, setAnalyzingDocuments] = useState(false);
   const [conversation, setConversation] = useState<ConversationEntry[]>([
-    { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." },
-    { role: "assistant", text: "Apa tujuan pengiriman barang?" },
+    { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan pemasukan." },
+    { role: "assistant", text: "Silakan pilih jenis dokumen pengajuan pemasukan Anda." },
   ]);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [openPermitGroups, setOpenPermitGroups] = useState<Record<string, boolean>>({ "8471.30.10": true, "8504.40.90": true });
@@ -136,8 +150,8 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
     setShowAttachmentUpload(false);
     setAnalyzingDocuments(false);
     setConversation([
-      { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." },
-      { role: "assistant", text: "Apa tujuan pengiriman barang?" },
+      { role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan pemasukan." },
+      { role: "assistant", text: "Silakan pilih jenis dokumen pengajuan pemasukan Anda." },
     ]);
     setHistoryExpanded(true);
   }, [open]);
@@ -148,15 +162,11 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
       ? { ...current, ocr: { ...current.ocr, files: { ...current.ocr.files, [id]: { ...current.ocr.files[id], ...patch } } } }
       : { ...current, attachments: { ...current.attachments, [id]: { ...current.attachments[id], ...patch } } });
   };
-  const answerIdentification = (key: string, value: string) => {
-    setState((current) => ({ ...current, identificationAnswers: { ...current.identificationAnswers, [key]: value } }));
-    setConversation((current) => [...current, { role: "user", text: value }, { role: "assistant", text: "Siapa pihak yang mengajukan ekspor?" }]);
-    setIdentificationQuestion((current) => current + 1);
-  };
-  const finishIdentification = (value: string) => {
-    setState((current) => ({ ...current, identificationAnswers: { ...current.identificationAnswers, pelaku: value }, identifiedSubmissionType: "BC 2.7 - Pemberitahuan Ekspor Barang (PEB)" }));
-    setConversation((current) => [...current, { role: "user", text: value }, { role: "assistant", text: "Pengajuan teridentifikasi sebagai BC 2.7 - Pemberitahuan Ekspor Barang (PEB)." }]);
-    setIdentificationQuestion(2);
+  const selectSubmissionDocument = (documentCode: string) => {
+    const submissionType = DOCUMENT_SUBMISSION_LABELS[documentCode] ?? documentCode;
+    setState((current) => ({ ...current, identificationAnswers: { document: documentCode }, identifiedSubmissionType: submissionType }));
+    setConversation((current) => [...current, { role: "user", text: documentCode }, { role: "assistant", text: `Jenis pengajuan dipilih: ${submissionType}.` }]);
+    setIdentificationQuestion(1);
   };
   const enterPermits = () => {
     setStage("perizinan-v2");
@@ -195,10 +205,10 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
   };
   const submitDraft = () => {
     const documents = Array.from(new Set([...uploadedSourceDocs, ...uploadedAttachments]));
-    onSubmit({ jenisPengajuan: state.identifiedSubmissionType ?? "BC 2.7 - Pemberitahuan Ekspor Barang (PEB)", namaPerusahaan: state.userScope.companyName, npwp: state.userScope.npwp, nib: state.userScope.nib, keterangan: `Data disiapkan melalui Smart Submission Assistant. Sumber utama: ${source}. HS Code: ${selectedHs.join(", ")}.`, dokumen: documents });
+    onSubmit({ jenisPengajuan: state.identifiedSubmissionType ?? "BC 2.0 - Pemberitahuan Impor Barang (PIB)", namaPerusahaan: state.userScope.companyName, npwp: state.userScope.npwp, nib: state.userScope.nib, keterangan: `Data disiapkan melalui Smart Submission Assistant. Sumber utama: ${source}. HS Code: ${selectedHs.join(", ")}.`, dokumen: documents });
     onClose();
   };
-  const resetIdentification = () => { setState(initialState()); setIdentificationQuestion(0); setDataPhase("excel"); setConversation([{ role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan ekspor." }, { role: "assistant", text: "Apa tujuan pengiriman barang?" }]); };
+  const resetIdentification = () => { setState(initialState()); setIdentificationQuestion(0); setDataPhase("excel"); setConversation([{ role: "assistant", text: "Halo! Akses SSO Anda sudah dikenali untuk pengajuan pemasukan." }, { role: "assistant", text: "Silakan pilih jenis dokumen pengajuan pemasukan Anda." }]); };
   if (!open) return null;
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6"><div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[1160px] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-3rem)]">
@@ -221,11 +231,10 @@ export function AiStepModal({ open, onClose, onSubmit }: { open: boolean; onClos
         </SectionCard>}
       </>}
       {stage === "identifikasi" && <>
-        <AssistantMessage>Halo! Akses SSO Anda sudah dikenali. Saya hanya akan menampilkan pilihan pengajuan yang sesuai dengan scope akun.</AssistantMessage>
-        <div className="rounded-2xl border border-brand-primary-100 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Scope dari SSO</div><div className="mt-1 text-[14px] font-semibold text-neutral-800">Pengeluaran / Ekspor</div></div><div className="flex gap-2">{state.userScope.allowedDocuments.map((item) => <StatusBadge key={item} tone="info">{item}</StatusBadge>)}</div></div></div>
-        {identificationQuestion === 0 && <SectionCard eyebrow="Pertanyaan Identifikasi" title="Apa tujuan pengiriman barang?" description="Pilihan pemasukan tidak ditampilkan karena tidak termasuk scope akun Anda."><div className="grid gap-3 md:grid-cols-3">{["Penjualan", "Sample / Pameran", "Perbaikan / Pengembalian"].map((item) => <ChoiceButton key={item} title={item} onClick={() => answerIdentification("tujuan", item)} />)}</div></SectionCard>}
-        {identificationQuestion === 1 && <SectionCard eyebrow="Pertanyaan Identifikasi" title="Siapa pihak yang mengajukan ekspor?"><div className="grid gap-3 md:grid-cols-3">{["Eksportir sendiri", "PPJK mewakili eksportir", "Instansi pemerintah"].map((item) => <ChoiceButton key={item} title={item} onClick={() => finishIdentification(item)} />)}</div></SectionCard>}
-        {identificationQuestion >= 2 && state.identifiedSubmissionType && <SectionCard eyebrow="Hasil Identifikasi" title={state.identifiedSubmissionType} description="Jenis pengajuan disimpulkan dari scope SSO dan jawaban yang Anda berikan."><div className="grid gap-3 md:grid-cols-2"><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Ringkasan jawaban</b><br />Tujuan: {state.identificationAnswers.tujuan}<br />Pengaju: {state.identificationAnswers.pelaku}</div><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Dokumen yang mungkin diperlukan</b><br />Invoice, Packing List, Bill of Lading, dan dokumen perizinan terkait.</div></div><div className="mt-4 flex justify-end gap-3"><Button variant="outline" size="sm" onClick={resetIdentification}>Ubah Jawaban</Button><Button variant="primary" size="sm" onClick={() => setStage("data-barang")}>Lanjut ke Data Barang</Button></div></SectionCard>}
+        <AssistantMessage>Halo! Scope SSO Anda terdeteksi sebagai pemasukan. Pilih jenis dokumen yang ingin dibuat untuk memulai pengajuan.</AssistantMessage>
+        <div className="rounded-2xl border border-brand-primary-100 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Scope dari SSO</div><div className="mt-1 text-[14px] font-semibold text-neutral-800">Pemasukan / Impor</div></div><StatusBadge tone="success">Scope terverifikasi</StatusBadge></div></div>
+        {identificationQuestion === 0 && <SectionCard eyebrow="Pertanyaan Identifikasi" title="Silakan pilih jenis pengajuan Pemasukan Anda:" description="Hanya dokumen yang sesuai dengan scope akun SSO Anda yang ditampilkan."><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{DOCUMENT_OPTIONS.map((document) => <ChoiceButton key={document.code} title={document.title} description={document.description} onClick={() => selectSubmissionDocument(document.code)} />)}</div></SectionCard>}
+        {identificationQuestion >= 1 && state.identifiedSubmissionType && <SectionCard eyebrow="Hasil Identifikasi" title={state.identifiedSubmissionType} description="Jenis pengajuan dipilih dari daftar dokumen pemasukan yang tersedia untuk akun Anda."><div className="grid gap-3 md:grid-cols-2"><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Dokumen pengajuan</b><br />{state.identificationAnswers.document}{state.identificationAnswers.document === "BC 2.0" && <><br /><span className="text-brand-primary-700">Form default pemasukan</span></>}</div><div className="rounded-2xl border border-border-primary bg-background-primary/30 p-4 text-[12px] leading-6 text-neutral-700"><b>Dokumen yang mungkin diperlukan</b><br />Invoice, Packing List, Bill of Lading, dan dokumen perizinan terkait.</div></div><div className="mt-4 flex justify-end gap-3"><Button variant="outline" size="sm" onClick={resetIdentification}>Ubah Pilihan</Button><Button variant="primary" size="sm" onClick={() => setStage("data-barang")}>Lanjut ke Data Barang</Button></div></SectionCard>}
       </>}
 
       {stage === "data-barang" && dataPhase === "excel" && <><AssistantMessage>Unggah Excel sebagai sumber utama data barang. Jika tidak tersedia, Anda dapat menggunakan dokumen untuk identifikasi barang.</AssistantMessage><SectionCard eyebrow="Data Barang" title="Upload Excel Data Barang" description="Gunakan template Excel data barang untuk mempercepat pengisian dan pemetaan data."><FileRow label="Template data barang" required value={state.excel.file} accept=".xls,.xlsx" onPick={(name) => setState((current) => ({ ...current, excel: { ...current.excel, file: { selected: name, uploaded: null } } }))} onUpload={() => setState((current) => ({ ...current, excel: { ...current.excel, file: { ...current.excel.file, uploaded: current.excel.file.selected } } }))} /><div className="mt-4 flex flex-wrap justify-between gap-3"><Button variant="outline" size="sm" onClick={downloadTemplate}>Download Template</Button><div className="flex gap-3"><Button variant="outline" size="sm" onClick={() => { setState((current) => ({ ...current, excel: { ...current.excel, skipped: true } })); setDataPhase("ocr-upload"); }}>Lewati Upload Excel</Button><Button variant="primary" size="sm" disabled={!state.excel.file.uploaded} onClick={() => { setState((current) => ({ ...current, excel: { ...current.excel, parsed: true } })); setDataPhase("excel-result"); }}>Analisis Data Barang</Button></div></div></SectionCard></>}
