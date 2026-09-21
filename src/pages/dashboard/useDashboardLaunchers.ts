@@ -3,8 +3,8 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { copyDataLeafKeys } from "./submissionLauncherData";
 import { buildDraftFromUpload } from "./dashboardUploadFlow";
 import { buildUploadNotice, type CopyProposalRow, type StartChoice, type UploadFlowContext } from "./submissionLauncherData";
-import { storeFormSnapshot } from "./formSnapshotData";
-import type { AiSubmissionDraft } from "./formSnapshotData";
+import { storeFormSnapshot, storeSubmissionPreparation } from "./formSnapshotData";
+import type { AiSubmissionDraft, SubmissionPreparation } from "./formSnapshotData";
 
 export function useDashboardLaunchers() {
   const navigate = useNavigate();
@@ -28,9 +28,10 @@ export function useDashboardLaunchers() {
     }
   }, [location.pathname, location.search, navigate]);
 
-  const handleAiSubmit = (draft: AiSubmissionDraft) => {
+  const handleAiSubmit = (draft: AiSubmissionDraft, preparation: SubmissionPreparation) => {
     storeFormSnapshot("assistant", draft);
-    navigate({ to: "/form" });
+    storeSubmissionPreparation(preparation);
+    navigate({ to: "/extraction" });
   };
 
   const handleStartChoice = (choice: StartChoice) => {

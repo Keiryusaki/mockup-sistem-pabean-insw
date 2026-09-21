@@ -10,6 +10,7 @@ const BREADCRUMBS: Record<string, string> = {
   "/detail": "Data Pengajuan / Detail Pengajuan",
   "/progress": "Data Pengajuan / Progress Pengajuan",
   "/form": "Form Pengajuan",
+  "/extraction": "Formulir Ekstraksi & Rincian",
   "/loading": "Loading State",
   "/component": "Live Docs / Komponen Lokal",
   "/icon": "Live Docs / Icon Set",
@@ -20,8 +21,15 @@ const BREADCRUMBS: Record<string, string> = {
 export function AppLayout() {
   const { location } = useRouterState();
   const breadcrumb = BREADCRUMBS[location.pathname] ?? "Mockup";
-  const action =
-    location.pathname === "/form" || location.pathname === "/progress" || location.pathname === "/detail" ? (
+  const action = location.pathname === "/extraction" ? (
+      <Link
+        to="/dashboard"
+        className="inline-flex items-center gap-1.5 text-white/90 transition-colors hover:text-white"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        <span>Kembali ke Dashboard</span>
+      </Link>
+    ) : location.pathname === "/form" || location.pathname === "/progress" || location.pathname === "/detail" ? (
       <Link
         to="/data"
         search={{ status: undefined } as never}

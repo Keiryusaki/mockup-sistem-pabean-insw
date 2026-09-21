@@ -9,6 +9,38 @@ export type AiSubmissionDraft = {
   dokumen: string[];
 };
 
+export type ExtractionMode = "EXCEL" | "INVOICE_OCR";
+
+export type SubmissionPreparation = {
+  documentType: string;
+  documentLabel?: string;
+  requiredDocuments: string[] | {
+    invoice?: { name: string; size?: number };
+    packingList?: { name: string; size?: number };
+    billOfLadingOrAwb?: { name: string; size?: number };
+  };
+  inputMethod: ExtractionMode;
+  spreadsheet: null | {
+    fileName: string;
+    totalItems: number;
+    totalHsCodes: number;
+    totalCif: number;
+    currency?: string;
+  };
+  permitRequirements: Array<{
+    hsCode: string;
+    permitName: string;
+    customsCode: string;
+    commodity: string;
+    regulation: string;
+    description: string;
+    note: string;
+  }>;
+  hasAdditionalDocuments: boolean;
+  extractionMode: ExtractionMode;
+  initializationComplete?: boolean;
+};
+
 export type FormStateSnapshot = {
   pengajuan: Record<string, string>;
   entitas: Record<string, string>[];
@@ -27,6 +59,7 @@ export const AI_DRAFT_STORAGE_KEY = "insw-ai-submission-draft";
 export const BC20_FORM_STORAGE_KEY = "insw-bc20-form-draft";
 export const FORM_SOURCE_STORAGE_KEY = "insw-form-source";
 export const FORM_NOTICE_STORAGE_KEY = "insw-form-notice";
+export const SUBMISSION_PREPARATION_STORAGE_KEY = "insw-submission-preparation";
 
 export function buildBaseFormSnapshot(
   jenisPengajuan: string,
@@ -134,6 +167,10 @@ export function buildBaseFormSnapshot(
     ],
     karantina: [{ Seri: "1", "Jenis Karantina": "Hewan", "Hasil Pemeriksaan": "Lulus", Keterangan: "-" }],
   };
+}
+
+export function storeSubmissionPreparation(preparation: SubmissionPreparation) {
+  sessionStorage.setItem(SUBMISSION_PREPARATION_STORAGE_KEY, JSON.stringify(preparation));
 }
 
 export function storeFormSnapshot(source: FormSource, draft: AiSubmissionDraft, formState?: FormStateSnapshot, notice?: string) {

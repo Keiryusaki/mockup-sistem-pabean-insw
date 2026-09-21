@@ -12,6 +12,7 @@ import { LoadingPage } from "./pages/LoadingPage";
 import { FeedbackInboxPage } from "./pages/FeedbackInboxPage";
 import { AppSelectorPage } from "./pages/AppSelectorPage";
 import { SmartFormRolePage } from "./pages/SmartFormRolePage";
+import { ExtractionWorkspacePage } from "./pages/ExtractionWorkspacePage";
 import { ClientAppLayout } from "./pages/client/ClientAppLayout";
 import { ClientLoginPage } from "./pages/client/ClientLoginPage";
 import { ClientRelationPage } from "./pages/client/ClientRelationPage";
@@ -120,6 +121,7 @@ const detailRoute = createRoute({
   component: DetailPage,
 });
 const formRoute = createRoute({ getParentRoute: () => smartFormRoute, path: "/form", component: FormPage });
+const extractionRoute = createRoute({ getParentRoute: () => smartFormRoute, path: "/extraction", component: ExtractionWorkspacePage });
 const progressRoute = createRoute({
   getParentRoute: () => smartFormRoute,
   path: "/progress",
@@ -181,6 +183,7 @@ const routeTree = rootRoute.addChildren([
     dataRoute,
     detailRoute,
     formRoute,
+    extractionRoute,
     progressRoute,
     loadingRoute,
     feedbackRoute,

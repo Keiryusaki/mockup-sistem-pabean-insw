@@ -8,17 +8,18 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-export function CollapsibleSectionCard({ title, subtitle, children, defaultOpen = true, headerActions, leadingIcon }: {
+export function CollapsibleSectionCard({ title, subtitle, children, defaultOpen = true, headerActions, leadingIcon, className }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   defaultOpen?: boolean;
   headerActions?: ReactNode;
   leadingIcon?: ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="rounded-2xl border border-border-primary bg-white shadow-sm">
+    <section className={`rounded-2xl border border-border-primary bg-white shadow-sm ${className ?? ""}`}>
       <div className="flex w-full items-center justify-between gap-4 px-4 py-3">
         <button type="button" onClick={() => setOpen((current) => !current)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
           {leadingIcon ? <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-primary-50 text-brand-primary-600">{leadingIcon}</span> : null}
