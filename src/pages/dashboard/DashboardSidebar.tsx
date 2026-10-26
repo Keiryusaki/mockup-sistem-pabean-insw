@@ -5,8 +5,8 @@ import { Tooltip } from "../../components/Tooltip";
 import { useState } from "react";
 
 const MENU_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: HomeIcon },
-  { to: "/data", label: "Data Pengajuan", icon: DocumentsIcon },
+  { to: "/dashboard", label: "Dashboard", icon: HomeIcon, activePaths: ["/dashboard", "/notifikasi", "/pengumuman"] },
+  { to: "/data", label: "Data Pengajuan", icon: DocumentsIcon, activePaths: ["/data"] },
 ] as const;
 
 function SidebarIcon({ active, Icon }: { active?: boolean; Icon: typeof HomeIcon }) {
@@ -49,7 +49,7 @@ export function DashboardSidebar() {
         </div>
         <nav className={["flex flex-row gap-2 overflow-x-auto lg:flex-1 lg:flex-col lg:overflow-visible", collapsed ? "lg:items-center" : ""].join(" ")}>
           {MENU_ITEMS.map((item) => {
-            const active = location.pathname === item.to;
+            const active = (item.activePaths as readonly string[]).includes(location.pathname);
             const Icon = item.icon;
             const itemClassName = [
               "inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-[12px] font-medium transition-colors",

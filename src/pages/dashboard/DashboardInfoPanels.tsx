@@ -1,11 +1,13 @@
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "../../components/Button";
 import { DownloadIcon, EyeIcon, MagniferIcon as SearchIcon, DocumentsIcon } from "../../components/Icons";
+import type { SystemAnnouncement, SystemNotification } from "./dashboardData";
+import { AnnouncementDetailModal, AnnouncementItem, NotificationItem } from "./SystemInfoItems";
 
-export function DashboardNotifications({
-  items,
-}: {
-  items: Array<{ title: string; note: string; badge: string; badgeTone: string }>;
-}) {
+const DASHBOARD_PREVIEW_COUNT = 3;
+
+export function DashboardNotifications({ items }: { items: SystemNotification[] }) {
   return (
     <section className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -18,35 +20,23 @@ export function DashboardNotifications({
             Daftar notifikasi yang penting untuk memantau kondisi pengajuan dan layanan.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="w-fit whitespace-nowrap">
-          Lihat Semua
+        <Button asChild variant="outline" size="sm" className="w-fit whitespace-nowrap">
+          <Link to="/notifikasi" search={{ page: undefined, q: undefined }}>Lihat Semua</Link>
         </Button>
       </div>
 
       <div className="mt-4 space-y-3">
-        {items.map((item) => (
-          <article key={item.title} className="rounded-lg border border-border-primary bg-background-primary/40 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
-                <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.note}</p>
-              </div>
-              <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.badgeTone}`}>
-                {item.badge}
-              </span>
-            </div>
-          </article>
+        {items.slice(0, DASHBOARD_PREVIEW_COUNT).map((item) => (
+          <NotificationItem key={item.id} item={item} />
         ))}
       </div>
     </section>
   );
 }
 
-export function DashboardAnnouncements({
-  items,
-}: {
-  items: Array<{ title: string; category: string; categoryTone: string; date: string; note: string }>;
-}) {
+export function DashboardAnnouncements({ items }: { items: SystemAnnouncement[] }) {
+  const [activeItem, setActiveItem] = useState<SystemAnnouncement | null>(null);
+
   return (
     <section className="rounded-lg border border-border-primary bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border-primary pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -59,29 +49,18 @@ export function DashboardAnnouncements({
             Pengumuman yang berkaitan dengan layanan, jadwal, dan pembaruan dokumen.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="w-fit whitespace-nowrap">
-          Selengkapnya
+        <Button asChild variant="outline" size="sm" className="w-fit whitespace-nowrap">
+          <Link to="/pengumuman" search={{ page: undefined, q: undefined }}>Selengkapnya</Link>
         </Button>
       </div>
 
       <div className="mt-4 space-y-3">
-        {items.map((item) => (
-          <article key={item.title} className="rounded-lg border border-border-primary bg-background-primary/40 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h6 className="text-[13px] font-semibold leading-5 text-neutral-800">{item.title}</h6>
-                  <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.categoryTone}`}>
-                    {item.category}
-                  </span>
-                </div>
-                <p className="mt-2 text-[12px] leading-5 text-neutral-600">{item.note}</p>
-              </div>
-              <div className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700">{item.date}</div>
-            </div>
-          </article>
+        {items.slice(0, DASHBOARD_PREVIEW_COUNT).map((item) => (
+          <AnnouncementItem key={item.id} item={item} onOpen={setActiveItem} />
         ))}
       </div>
+
+      <AnnouncementDetailModal item={activeItem} onClose={() => setActiveItem(null)} />
     </section>
   );
 }

@@ -21,7 +21,7 @@ export function useDashboardLaunchers() {
   const [uploadContext, setUploadContext] = useState<UploadFlowContext | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(location.search as Record<string, string>);
     if (params.get("launcher") === "1") {
       setLauncherOpen(true);
       navigate({ to: location.pathname, search: {} as never, replace: true });

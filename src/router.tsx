@@ -8,6 +8,8 @@ import { DetailPage } from "./pages/DetailPage";
 import { FormPage } from "./pages/FormPage";
 import { IconPage } from "./pages/IconPage";
 import { ProgressPage } from "./pages/ProgressPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { LoadingPage } from "./pages/LoadingPage";
 import { FeedbackInboxPage } from "./pages/FeedbackInboxPage";
 import { AppSelectorPage } from "./pages/AppSelectorPage";
@@ -130,6 +132,25 @@ const progressRoute = createRoute({
   }),
   component: ProgressPage,
 });
+const validatePageSearch = (search: Record<string, unknown>) => {
+  const page = Number(search.page);
+  return {
+    page: Number.isInteger(page) && page > 1 ? page : undefined,
+    q: typeof search.q === "string" && search.q !== "" ? search.q : undefined,
+  };
+};
+const notificationsRoute = createRoute({
+  getParentRoute: () => smartFormRoute,
+  path: "/notifikasi",
+  validateSearch: validatePageSearch,
+  component: NotificationsPage,
+});
+const announcementsRoute = createRoute({
+  getParentRoute: () => smartFormRoute,
+  path: "/pengumuman",
+  validateSearch: validatePageSearch,
+  component: AnnouncementsPage,
+});
 const loadingRoute = createRoute({ getParentRoute: () => smartFormRoute, path: "/loading", component: LoadingPage });
 const feedbackRoute = createRoute({ getParentRoute: () => smartFormRoute, path: "/feedback", component: FeedbackInboxPage });
 const componentRoute = createRoute({ getParentRoute: () => smartFormRoute, path: "/component", component: ComponentDocsPage });
@@ -185,6 +206,8 @@ const routeTree = rootRoute.addChildren([
     formRoute,
     extractionRoute,
     progressRoute,
+    notificationsRoute,
+    announcementsRoute,
     loadingRoute,
     feedbackRoute,
     componentRoute,

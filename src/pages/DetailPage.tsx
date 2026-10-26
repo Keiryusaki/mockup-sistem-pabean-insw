@@ -514,7 +514,7 @@ export function DetailPage() {
   const scrollLockRef = useRef(false);
   const unlockTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
-  const query = new URLSearchParams(location.search);
+  const query = new URLSearchParams(location.search as Record<string, string>);
   const selectedPengajuan = query.get("pengajuan") ?? proposalRows[0]?.pengajuan ?? "-";
   const proposal = proposalRows.find((row) => row.pengajuan === selectedPengajuan) ?? proposalRows[0] ?? null;
 

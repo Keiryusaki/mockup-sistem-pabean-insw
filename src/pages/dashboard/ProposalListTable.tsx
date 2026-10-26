@@ -26,7 +26,7 @@ export function ProposalListTable({
   const [appliedDateFrom, setAppliedDateFrom] = useState("");
   const [appliedDateTo, setAppliedDateTo] = useState("");
   const [pageIndex, setPageIndex] = useState(1);
-  const searchParams = new URLSearchParams(location.search);
+  const searchParams = new URLSearchParams(location.search as Record<string, string>);
   const rawStatusFilter = searchParams.get("status") as "Semua" | ProposalStatus | "Disetujui" | null;
   const statusFilter = rawStatusFilter === "Disetujui" ? "Selesai" : rawStatusFilter ?? "Semua";
   const documentTypeOptions = useMemo(() => ["Semua", ...new Set(proposalRows.map((row) => row.dokumen))], []);

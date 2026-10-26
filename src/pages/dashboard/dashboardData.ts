@@ -152,48 +152,243 @@ export const proposalBadgeVariant: Record<ProposalStatus, "secondary" | "warning
   Ditolak: "error",
 };
 
-export const systemNotifications = [
-  {
-    title: "Pengajuan BC 2.0 membutuhkan perbaikan data barang.",
-    badge: "Perlu Tindakan",
-    badgeTone: "bg-error-100 text-error-700",
-    note: "Ada data barang yang belum sesuai hasil validasi sistem dan perlu dilengkapi sebelum diproses lanjut.",
-  },
-  {
-    title: "Dokumen persetujuan telah diterbitkan.",
-    badge: "Info",
-    badgeTone: "bg-info-100 text-info-700",
-    note: "Sistem sudah menghasilkan dokumen final yang dapat diunduh oleh pengguna terkait.",
-  },
-  {
-    title: "Validasi sistem berhasil dilakukan.",
-    badge: "Penting",
-    badgeTone: "bg-warning-100 text-warning-700",
-    note: "Seluruh data dasar berhasil dibaca dan siap masuk ke tahap pemeriksaan berikutnya.",
-  },
-];
+export type SystemNotification = {
+  id: string;
+  pengajuan: string;
+  title: string;
+  note: string;
+  badge: "Perlu Tindakan" | "Penting" | "Info";
+  badgeTone: string;
+  time: string;
+};
 
-export const systemAnnouncements = [
+const notificationBadgeTone: Record<SystemNotification["badge"], string> = {
+  "Perlu Tindakan": "bg-error-100 text-error-700",
+  Penting: "bg-warning-100 text-warning-700",
+  Info: "bg-info-100 text-info-700",
+};
+
+export const systemNotifications: SystemNotification[] = (
+  [
+    {
+      id: "NTF-012",
+      pengajuan: "2011642ED12320260605000003",
+      title: "Pengajuan BC 2.3 membutuhkan perbaikan data barang.",
+      badge: "Perlu Tindakan",
+      note: "Ada data barang yang belum sesuai hasil validasi sistem dan perlu dilengkapi sebelum diproses lanjut.",
+      time: "06-06-2026, 10:42",
+    },
+    {
+      id: "NTF-011",
+      pengajuan: "2012342ED12320260606000001",
+      title: "Dokumen persetujuan BC 2.0 telah diterbitkan.",
+      badge: "Info",
+      note: "Sistem sudah menghasilkan dokumen final yang dapat diunduh oleh pengguna terkait.",
+      time: "06-06-2026, 09:58",
+    },
+    {
+      id: "NTF-010",
+      pengajuan: "2010142ED12320260606000001",
+      title: "Validasi sistem BC 2.3 berhasil dilakukan.",
+      badge: "Penting",
+      note: "Seluruh data dasar berhasil dibaca dan siap masuk ke tahap pemeriksaan berikutnya.",
+      time: "06-06-2026, 09:21",
+    },
+    {
+      id: "NTF-009",
+      pengajuan: "2010142ED12320260606000001",
+      title: "Pengajuan BC 2.3 masuk tahap Review Bea Cukai.",
+      badge: "Info",
+      note: "Pengajuan sedang diperiksa petugas. Pantau progres untuk melihat respon instansi terbaru.",
+      time: "06-06-2026, 09:05",
+    },
+    {
+      id: "NTF-008",
+      pengajuan: "2011642ED12320260605000005",
+      title: "Pengajuan BC 2.0 ditolak oleh instansi.",
+      badge: "Perlu Tindakan",
+      note: "Alasan penolakan sudah tersedia. Periksa catatan instansi sebelum membuat pengajuan baru.",
+      time: "05-06-2026, 16:10",
+    },
+    {
+      id: "NTF-007",
+      pengajuan: "2011642ED12320260605000004",
+      title: "Dokumen persetujuan BC 2.16 telah diterbitkan.",
+      badge: "Info",
+      note: "Dokumen final sudah tersedia dan dapat diunduh dari halaman progres pengajuan.",
+      time: "05-06-2026, 13:30",
+    },
+    {
+      id: "NTF-006",
+      pengajuan: "2011642ED12320260605000004",
+      title: "Pembayaran PNBP BC 2.16 terkonfirmasi.",
+      badge: "Penting",
+      note: "Bukti bayar sudah tervalidasi dan pengajuan diteruskan ke tahap penerbitan dokumen.",
+      time: "05-06-2026, 12:02",
+    },
+    {
+      id: "NTF-005",
+      pengajuan: "2011642ED12320260605000003",
+      title: "Pengajuan BC 2.3 ditolak dan dapat diperbaiki.",
+      badge: "Perlu Tindakan",
+      note: "Instansi meminta perbaikan dokumen pendukung. Pengajuan dapat diedit dan dikirim ulang.",
+      time: "04-06-2026, 18:20",
+    },
+    {
+      id: "NTF-004",
+      pengajuan: "2011642ED12320260605000003",
+      title: "Pengajuan BC 2.3 berhasil dikirim.",
+      badge: "Info",
+      note: "Pengajuan sudah diterima sistem dan menunggu validasi otomatis.",
+      time: "04-06-2026, 17:05",
+    },
+    {
+      id: "NTF-003",
+      pengajuan: "2012342ED12320260606000001",
+      title: "Hasil pemeriksaan BC 2.0 sesuai.",
+      badge: "Penting",
+      note: "Tidak ditemukan selisih antara dokumen dan hasil pemeriksaan fisik barang.",
+      time: "03-06-2026, 14:47",
+    },
+    {
+      id: "NTF-002",
+      pengajuan: "2011642ED12320260605000005",
+      title: "Lampiran invoice BC 2.0 tidak terbaca.",
+      badge: "Perlu Tindakan",
+      note: "File lampiran terdeteksi rusak atau terlalu buram. Unggah ulang lampiran dengan kualitas lebih baik.",
+      time: "03-06-2026, 10:15",
+    },
+    {
+      id: "NTF-001",
+      pengajuan: "2011642ED12320260605000004",
+      title: "Pengajuan BC 2.16 berhasil dikirim.",
+      badge: "Info",
+      note: "Pengajuan sudah diterima sistem dan menunggu validasi otomatis.",
+      time: "02-06-2026, 08:30",
+    },
+  ] as Array<Omit<SystemNotification, "badgeTone">>
+).map((item) => ({ ...item, badgeTone: notificationBadgeTone[item.badge] }));
+
+export type SystemAnnouncement = {
+  id: string;
+  title: string;
+  category: string;
+  categoryTone: string;
+  date: string;
+  note: string;
+  content: string[];
+};
+
+export const systemAnnouncements: SystemAnnouncement[] = [
   {
+    id: "ANN-009",
     title: "Pemeliharaan sistem terjadwal",
     category: "Jadwal",
     categoryTone: "bg-brand-primary-100 text-brand-primary-700",
     date: "08 Jul 2026",
     note: "Akses layanan akan dibatasi sementara selama proses pemeliharaan rutin berlangsung.",
+    content: [
+      "Dalam rangka peningkatan kualitas layanan, akan dilakukan pemeliharaan sistem rutin pada Sabtu, 11 Juli 2026 pukul 22.00 – 02.00 WIB.",
+      "Selama periode tersebut, pembuatan dan pengiriman pengajuan baru tidak dapat dilakukan. Pengajuan yang sudah terkirim tetap diproses setelah pemeliharaan selesai.",
+      "Mohon menyelesaikan pengiriman pengajuan sebelum jadwal pemeliharaan untuk menghindari keterlambatan.",
+    ],
   },
   {
+    id: "ANN-008",
     title: "Perubahan format template dokumen",
     category: "Template",
     categoryTone: "bg-info-100 text-info-700",
     date: "10 Jul 2026",
     note: "Template pengajuan dan lampiran barang mendapat penyesuaian untuk menyamakan struktur data.",
+    content: [
+      "Template pengajuan dan lampiran data barang diperbarui untuk menyamakan struktur data antar jenis dokumen.",
+      "Perubahan utama meliputi penambahan kolom kode HS 10 digit, satuan barang terstandar, dan negara asal dalam format kode ISO.",
+      "Template lama masih dapat digunakan hingga 31 Juli 2026. Silakan unduh template terbaru pada bagian Panduan Penggunaan.",
+    ],
   },
   {
+    id: "ANN-007",
     title: "Informasi integrasi layanan INSW",
     category: "Integrasi",
     categoryTone: "bg-success-100 text-success-700",
     date: "12 Jul 2026",
     note: "Sinkronisasi antar layanan dan validasi sumber data dilakukan secara bertahap.",
+    content: [
+      "Integrasi layanan dengan sistem INSW dilakukan secara bertahap untuk memastikan konsistensi data antar instansi.",
+      "Selama proses sinkronisasi, status pengajuan mungkin membutuhkan waktu lebih lama untuk diperbarui. Data tidak akan hilang.",
+    ],
+  },
+  {
+    id: "ANN-006",
+    title: "Fitur ekstraksi dokumen otomatis tersedia",
+    category: "Fitur Baru",
+    categoryTone: "bg-brand-secondary-100 text-brand-secondary-700",
+    date: "01 Jul 2026",
+    note: "Pengguna dapat mengunggah dokumen pendukung dan sistem akan mengisi form secara otomatis.",
+    content: [
+      "Fitur Smart Submission kini dapat membaca invoice, packing list, dan bill of lading untuk mengisi form pengajuan secara otomatis.",
+      "Hasil ekstraksi tetap perlu ditinjau sebelum pengajuan dikirim. Kolom dengan tingkat keyakinan rendah akan ditandai untuk diperiksa.",
+    ],
+  },
+  {
+    id: "ANN-005",
+    title: "Penyesuaian jam layanan helpdesk",
+    category: "Layanan",
+    categoryTone: "bg-neutral-100 text-neutral-700",
+    date: "25 Jun 2026",
+    note: "Helpdesk kini melayani hingga pukul 21.00 WIB pada hari kerja.",
+    content: [
+      "Mulai 1 Juli 2026, layanan helpdesk tersedia Senin – Jumat pukul 07.00 – 21.00 WIB dan Sabtu pukul 08.00 – 14.00 WIB.",
+      "Pengaduan di luar jam layanan tetap dapat dikirim melalui formulir masukan dan akan ditindaklanjuti pada hari kerja berikutnya.",
+    ],
+  },
+  {
+    id: "ANN-004",
+    title: "Pembaruan referensi kode HS",
+    category: "Template",
+    categoryTone: "bg-info-100 text-info-700",
+    date: "20 Jun 2026",
+    note: "Referensi kode HS diperbarui mengikuti BTKI terbaru.",
+    content: [
+      "Referensi kode HS pada form pengajuan diperbarui mengikuti Buku Tarif Kepabeanan Indonesia (BTKI) terbaru.",
+      "Pengajuan draft yang menggunakan kode HS lama akan diberi tanda peringatan dan perlu disesuaikan sebelum dikirim.",
+    ],
+  },
+  {
+    id: "ANN-003",
+    title: "Pemeliharaan server penyimpanan dokumen",
+    category: "Jadwal",
+    categoryTone: "bg-brand-primary-100 text-brand-primary-700",
+    date: "14 Jun 2026",
+    note: "Unduh dokumen persetujuan tidak tersedia sementara selama 2 jam.",
+    content: [
+      "Pada Minggu, 14 Juni 2026 pukul 01.00 – 03.00 WIB dilakukan pemeliharaan server penyimpanan dokumen.",
+      "Selama periode tersebut, dokumen persetujuan tidak dapat diunduh. Fitur lainnya tetap berjalan normal.",
+    ],
+  },
+  {
+    id: "ANN-002",
+    title: "Login wajib menggunakan SSO",
+    category: "Integrasi",
+    categoryTone: "bg-success-100 text-success-700",
+    date: "05 Jun 2026",
+    note: "Seluruh pengguna wajib masuk menggunakan akun SSO yang terdaftar.",
+    content: [
+      "Mulai 5 Juni 2026, login dengan username dan password lokal tidak lagi tersedia. Seluruh pengguna wajib masuk menggunakan akun SSO.",
+      "Pastikan akun SSO sudah terhubung dengan entitas perusahaan agar data pengajuan dapat diakses.",
+    ],
+  },
+  {
+    id: "ANN-001",
+    title: "Peluncuran Smart Form LNSW",
+    category: "Fitur Baru",
+    categoryTone: "bg-brand-secondary-100 text-brand-secondary-700",
+    date: "01 Jun 2026",
+    note: "Smart Form resmi digunakan untuk pengajuan dokumen kepabeanan.",
+    content: [
+      "Smart Form LNSW resmi digunakan sebagai kanal pengajuan dokumen kepabeanan mulai 1 Juni 2026.",
+      "Panduan penggunaan dan contoh dokumen tersedia di dashboard untuk membantu proses transisi.",
+    ],
   },
 ];
 
